@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { buildSnapCandidates } from '@/lib/geometry';
+import { buildSnapCandidates, constrainAngle } from '@/lib/geometry';
 import { snapCursor } from '@/components/tools/useSnap';
 import { useAnnotationStore } from '@/store/annotationStore';
+import { useViewportStore } from '@/store/viewportStore';
 import type { Annotation, Point } from '@/types';
 
-type DragState =
-  | { kind: 'vertex'; annotationId: string; index: number; originalPoints: Point[] }
-  | { kind: 'body'; annotationId: string; originalPoints: Point[]; startPdf: Point };
+type DragState = { annotationId: string; index: number; originalPoints: Point[] };
 
 export function useSelectTool(zoom: number, svgRef: RefObject<SVGSVGElement | null>) {
   const updateAnnotation = useAnnotationStore((s) => s.updateAnnotation);
@@ -24,21 +23,11 @@ export function useSelectTool(zoom: number, svgRef: RefObject<SVGSVGElement | nu
 
   function startVertexDrag(annotation: Annotation, index: number, e: React.MouseEvent) {
     if (annotation.locked) return;
+    // Holding space always means "pan" — let the event bubble to the container so it can drag the view instead.
+    if (useViewportStore.getState().isSpaceDown) return;
     e.stopPropagation();
     setSelected(annotation.id);
-    const next: DragState = { kind: 'vertex', annotationId: annotation.id, index, originalPoints: annotation.points };
-    dragRef.current = next;
-    setDrag(next);
-    livePointsRef.current = annotation.points;
-    setLivePoints(annotation.points);
-  }
-
-  function startBodyDrag(annotation: Annotation, e: React.MouseEvent) {
-    if (annotation.locked) return;
-    e.stopPropagation();
-    setSelected(annotation.id);
-    const startPdf = clientToPdf(e.clientX, e.clientY);
-    const next: DragState = { kind: 'body', annotationId: annotation.id, originalPoints: annotation.points, startPdf };
+    const next: DragState = { annotationId: annotation.id, index, originalPoints: annotation.points };
     dragRef.current = next;
     setDrag(next);
     livePointsRef.current = annotation.points;
@@ -52,19 +41,20 @@ export function useSelectTool(zoom: number, svgRef: RefObject<SVGSVGElement | nu
       const current = dragRef.current;
       if (!current) return;
       const cursorPdf = clientToPdf(e.clientX, e.clientY);
+      const originalVertex = current.originalPoints[current.index];
 
-      let next: Point[];
-      if (current.kind === 'vertex') {
+      let point: Point;
+      if (useViewportStore.getState().isShiftDown) {
+        point = constrainAngle(originalVertex, cursorPdf);
+      } else {
         const allAnnotations = useAnnotationStore.getState().annotations;
         const candidates = buildSnapCandidates(allAnnotations, current.annotationId);
-        const { point } = snapCursor(cursorPdf, candidates, zoom);
-        next = [...current.originalPoints];
-        next[current.index] = point;
-      } else {
-        const dx = cursorPdf.x - current.startPdf.x;
-        const dy = cursorPdf.y - current.startPdf.y;
-        next = current.originalPoints.map((p) => ({ x: p.x + dx, y: p.y + dy }));
+        point = snapCursor(cursorPdf, candidates, zoom).point;
       }
+
+      const next = [...current.originalPoints];
+      next[current.index] = point;
+
       livePointsRef.current = next;
       setLivePoints(next);
     }
@@ -116,7 +106,6 @@ export function useSelectTool(zoom: number, svgRef: RefObject<SVGSVGElement | nu
     isDragging: drag !== null,
     livePointsFor,
     startVertexDrag,
-    startBodyDrag,
     insertPoint,
   };
 }

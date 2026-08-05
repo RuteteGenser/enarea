@@ -8,12 +8,13 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
 }
 
-const TOOL_KEYS: Record<string, 'select' | 'line' | 'rectangle' | 'polygon' | 'pan'> = {
+const TOOL_KEYS: Record<string, 'select' | 'line' | 'rectangle' | 'polygon' | 'pan' | 'detect'> = {
   v: 'select',
   l: 'line',
   r: 'rectangle',
   p: 'polygon',
   h: 'pan',
+  d: 'detect',
 };
 
 export function useKeyboardShortcuts(enabled: boolean) {
@@ -27,6 +28,10 @@ export function useKeyboardShortcuts(enabled: boolean) {
         e.preventDefault();
         useViewportStore.getState().setSpaceDown(true);
         return;
+      }
+
+      if (e.key === 'Shift') {
+        useViewportStore.getState().setShiftDown(true);
       }
 
       const mod = e.ctrlKey || e.metaKey;
@@ -76,13 +81,25 @@ export function useKeyboardShortcuts(enabled: boolean) {
       if (e.code === 'Space') {
         useViewportStore.getState().setSpaceDown(false);
       }
+      if (e.key === 'Shift') {
+        useViewportStore.getState().setShiftDown(false);
+      }
+    }
+
+    function handleBlur() {
+      // The window can lose focus while a modifier is physically held (e.g. alt-tab),
+      // which means no keyup ever fires — reset so tools don't get stuck constrained/panning.
+      useViewportStore.getState().setSpaceDown(false);
+      useViewportStore.getState().setShiftDown(false);
     }
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
     };
   }, [enabled]);
 }

@@ -56,7 +56,7 @@ export default function ProjectCard({ project, onRename, onDelete }: ProjectCard
               <MoreVertical className="size-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
             <DropdownMenuItem onSelect={onRename}>
               <Pencil /> Endre navn
             </DropdownMenuItem>

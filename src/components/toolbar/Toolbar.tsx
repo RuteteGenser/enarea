@@ -4,6 +4,7 @@ import {
   Slash,
   Square,
   Hexagon,
+  Wand2,
   Ruler,
   Undo2,
   Redo2,
@@ -90,6 +91,16 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
             onClick={() => setTool(t.id)}
           />
         ))}
+
+        <ToolButton
+          icon={Wand2}
+          label="Gjenkjenn rom"
+          shortcut="D"
+          active={tool === 'detect'}
+          disabled={!calibrated}
+          disabledReason="Kalibrer PDF-en først"
+          onClick={() => setTool('detect')}
+        />
 
         <Separator orientation="vertical" className="mx-1 h-6" />
 

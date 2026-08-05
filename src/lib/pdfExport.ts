@@ -1,6 +1,7 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { distance, polygonArea } from '@/lib/geometry';
 import { formatArea, formatLength, metersPerUnit } from '@/lib/calibration';
+import { displayName, TYPE_LABEL_NB } from '@/lib/annotationLabel';
 import { ANNOTATION_COLORS } from '@/types';
 import type { Annotation, PdfFile, Project, Unit } from '@/types';
 
@@ -23,12 +24,6 @@ function annotationValueLabel(annotation: Annotation, mpu: number, unit: Unit): 
   }
   return formatArea(polygonArea(annotation.points) * mpu * mpu, unit);
 }
-
-const TYPE_LABEL_NB: Record<Annotation['type'], string> = {
-  line: 'Linje',
-  rectangle: 'Rektangel',
-  polygon: 'Polygon',
-};
 
 function drawCoverPage(
   doc: PDFDocument,
@@ -102,7 +97,7 @@ function drawCoverPage(
         height: 8,
         color: hexToRgb01(ANNOTATION_COLORS[annotation.color]),
       });
-      page.drawText(annotation.name ?? TYPE_LABEL_NB[annotation.type], {
+      page.drawText(displayName(annotation), {
         x: MARGIN + 14,
         y,
         size: 10,
@@ -152,12 +147,12 @@ function drawAnnotationsOnPage(page: PDFPage, annotations: Annotation[], font: P
     const flipped = annotation.points.map((p) => flip(p.x, p.y));
 
     if (annotation.type === 'line') {
-      page.drawLine({ start: flipped[0], end: flipped[1], thickness: 2, color });
+      page.drawLine({ start: flipped[0], end: flipped[1], thickness: 1, color });
     } else {
       for (let i = 0; i < flipped.length; i++) {
         const a = flipped[i];
         const b = flipped[(i + 1) % flipped.length];
-        page.drawLine({ start: a, end: b, thickness: 2, color });
+        page.drawLine({ start: a, end: b, thickness: 1, color });
       }
     }
 
@@ -174,7 +169,6 @@ function drawAnnotationsOnPage(page: PDFPage, annotations: Annotation[], font: P
       width: textWidth + 8,
       height: 13,
       color: rgb(1, 1, 1),
-      opacity: 0.85,
     });
     page.drawText(labelText, { x: centroid.x - textWidth / 2, y: centroid.y - 1, size: 9, font, color: rgb(0.1, 0.1, 0.12) });
   }
@@ -196,6 +190,6 @@ export async function exportProjectPdf(project: Project, filesData: ExportFileDa
     drawAnnotationsOnPage(copiedPage, annotations, font, unit, mpu);
   }
 
-  const bytes = await outDoc.save();
+  const bytes = await outDoc.save({ useObjectStreams: true });
   return new Blob([bytes as BlobPart], { type: 'application/pdf' });
 }

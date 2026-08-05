@@ -1,6 +1,6 @@
 export type Point = { x: number; y: number };
 
-export type ToolId = 'select' | 'line' | 'rectangle' | 'polygon' | 'calibrate' | 'pan';
+export type ToolId = 'select' | 'line' | 'rectangle' | 'polygon' | 'calibrate' | 'pan' | 'detect';
 
 export type Unit = 'm' | 'mm';
 

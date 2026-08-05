@@ -29,6 +29,21 @@ export function polygonPerimeter(points: Point[]): number {
   return sum;
 }
 
+/** Snaps `cursor` to the nearest 45° increment (horizontal/vertical/diagonal) around `reference`, preserving distance. */
+export function constrainAngle(reference: Point, cursor: Point): Point {
+  const dx = cursor.x - reference.x;
+  const dy = cursor.y - reference.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist === 0) return cursor;
+  const angle = Math.atan2(dy, dx);
+  const step = Math.PI / 4;
+  const snappedAngle = Math.round(angle / step) * step;
+  return {
+    x: reference.x + dist * Math.cos(snappedAngle),
+    y: reference.y + dist * Math.sin(snappedAngle),
+  };
+}
+
 export function rectangleFromCorners(a: Point, b: Point): Point[] {
   return [
     { x: a.x, y: a.y },

@@ -12,6 +12,7 @@ type ViewportStore = {
   showAnnotations: boolean;
   panelOpen: boolean;
   isSpaceDown: boolean;
+  isShiftDown: boolean;
 
   setTool: (tool: ToolId) => void;
   setZoom: (zoom: number) => void;
@@ -21,6 +22,7 @@ type ViewportStore = {
   toggleAnnotationsVisible: () => void;
   togglePanel: () => void;
   setSpaceDown: (down: boolean) => void;
+  setShiftDown: (down: boolean) => void;
 };
 
 export const useViewportStore = create<ViewportStore>((set, get) => ({
@@ -31,6 +33,7 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   showAnnotations: true,
   panelOpen: true,
   isSpaceDown: false,
+  isShiftDown: false,
 
   setTool: (tool) => set({ tool }),
   setZoom: (zoom) => set({ zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom)) }),
@@ -43,4 +46,5 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   toggleAnnotationsVisible: () => set((s) => ({ showAnnotations: !s.showAnnotations })),
   togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
   setSpaceDown: (down) => set({ isSpaceDown: down }),
+  setShiftDown: (down) => set({ isShiftDown: down }),
 }));

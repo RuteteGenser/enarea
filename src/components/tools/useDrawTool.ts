@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
-import { distance, rectangleFromCorners } from '@/lib/geometry';
-import { createId, defaultAnnotationName } from '@/lib/id';
+import { constrainAngle, distance, rectangleFromCorners } from '@/lib/geometry';
+import { createId } from '@/lib/id';
 import { useSnapCandidates, snapCursor } from '@/components/tools/useSnap';
 import { useAnnotationStore } from '@/store/annotationStore';
+import { useViewportStore } from '@/store/viewportStore';
 import type { Annotation, AnnotationType, Point, ToolId } from '@/types';
 
 const MIN_DRAG_PDF_UNITS = 2;
 
-function buildAnnotation(type: AnnotationType, points: Point[], fileId: string, existing: Annotation[]): Annotation {
+function buildAnnotation(type: AnnotationType, points: Point[], fileId: string): Annotation {
   const now = Date.now();
   return {
     id: createId(),
@@ -15,7 +16,7 @@ function buildAnnotation(type: AnnotationType, points: Point[], fileId: string, 
     type,
     points,
     edges: type !== 'line' ? points.map(() => ({})) : undefined,
-    name: defaultAnnotationName(type, existing),
+    name: undefined,
     color: 'blue',
     locked: false,
     visible: true,
@@ -56,26 +57,41 @@ export function useDrawTool(tool: ToolId, fileId: string, zoom: number) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  function resolvePoint(e: ReactMouseEvent<SVGSVGElement>): Point {
+  /** Line/polygon segments are constrained relative to the last placed point; rectangle isn't (no natural axis-lock there). */
+  function getReferencePoint(): Point | null {
+    if (tool === 'line' || tool === 'polygon') {
+      return pointsRef.current.length > 0 ? pointsRef.current[pointsRef.current.length - 1] : null;
+    }
+    return null;
+  }
+
+  function resolvePoint(e: ReactMouseEvent<SVGSVGElement>, referencePoint: Point | null = null): Point {
     const rect = e.currentTarget.getBoundingClientRect();
     const raw = { x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom };
+
+    if (referencePoint && useViewportStore.getState().isShiftDown) {
+      setSnapped(null);
+      return constrainAngle(referencePoint, raw);
+    }
+
     const { point, snappedTo } = snapCursor(raw, snapCandidates, zoom);
     setSnapped(snappedTo);
     return point;
   }
 
   function commit(type: AnnotationType, finalPoints: Point[]) {
-    const annotation = buildAnnotation(type, finalPoints, fileId, useAnnotationStore.getState().annotations);
+    const annotation = buildAnnotation(type, finalPoints, fileId);
     addAnnotation(annotation);
   }
 
   function onMouseMove(e: ReactMouseEvent<SVGSVGElement>) {
-    if (!isDrawTool) return;
-    setCursor(resolvePoint(e));
+    if (!isDrawTool || useViewportStore.getState().isSpaceDown) return;
+    setCursor(resolvePoint(e, getReferencePoint()));
   }
 
   function onMouseDown(e: ReactMouseEvent<SVGSVGElement>) {
-    if (tool !== 'rectangle') return;
+    // Holding space always means "pan" — leave dragStart unset so the container drags the view instead.
+    if (tool !== 'rectangle' || useViewportStore.getState().isSpaceDown) return;
     const p = resolvePoint(e);
     setDragStart(p);
   }
@@ -91,7 +107,8 @@ export function useDrawTool(tool: ToolId, fileId: string, zoom: number) {
 
   function onClick(e: ReactMouseEvent<SVGSVGElement>) {
     if (tool !== 'line' && tool !== 'polygon') return;
-    const p = resolvePoint(e);
+    if (useViewportStore.getState().isSpaceDown) return;
+    const p = resolvePoint(e, getReferencePoint());
     if (tool === 'line') {
       pointsRef.current = [...pointsRef.current, p];
       setPoints(pointsRef.current);
@@ -106,7 +123,7 @@ export function useDrawTool(tool: ToolId, fileId: string, zoom: number) {
   }
 
   function onDoubleClick(e: ReactMouseEvent<SVGSVGElement>) {
-    if (tool !== 'polygon') return;
+    if (tool !== 'polygon' || useViewportStore.getState().isSpaceDown) return;
     e.preventDefault();
     const finalPoints = pointsRef.current.slice(0, -1);
     if (finalPoints.length >= 3) {

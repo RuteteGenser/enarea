@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildSnapCandidates,
+  constrainAngle,
   distance,
   findSnapCandidate,
   midpoint,
@@ -19,6 +20,38 @@ describe('distance', () => {
 describe('midpoint', () => {
   it('averages two points', () => {
     expect(midpoint({ x: 0, y: 0 }, { x: 10, y: 4 })).toEqual({ x: 5, y: 2 });
+  });
+});
+
+describe('constrainAngle', () => {
+  it('leaves a purely horizontal cursor unchanged', () => {
+    const result = constrainAngle({ x: 0, y: 0 }, { x: 10, y: 0 });
+    expect(result.x).toBeCloseTo(10, 6);
+    expect(result.y).toBeCloseTo(0, 6);
+  });
+
+  it('leaves a purely vertical cursor unchanged', () => {
+    const result = constrainAngle({ x: 0, y: 0 }, { x: 0, y: 10 });
+    expect(result.x).toBeCloseTo(0, 6);
+    expect(result.y).toBeCloseTo(10, 6);
+  });
+
+  it('snaps a near-diagonal cursor to exactly 45 degrees, preserving distance', () => {
+    const reference = { x: 0, y: 0 };
+    const cursor = { x: 10, y: 9 }; // close to but not exactly 45°
+    const result = constrainAngle(reference, cursor);
+    expect(result.x).toBeCloseTo(result.y, 6);
+    expect(distance(reference, result)).toBeCloseTo(distance(reference, cursor), 6);
+  });
+
+  it('snaps a mostly-horizontal cursor to the horizontal axis', () => {
+    const result = constrainAngle({ x: 5, y: 5 }, { x: 15, y: 6 });
+    expect(result.y).toBeCloseTo(5, 6);
+  });
+
+  it('returns the reference point unchanged when cursor is at the same position', () => {
+    const reference = { x: 3, y: 4 };
+    expect(constrainAngle(reference, { x: 3, y: 4 })).toEqual({ x: 3, y: 4 });
   });
 });
 

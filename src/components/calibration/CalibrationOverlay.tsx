@@ -1,6 +1,8 @@
 import { useEffect, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import CalibrationDialog from '@/components/calibration/CalibrationDialog';
 import { useSnapCandidates, snapCursor } from '@/components/tools/useSnap';
+import { constrainAngle } from '@/lib/geometry';
+import { cn } from '@/lib/utils';
 import { useFilesStore } from '@/store/filesStore';
 import { useViewportStore } from '@/store/viewportStore';
 import type { Point } from '@/types';
@@ -16,6 +18,7 @@ type CalibrationOverlayProps = {
 export default function CalibrationOverlay({ fileId, zoom, width, height, calibrated }: CalibrationOverlayProps) {
   const setCalibration = useFilesStore((s) => s.setCalibration);
   const setTool = useViewportStore((s) => s.setTool);
+  const isSpaceDown = useViewportStore((s) => s.isSpaceDown);
   const snapCandidates = useSnapCandidates();
 
   const [points, setPoints] = useState<Point[]>([]);
@@ -26,16 +29,24 @@ export default function CalibrationOverlay({ fileId, zoom, width, height, calibr
   function toPdfPoint(e: ReactMouseEvent<SVGSVGElement>): Point {
     const rect = e.currentTarget.getBoundingClientRect();
     const raw = { x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom };
+
+    if (points.length === 1 && useViewportStore.getState().isShiftDown) {
+      setSnapped(null);
+      return constrainAngle(points[0], raw);
+    }
+
     const { point, snappedTo } = snapCursor(raw, snapCandidates, zoom);
     setSnapped(snappedTo);
     return point;
   }
 
   function handleMouseMove(e: ReactMouseEvent<SVGSVGElement>) {
+    if (useViewportStore.getState().isSpaceDown) return;
     setCursor(toPdfPoint(e));
   }
 
   function handleClick(e: ReactMouseEvent<SVGSVGElement>) {
+    if (useViewportStore.getState().isSpaceDown) return;
     const point = toPdfPoint(e);
     if (points.length === 0) {
       setPoints([point]);
@@ -58,7 +69,7 @@ export default function CalibrationOverlay({ fileId, zoom, width, height, calibr
   return (
     <>
       <svg
-        className="absolute inset-0 cursor-crosshair outline-none"
+        className={cn('absolute inset-0 outline-none', !isSpaceDown && 'cursor-crosshair')}
         width={width}
         height={height}
         viewBox={`0 0 ${width} ${height}`}

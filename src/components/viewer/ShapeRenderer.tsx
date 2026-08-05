@@ -11,7 +11,6 @@ type ShapeRendererProps = {
   unit: Unit;
   selected: boolean;
   onSelect?: (id: string) => void;
-  onBodyMouseDown?: (e: React.MouseEvent) => void;
 };
 
 export default function ShapeRenderer({
@@ -22,7 +21,6 @@ export default function ShapeRenderer({
   unit,
   selected,
   onSelect,
-  onBodyMouseDown,
 }: ShapeRendererProps) {
   if (!annotation.visible) return null;
 
@@ -52,14 +50,12 @@ export default function ShapeRenderer({
 
   const pointsAttr = screenPoints.map((p) => `${p.x},${p.y}`).join(' ');
   const strokeDasharray = annotation.locked ? '5 3' : undefined;
-  const interactive = !!onSelect && !annotation.locked;
+  const labelText = annotation.name ? `${annotation.name}  ${valueLabel}` : valueLabel;
+  const labelWidth = labelText.length * 6.2 + 12;
 
   return (
     <g
-      className={onSelect ? (annotation.locked ? 'cursor-default' : 'cursor-move') : undefined}
-      onMouseDown={(e) => {
-        if (interactive && onBodyMouseDown) onBodyMouseDown(e);
-      }}
+      className={onSelect ? 'cursor-pointer' : undefined}
       onClick={(e) => {
         if (!onSelect) return;
         e.stopPropagation();
@@ -113,17 +109,23 @@ export default function ShapeRenderer({
 
       <g transform={`translate(${labelPos.x}, ${labelPos.y})`}>
         <rect
-          x={-2}
+          x={-labelWidth / 2}
           y={-19}
-          width={annotation.name ? annotation.name.length * 6.2 + valueLabel.length * 6.2 + 20 : valueLabel.length * 6.2 + 12}
+          width={labelWidth}
           height={20}
           rx={4}
           className="fill-card/90 stroke-border"
           strokeWidth={1}
         />
-        <text x={6} y={-4} fontSize={11} className="select-none fill-foreground" style={{ fontWeight: 500 }}>
-          {annotation.name ? `${annotation.name}  ` : ''}
-          <tspan className="fill-muted-foreground">{valueLabel}</tspan>
+        <text x={0} y={-4} textAnchor="middle" fontSize={11} className="select-none fill-foreground" style={{ fontWeight: 500 }}>
+          {annotation.name ? (
+            <>
+              {annotation.name}{'  '}
+              <tspan className="fill-muted-foreground">{valueLabel}</tspan>
+            </>
+          ) : (
+            valueLabel
+          )}
         </text>
       </g>
     </g>

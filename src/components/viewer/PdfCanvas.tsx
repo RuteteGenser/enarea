@@ -5,6 +5,7 @@ import { usePanZoom } from '@/components/tools/usePanZoom';
 import AnnotationLayer from '@/components/viewer/AnnotationLayer';
 import ScaleBar from '@/components/viewer/ScaleBar';
 import CalibrationOverlay from '@/components/calibration/CalibrationOverlay';
+import RoomDetectionOverlay from '@/components/detection/RoomDetectionOverlay';
 import { useViewportStore } from '@/store/viewportStore';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { cn } from '@/lib/utils';
@@ -173,6 +174,15 @@ export default function PdfCanvas({ file }: PdfCanvasProps) {
                   width={pageWidth}
                   height={pageHeight}
                   calibrated={!!file.calibration}
+                />
+              )}
+              {tool === 'detect' && (
+                <RoomDetectionOverlay
+                  fileId={file.id}
+                  zoom={zoom}
+                  width={pageWidth}
+                  height={pageHeight}
+                  canvasRef={canvasRef}
                 />
               )}
             </div>

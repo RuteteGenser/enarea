@@ -24,6 +24,7 @@ function toScreen(p: Point, zoom: number) {
 
 export default function AnnotationLayer({ fileId, zoom, width, height, calibration, unit }: AnnotationLayerProps) {
   const tool = useViewportStore((s) => s.tool);
+  const isSpaceDown = useViewportStore((s) => s.isSpaceDown);
   const annotations = useAnnotationStore((s) => s.annotations);
   const selectedId = useAnnotationStore((s) => s.selectedId);
   const setSelected = useAnnotationStore((s) => s.setSelected);
@@ -31,7 +32,7 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
 
   const svgRef = useRef<SVGSVGElement>(null);
   const { points, cursor, snapped, dragPreviewPoints, handlers } = useDrawTool(tool, fileId, zoom);
-  const { livePointsFor, startVertexDrag, startBodyDrag, insertPoint } = useSelectTool(zoom, svgRef);
+  const { livePointsFor, startVertexDrag, insertPoint } = useSelectTool(zoom, svgRef);
 
   const mpu = metersPerUnit(calibration);
   const isSelectTool = tool === 'select';
@@ -74,13 +75,15 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
       width={width}
       height={height}
       viewBox={`0 0 ${width} ${height}`}
-      style={{ cursor: tool === 'select' ? 'default' : tool === 'pan' ? undefined : 'crosshair' }}
+      style={{
+        cursor: isSpaceDown ? undefined : tool === 'select' ? 'default' : tool === 'pan' ? undefined : 'crosshair',
+      }}
       onMouseMove={handlers.onMouseMove}
       onMouseDown={handlers.onMouseDown}
       onMouseUp={handlers.onMouseUp}
       onClick={(e) => {
         handlers.onClick(e);
-        if (isSelectTool && e.target === e.currentTarget) setSelected(null);
+        if (isSelectTool && !isSpaceDown && e.target === e.currentTarget) setSelected(null);
       }}
       onDoubleClick={handlers.onDoubleClick}
     >
@@ -93,8 +96,7 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
           calibration={calibration}
           unit={unit}
           selected={annotation.id === selectedId}
-          onSelect={isSelectTool ? setSelected : undefined}
-          onBodyMouseDown={isSelectTool ? (e) => startBodyDrag(annotation, e) : undefined}
+          onSelect={isSelectTool && !isSpaceDown ? setSelected : undefined}
         />
       ))}
 

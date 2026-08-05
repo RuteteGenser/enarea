@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { formatArea, formatLength, metersPerUnit } from '@/lib/calibration';
 import { distance, polygonArea } from '@/lib/geometry';
+import { displayName } from '@/lib/annotationLabel';
 import { ANNOTATION_COLORS } from '@/types';
 import type { Annotation, AnnotationColor, Calibration, Unit } from '@/types';
 
@@ -121,7 +122,7 @@ export default function MeasurementRow({
             setEditing(true);
           }}
         >
-          {annotation.name}
+          {displayName(annotation)}
         </span>
       )}
 
