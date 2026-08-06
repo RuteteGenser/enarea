@@ -7,6 +7,7 @@ import ScaleBar from '@/components/viewer/ScaleBar';
 import CompassWidget from '@/components/viewer/CompassWidget';
 import MagnifierLoupe from '@/components/viewer/MagnifierLoupe';
 import CalibrationOverlay from '@/components/calibration/CalibrationOverlay';
+import CalibrationAreaOverlay from '@/components/calibration/CalibrationAreaOverlay';
 import RoomDetectionOverlay from '@/components/detection/RoomDetectionOverlay';
 import WallToolOverlay from '@/components/wall/WallToolOverlay';
 import { useViewportStore } from '@/store/viewportStore';
@@ -279,6 +280,15 @@ export default function PdfCanvas({ file }: PdfCanvasProps) {
             )}
             {tool === 'calibrate' && (
               <CalibrationOverlay
+                fileId={file.id}
+                zoom={zoom}
+                width={pageWidth}
+                height={pageHeight}
+                calibrated={!!file.calibration}
+              />
+            )}
+            {tool === 'calibrate-area' && (
+              <CalibrationAreaOverlay
                 fileId={file.id}
                 zoom={zoom}
                 width={pageWidth}

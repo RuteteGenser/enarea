@@ -1,5 +1,5 @@
-import { distance } from '@/lib/geometry';
-import type { Calibration, Unit } from '@/types';
+import { distance, polygonArea } from '@/lib/geometry';
+import type { Calibration, Point, Unit } from '@/types';
 
 /** Meters per single PDF-native (unscaled) unit. Falls back to 1 (uncalibrated). */
 export function metersPerUnit(calibration: Calibration): number {
@@ -27,6 +27,18 @@ export function calibrationFromScale(scale: number): Calibration {
     pointA: { x: 0, y: 0 },
     pointB: { x: REFERENCE_UNITS, y: 0 },
     realMeters,
+  };
+}
+
+/** Builds a Calibration from a drawn polygon's PDF-space area and its known real-world area. */
+export function calibrationFromArea(points: Point[], realSquareMeters: number): Calibration {
+  const pdfArea = polygonArea(points);
+  if (pdfArea === 0) return null;
+  const metersPerUnitValue = Math.sqrt(realSquareMeters / pdfArea);
+  return {
+    pointA: { x: 0, y: 0 },
+    pointB: { x: REFERENCE_UNITS, y: 0 },
+    realMeters: metersPerUnitValue * REFERENCE_UNITS,
   };
 }
 

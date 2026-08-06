@@ -132,7 +132,9 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
             <Button
               variant="ghost"
               size="icon"
-              className={cn(tool === 'calibrate' && 'bg-primary/10 text-primary hover:bg-primary/15')}
+              className={cn(
+                (tool === 'calibrate' || tool === 'calibrate-area') && 'bg-primary/10 text-primary hover:bg-primary/15',
+              )}
               title="Kalibrer"
             >
               <Ruler />
@@ -140,6 +142,7 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             <DropdownMenuItem onClick={() => setTool('calibrate')}>Tegn referanselinje</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTool('calibrate-area')}>Tegn areal</DropdownMenuItem>
             <DropdownMenuItem onClick={() => setScaleDialogOpen(true)}>Angi skala (1:X)</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
