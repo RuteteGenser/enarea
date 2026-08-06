@@ -5,6 +5,7 @@ import { usePanZoom, type Pan } from '@/components/tools/usePanZoom';
 import AnnotationLayer from '@/components/viewer/AnnotationLayer';
 import ScaleBar from '@/components/viewer/ScaleBar';
 import CompassWidget from '@/components/viewer/CompassWidget';
+import MagnifierLoupe from '@/components/viewer/MagnifierLoupe';
 import CalibrationOverlay from '@/components/calibration/CalibrationOverlay';
 import RoomDetectionOverlay from '@/components/detection/RoomDetectionOverlay';
 import WallToolOverlay from '@/components/wall/WallToolOverlay';
@@ -301,6 +302,7 @@ export default function PdfCanvas({ file }: PdfCanvasProps) {
 
       {status === 'ready' && showScaleBar && <ScaleBar zoom={zoom} calibration={file.calibration} />}
       {status === 'ready' && showCompass && <CompassWidget />}
+      {status === 'ready' && <MagnifierLoupe canvasRef={canvasRef} />}
     </div>
   );
 }
