@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/sonner';
 
 const ProjectList = lazy(() => import('@/routes/ProjectList'));
 const Workspace = lazy(() => import('@/routes/Workspace'));
+const BuildingComponentTypes = lazy(() => import('@/routes/BuildingComponentTypes'));
 
 function RouteFallback() {
   return (
@@ -23,6 +24,7 @@ function App() {
           <Routes>
             <Route path="/" element={<ProjectList />} />
             <Route path="/project/:projectId" element={<Workspace />} />
+            <Route path="/bygningsdeltyper" element={<BuildingComponentTypes />} />
           </Routes>
         </Suspense>
       </BrowserRouter>
