@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { Annotation, PdfFile, Project } from '@/types';
+import type { Annotation, BuildingComponentType, PdfFile, Project } from '@/types';
 
 interface EnareaDB extends DBSchema {
   projects: {
@@ -16,19 +16,28 @@ interface EnareaDB extends DBSchema {
     value: Annotation;
     indexes: { 'by-file': string };
   };
+  buildingComponentTypes: {
+    key: string;
+    value: BuildingComponentType;
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<EnareaDB>> | null = null;
 
 function getDb() {
   if (!dbPromise) {
-    dbPromise = openDB<EnareaDB>('enarea', 1, {
-      upgrade(db) {
-        db.createObjectStore('projects', { keyPath: 'id' });
-        const files = db.createObjectStore('files', { keyPath: 'id' });
-        files.createIndex('by-project', 'projectId');
-        const annotations = db.createObjectStore('annotations', { keyPath: 'id' });
-        annotations.createIndex('by-file', 'fileId');
+    dbPromise = openDB<EnareaDB>('enarea', 2, {
+      upgrade(db, oldVersion) {
+        if (oldVersion < 1) {
+          db.createObjectStore('projects', { keyPath: 'id' });
+          const files = db.createObjectStore('files', { keyPath: 'id' });
+          files.createIndex('by-project', 'projectId');
+          const annotations = db.createObjectStore('annotations', { keyPath: 'id' });
+          annotations.createIndex('by-file', 'fileId');
+        }
+        if (oldVersion < 2) {
+          db.createObjectStore('buildingComponentTypes', { keyPath: 'id' });
+        }
       },
     });
   }
@@ -124,5 +133,25 @@ export const annotationsRepo = {
       await tx.store.put(annotation);
     }
     await tx.done;
+  },
+};
+
+export const buildingComponentTypesRepo = {
+  async list(): Promise<BuildingComponentType[]> {
+    const db = await getDb();
+    const all = await db.getAll('buildingComponentTypes');
+    return all.sort((a, b) => a.createdAt - b.createdAt);
+  },
+  async get(id: string): Promise<BuildingComponentType | undefined> {
+    const db = await getDb();
+    return db.get('buildingComponentTypes', id);
+  },
+  async put(type: BuildingComponentType): Promise<void> {
+    const db = await getDb();
+    await db.put('buildingComponentTypes', type);
+  },
+  async remove(id: string): Promise<void> {
+    const db = await getDb();
+    await db.delete('buildingComponentTypes', id);
   },
 };

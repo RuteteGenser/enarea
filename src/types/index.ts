@@ -69,3 +69,15 @@ export type Project = {
   createdAt: number;
   updatedAt: number;
 };
+
+export type BuildingComponentCategory = 'yttervegg' | 'vindu' | 'ytterdor' | 'tak' | 'gulv' | 'dekke';
+
+export type BuildingComponentType = {
+  id: string;
+  category: BuildingComponentCategory;
+  name: string;
+  uValue: number; // W/m²K
+  wallThickness?: number; // mm — present only when category === 'yttervegg'
+  createdAt: number;
+  updatedAt: number;
+};
