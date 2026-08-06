@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import BuildingComponentPicker from '@/components/material/BuildingComponentPicker';
+import { polygonArea } from '@/lib/geometry';
+import { cn } from '@/lib/utils';
 import { useAnnotationStore } from '@/store/annotationStore';
-import type { EdgeMeta, Point } from '@/types';
+import { useBuildingComponentTypeStore } from '@/store/buildingComponentTypeStore';
+import { useViewportStore } from '@/store/viewportStore';
+import type { Annotation, EdgeMeta, Point } from '@/types';
 
 type MaterialPickerOverlayProps = {
   zoom: number;
@@ -22,10 +26,19 @@ export default function MaterialPickerOverlay({ zoom, width, height }: MaterialP
   const updateAnnotation = useAnnotationStore((s) => s.updateAnnotation);
   const setEdgeMeta = useAnnotationStore((s) => s.setEdgeMeta);
 
+  const loaded = useBuildingComponentTypeStore((s) => s.loaded);
+  const loadTypes = useBuildingComponentTypeStore((s) => s.loadTypes);
+  const isSpaceDown = useViewportStore((s) => s.isSpaceDown);
+
   const [openTarget, setOpenTarget] = useState<OpenTarget | null>(null);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!loaded) void loadTypes();
+  }, [loaded, loadTypes]);
+
   const eligible = annotations.filter((a) => a.type !== 'line' && a.visible && !a.locked);
+  const sortedByAreaDesc: Annotation[] = [...eligible].sort((a, b) => polygonArea(b.points) - polygonArea(a.points));
 
   function isOpen(target: OpenTarget): boolean {
     if (!openTarget || openTarget.kind !== target.kind || openTarget.annotationId !== target.annotationId) {
@@ -36,8 +49,13 @@ export default function MaterialPickerOverlay({ zoom, width, height }: MaterialP
   }
 
   return (
-    <svg className="absolute inset-0 cursor-pointer" width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
-      {eligible.map((annotation) => {
+    <svg
+      className={cn('absolute inset-0', !isSpaceDown && 'cursor-pointer')}
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+    >
+      {sortedByAreaDesc.map((annotation) => {
         const screenPoints = annotation.points.map((p) => toScreen(p, zoom));
         const pointsAttr = screenPoints.map((p) => `${p.x},${p.y}`).join(' ');
         const areaTarget: OpenTarget = { kind: 'area', annotationId: annotation.id };
@@ -48,7 +66,7 @@ export default function MaterialPickerOverlay({ zoom, width, height }: MaterialP
         const areaHoverKey = `area:${annotation.id}`;
 
         return (
-          <g key={annotation.id}>
+          <g key={`area:${annotation.id}`}>
             <BuildingComponentPicker
               categories={['gulv', 'dekke']}
               current={annotation.buildingComponent}
@@ -59,7 +77,7 @@ export default function MaterialPickerOverlay({ zoom, width, height }: MaterialP
               <polygon
                 points={pointsAttr}
                 fill="transparent"
-                pointerEvents="all"
+                pointerEvents={isSpaceDown ? 'none' : 'all'}
                 onMouseEnter={() => setHoveredKey(areaHoverKey)}
                 onMouseLeave={() => setHoveredKey((k) => (k === areaHoverKey ? null : k))}
               />
@@ -73,51 +91,54 @@ export default function MaterialPickerOverlay({ zoom, width, height }: MaterialP
                 </text>
               </g>
             )}
-
-            {annotation.points.map((point, i) => {
-              const next = annotation.points[(i + 1) % annotation.points.length];
-              const a = toScreen(point, zoom);
-              const b = toScreen(next, zoom);
-              const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-              const edgeTarget: OpenTarget = { kind: 'edge', annotationId: annotation.id, edgeIndex: i };
-              const edge: EdgeMeta = annotation.edges?.[i] ?? {};
-              const edgeHoverKey = `edge:${annotation.id}:${i}`;
-
-              return (
-                <g key={i}>
-                  <BuildingComponentPicker
-                    categories={['yttervegg']}
-                    current={edge.buildingComponent}
-                    open={isOpen(edgeTarget)}
-                    onOpenChange={(open) => setOpenTarget(open ? edgeTarget : null)}
-                    onSelect={(assignment) => setEdgeMeta(annotation.id, i, { buildingComponent: assignment ?? undefined })}
-                  >
-                    <line
-                      x1={a.x}
-                      y1={a.y}
-                      x2={b.x}
-                      y2={b.y}
-                      stroke="transparent"
-                      strokeWidth={14}
-                      onMouseEnter={() => setHoveredKey(edgeHoverKey)}
-                      onMouseLeave={() => setHoveredKey((k) => (k === edgeHoverKey ? null : k))}
-                    />
-                  </BuildingComponentPicker>
-
-                  {hoveredKey === edgeHoverKey && (
-                    <g transform={`translate(${mid.x}, ${mid.y})`} pointerEvents="none">
-                      <rect x={-50} y={-19} width={100} height={18} rx={4} className="fill-card/90 stroke-amber-500" strokeWidth={1} />
-                      <text textAnchor="middle" dominantBaseline="central" fontSize={10} className="fill-amber-700 select-none">
-                        {edge.buildingComponent?.name ?? 'Ingen type'}
-                      </text>
-                    </g>
-                  )}
-                </g>
-              );
-            })}
           </g>
         );
       })}
+
+      {eligible.map((annotation) =>
+        annotation.points.map((point, i) => {
+          const next = annotation.points[(i + 1) % annotation.points.length];
+          const a = toScreen(point, zoom);
+          const b = toScreen(next, zoom);
+          const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+          const edgeTarget: OpenTarget = { kind: 'edge', annotationId: annotation.id, edgeIndex: i };
+          const edge: EdgeMeta = annotation.edges?.[i] ?? {};
+          const edgeHoverKey = `edge:${annotation.id}:${i}`;
+
+          return (
+            <g key={`edge:${annotation.id}:${i}`}>
+              <BuildingComponentPicker
+                categories={['yttervegg']}
+                current={edge.buildingComponent}
+                open={isOpen(edgeTarget)}
+                onOpenChange={(open) => setOpenTarget(open ? edgeTarget : null)}
+                onSelect={(assignment) => setEdgeMeta(annotation.id, i, { buildingComponent: assignment ?? undefined })}
+              >
+                <line
+                  x1={a.x}
+                  y1={a.y}
+                  x2={b.x}
+                  y2={b.y}
+                  stroke="transparent"
+                  strokeWidth={14}
+                  pointerEvents={isSpaceDown ? 'none' : 'all'}
+                  onMouseEnter={() => setHoveredKey(edgeHoverKey)}
+                  onMouseLeave={() => setHoveredKey((k) => (k === edgeHoverKey ? null : k))}
+                />
+              </BuildingComponentPicker>
+
+              {hoveredKey === edgeHoverKey && (
+                <g transform={`translate(${mid.x}, ${mid.y})`} pointerEvents="none">
+                  <rect x={-50} y={-19} width={100} height={18} rx={4} className="fill-card/90 stroke-amber-500" strokeWidth={1} />
+                  <text textAnchor="middle" dominantBaseline="central" fontSize={10} className="fill-amber-700 select-none">
+                    {edge.buildingComponent?.name ?? 'Ingen type'}
+                  </text>
+                </g>
+              )}
+            </g>
+          );
+        }),
+      )}
     </svg>
   );
 }

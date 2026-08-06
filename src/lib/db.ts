@@ -1,4 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import { toast } from 'sonner';
 import type { Annotation, BuildingComponentType, PdfFile, Project } from '@/types';
 
 interface EnareaDB extends DBSchema {
@@ -38,6 +39,14 @@ function getDb() {
         if (oldVersion < 2) {
           db.createObjectStore('buildingComponentTypes', { keyPath: 'id' });
         }
+      },
+      blocking() {
+        // A newer version of the app wants to open the database elsewhere (e.g. another tab).
+        // Close this connection so that tab's upgrade transaction isn't blocked indefinitely.
+        void dbPromise?.then((db) => db.close());
+      },
+      blocked() {
+        toast.error('Enarea er åpen i en annen fane. Lukk den andre fanen og last siden på nytt.');
       },
     });
   }

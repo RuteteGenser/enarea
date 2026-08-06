@@ -25,6 +25,10 @@ export type WallType = 'external' | 'internal';
 
 export type Orientation = 'N' | 'S' | 'E' | 'W';
 
+// `wallType`/`orientation` (set by the "wall" tool) and `buildingComponent` (set by the
+// material-picker tool) are independent, tool-specific fields with no automatic reconciliation
+// between them today — e.g. `wallType: 'internal'` can coexist with a `buildingComponent` of
+// category 'yttervegg'. A future increment may need to unify them.
 export type EdgeMeta = {
   wallType?: WallType;
   orientation?: Orientation;
