@@ -65,6 +65,9 @@ export function useSelectTool(zoom: number, svgRef: RefObject<SVGSVGElement | nu
     function onMove(e: MouseEvent) {
       const current = dragRef.current;
       if (!current) return;
+      useViewportStore
+        .getState()
+        .setMagnifierScreenPos(e.ctrlKey ? { x: e.clientX, y: e.clientY } : null);
       const cursorPdf = clientToPdf(e.clientX, e.clientY);
       const originalVertex = current.originalPoints[current.index];
 
@@ -89,6 +92,7 @@ export function useSelectTool(zoom: number, svgRef: RefObject<SVGSVGElement | nu
       setDrag(null);
       livePointsRef.current = null;
       setLivePoints(null);
+      useViewportStore.getState().setMagnifierScreenPos(null);
     }
 
     function finishDrag(commit: boolean) {
