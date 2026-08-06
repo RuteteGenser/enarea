@@ -15,6 +15,7 @@ type ViewportStore = {
   panelOpen: boolean;
   isSpaceDown: boolean;
   isShiftDown: boolean;
+  magnifierScreenPos: { x: number; y: number } | null;
 
   setTool: (tool: ToolId) => void;
   setZoom: (zoom: number) => void;
@@ -27,6 +28,7 @@ type ViewportStore = {
   togglePanel: () => void;
   setSpaceDown: (down: boolean) => void;
   setShiftDown: (down: boolean) => void;
+  setMagnifierScreenPos: (pos: { x: number; y: number } | null) => void;
 };
 
 export const useViewportStore = create<ViewportStore>((set, get) => ({
@@ -40,6 +42,7 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   panelOpen: true,
   isSpaceDown: false,
   isShiftDown: false,
+  magnifierScreenPos: null,
 
   setTool: (tool) => set({ tool }),
   setZoom: (zoom) => set({ zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom)) }),
@@ -58,4 +61,5 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
   setSpaceDown: (down) => set({ isSpaceDown: down }),
   setShiftDown: (down) => set({ isShiftDown: down }),
+  setMagnifierScreenPos: (pos) => set({ magnifierScreenPos: pos }),
 }));
