@@ -6,6 +6,7 @@ import AnnotationLayer from '@/components/viewer/AnnotationLayer';
 import ScaleBar from '@/components/viewer/ScaleBar';
 import CalibrationOverlay from '@/components/calibration/CalibrationOverlay';
 import RoomDetectionOverlay from '@/components/detection/RoomDetectionOverlay';
+import WallToolOverlay from '@/components/wall/WallToolOverlay';
 import { useViewportStore } from '@/store/viewportStore';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { cn } from '@/lib/utils';
@@ -185,6 +186,7 @@ export default function PdfCanvas({ file }: PdfCanvasProps) {
                   canvasRef={canvasRef}
                 />
               )}
+              {tool === 'wall' && <WallToolOverlay zoom={zoom} width={pageWidth} height={pageHeight} />}
             </div>
           </div>
         )}

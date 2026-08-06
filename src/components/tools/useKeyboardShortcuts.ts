@@ -8,13 +8,14 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
 }
 
-const TOOL_KEYS: Record<string, 'select' | 'line' | 'rectangle' | 'polygon' | 'pan' | 'detect'> = {
+const TOOL_KEYS: Record<string, 'select' | 'line' | 'rectangle' | 'polygon' | 'pan' | 'detect' | 'wall'> = {
   v: 'select',
   l: 'line',
   r: 'rectangle',
   p: 'polygon',
   h: 'pan',
   d: 'detect',
+  w: 'wall',
 };
 
 export function useKeyboardShortcuts(enabled: boolean) {

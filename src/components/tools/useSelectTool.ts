@@ -1,11 +1,19 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { buildSnapCandidates, constrainAngle } from '@/lib/geometry';
+import { buildSnapCandidates, constrainAngle, distance } from '@/lib/geometry';
 import { snapCursor } from '@/components/tools/useSnap';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useViewportStore } from '@/store/viewportStore';
 import type { Annotation, Point } from '@/types';
 
-type DragState = { annotationId: string; index: number; originalPoints: Point[] };
+const CLICK_MOVE_THRESHOLD_PX = 4;
+
+type DragState = {
+  annotationId: string;
+  index: number;
+  originalPoints: Point[];
+  startClientX: number;
+  startClientY: number;
+};
 
 export function useSelectTool(zoom: number, svgRef: RefObject<SVGSVGElement | null>) {
   const updateAnnotation = useAnnotationStore((s) => s.updateAnnotation);
@@ -27,11 +35,28 @@ export function useSelectTool(zoom: number, svgRef: RefObject<SVGSVGElement | nu
     if (useViewportStore.getState().isSpaceDown) return;
     e.stopPropagation();
     setSelected(annotation.id);
-    const next: DragState = { annotationId: annotation.id, index, originalPoints: annotation.points };
+    const next: DragState = {
+      annotationId: annotation.id,
+      index,
+      originalPoints: annotation.points,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+    };
     dragRef.current = next;
     setDrag(next);
     livePointsRef.current = annotation.points;
     setLivePoints(annotation.points);
+  }
+
+  /** Removes a vertex (Shift+click on a handle, with no drag). Refuses to go below the minimum for the shape type. */
+  function deleteVertex(annotationId: string, index: number) {
+    const annotation = useAnnotationStore.getState().annotations.find((a) => a.id === annotationId);
+    if (!annotation) return;
+    const minPoints = annotation.type === 'line' ? 2 : 3;
+    if (annotation.points.length <= minPoints) return;
+    const points = annotation.points.filter((_, i) => i !== index);
+    const edges = annotation.edges ? annotation.edges.filter((_, i) => i !== index) : undefined;
+    updateAnnotation(annotationId, { points, edges });
   }
 
   useEffect(() => {
@@ -59,18 +84,34 @@ export function useSelectTool(zoom: number, svgRef: RefObject<SVGSVGElement | nu
       setLivePoints(next);
     }
 
-    function finishDrag(commit: boolean) {
-      const current = dragRef.current;
-      if (current && commit && livePointsRef.current) {
-        updateAnnotation(current.annotationId, { points: livePointsRef.current });
-      }
+    function reset() {
       dragRef.current = null;
       setDrag(null);
       livePointsRef.current = null;
       setLivePoints(null);
     }
 
-    function onUp() {
+    function finishDrag(commit: boolean) {
+      const current = dragRef.current;
+      if (current && commit && livePointsRef.current) {
+        updateAnnotation(current.annotationId, { points: livePointsRef.current });
+      }
+      reset();
+    }
+
+    function onUp(e: MouseEvent) {
+      const current = dragRef.current;
+      if (current) {
+        const moved = distance(
+          { x: current.startClientX, y: current.startClientY },
+          { x: e.clientX, y: e.clientY },
+        );
+        if (useViewportStore.getState().isShiftDown && moved < CLICK_MOVE_THRESHOLD_PX) {
+          deleteVertex(current.annotationId, current.index);
+          reset();
+          return;
+        }
+      }
       finishDrag(true);
     }
 

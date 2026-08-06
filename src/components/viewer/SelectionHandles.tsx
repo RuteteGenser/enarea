@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { midpoint } from '@/lib/geometry';
 import EdgeContextMenu from '@/components/wall/EdgeContextMenu';
+import { cn } from '@/lib/utils';
+import { useViewportStore } from '@/store/viewportStore';
 import type { Annotation, EdgeMeta, Point } from '@/types';
 
 type SelectionHandlesProps = {
@@ -21,12 +23,16 @@ export default function SelectionHandles({
   onEdgeMetaChange,
 }: SelectionHandlesProps) {
   const [hoveredEdge, setHoveredEdge] = useState<number | null>(null);
+  const [hoveredVertex, setHoveredVertex] = useState<number | null>(null);
+  const isShiftDown = useViewportStore((s) => s.isShiftDown);
 
   if (annotation.locked) return null;
 
   const screenPoints = points.map((p) => ({ x: p.x * zoom, y: p.y * zoom }));
   const isClosedShape = annotation.type !== 'line';
   const edgeCount = isClosedShape ? points.length : points.length - 1;
+  const minPoints = annotation.type === 'line' ? 2 : 3;
+  const canDeleteVertex = points.length > minPoints;
 
   return (
     <g>
@@ -71,18 +77,26 @@ export default function SelectionHandles({
           );
         })}
 
-      {screenPoints.map((p, i) => (
-        <rect
-          key={i}
-          x={p.x - 5}
-          y={p.y - 5}
-          width={10}
-          height={10}
-          className="fill-background stroke-primary cursor-pointer"
-          strokeWidth={2}
-          onMouseDown={(e) => onVertexMouseDown(i, e)}
-        />
-      ))}
+      {screenPoints.map((p, i) => {
+        const showDeleteHint = isShiftDown && canDeleteVertex && hoveredVertex === i;
+        return (
+          <rect
+            key={i}
+            x={p.x - 5}
+            y={p.y - 5}
+            width={10}
+            height={10}
+            className={cn(
+              'cursor-pointer',
+              showDeleteHint ? 'fill-destructive stroke-destructive' : 'fill-background stroke-primary',
+            )}
+            strokeWidth={2}
+            onMouseEnter={() => setHoveredVertex(i)}
+            onMouseLeave={() => setHoveredVertex((current) => (current === i ? null : current))}
+            onMouseDown={(e) => onVertexMouseDown(i, e)}
+          />
+        );
+      })}
     </g>
   );
 }

@@ -90,6 +90,21 @@ export default function ShapeRenderer({
             const a = screenPoints[i];
             const b = screenPoints[(i + 1) % screenPoints.length];
             const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const edgeLen = Math.hypot(dx, dy) || 1;
+            let perp = { x: -dy / edgeLen, y: dx / edgeLen };
+            const outward = { x: mid.x + perp.x * 10, y: mid.y + perp.y * 10 };
+            if (distance(outward, labelPos) < distance(mid, labelPos)) {
+              perp = { x: -perp.x, y: -perp.y };
+            }
+            const wallLabelOffset = edge.orientation ? 26 : 14;
+            const wallLabelPos = { x: mid.x + perp.x * wallLabelOffset, y: mid.y + perp.y * wallLabelOffset };
+            const wallLength = distance(geometryPoints[i], geometryPoints[(i + 1) % geometryPoints.length]) * mpu;
+            const wallLengthText = formatLength(wallLength, unit);
+            const wallLabelWidth = wallLengthText.length * 6 + 10;
+
             return (
               <g key={i}>
                 <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#f5a623" strokeWidth={4} strokeLinecap="round" opacity={0.85} />
@@ -101,6 +116,27 @@ export default function ShapeRenderer({
                     </text>
                   </g>
                 )}
+                <g transform={`translate(${wallLabelPos.x}, ${wallLabelPos.y})`}>
+                  <rect
+                    x={-wallLabelWidth / 2}
+                    y={-8}
+                    width={wallLabelWidth}
+                    height={16}
+                    rx={3}
+                    className="fill-card/90 stroke-amber-500"
+                    strokeWidth={1}
+                  />
+                  <text
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    y={0.5}
+                    fontSize={10}
+                    fontWeight={600}
+                    className="select-none fill-amber-700"
+                  >
+                    {wallLengthText}
+                  </text>
+                </g>
               </g>
             );
           })}

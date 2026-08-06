@@ -5,6 +5,7 @@ import {
   Square,
   Hexagon,
   Wand2,
+  BrickWall,
   Ruler,
   Undo2,
   Redo2,
@@ -100,6 +101,15 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
           disabled={!calibrated}
           disabledReason="Kalibrer PDF-en først"
           onClick={() => setTool('detect')}
+        />
+        <ToolButton
+          icon={BrickWall}
+          label="Merk yttervegg"
+          shortcut="W"
+          active={tool === 'wall'}
+          disabled={!calibrated}
+          disabledReason="Kalibrer PDF-en først"
+          onClick={() => setTool('wall')}
         />
 
         <Separator orientation="vertical" className="mx-1 h-6" />
