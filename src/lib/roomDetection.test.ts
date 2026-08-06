@@ -44,8 +44,10 @@ describe('detectRoomPolygon', () => {
 
     expect(result).not.toBeNull();
     expect(result!.length).toBe(4);
-    // Interior corners are one pixel inside the wall on every side: (11,11)-(38,33).
-    expect(polygonArea(result!)).toBeCloseTo((38 - 11) * (33 - 11), 0);
+    // Walls occupy x=10, x=39, y=10, y=34; the true open interior spans the
+    // full pixels 11..38 (28px) by 11..33 (23px) — i.e. up to each wall's
+    // inner *edge*, not just to the center of the innermost open pixel.
+    expect(polygonArea(result!)).toBeCloseTo(28 * 23, 0);
   });
 
   it('returns null when the seed point is on a wall', () => {

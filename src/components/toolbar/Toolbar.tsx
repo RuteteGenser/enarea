@@ -7,6 +7,7 @@ import {
   Wand2,
   BrickWall,
   Ruler,
+  Compass,
   Undo2,
   Redo2,
   ZoomIn,
@@ -14,19 +15,25 @@ import {
   Eye,
   Download,
 } from 'lucide-react';
+import { useState } from 'react';
 import ToolButton from '@/components/toolbar/ToolButton';
 import UnitToggle from '@/components/toolbar/UnitToggle';
 import ShortcutsHelp from '@/components/toolbar/ShortcutsHelp';
+import ScaleCalibrationDialog from '@/components/calibration/ScaleCalibrationDialog';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
+import { calibrationFromScale } from '@/lib/calibration';
 import { useViewportStore } from '@/store/viewportStore';
 import { useAnnotationStore } from '@/store/annotationStore';
+import { useFilesStore } from '@/store/filesStore';
 import type { PdfFile, ToolId } from '@/types';
 
 type ToolbarProps = {
@@ -44,12 +51,15 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
   const tool = useViewportStore((s) => s.tool);
   const setTool = useViewportStore((s) => s.setTool);
   const zoom = useViewportStore((s) => s.zoom);
+  const fitZoom = useViewportStore((s) => s.fitZoom);
   const zoomBy = useViewportStore((s) => s.zoomBy);
   const setZoom = useViewportStore((s) => s.setZoom);
   const showAnnotations = useViewportStore((s) => s.showAnnotations);
   const toggleAnnotationsVisible = useViewportStore((s) => s.toggleAnnotationsVisible);
   const showScaleBar = useViewportStore((s) => s.showScaleBar);
   const toggleScaleBar = useViewportStore((s) => s.toggleScaleBar);
+  const showCompass = useViewportStore((s) => s.showCompass);
+  const toggleCompass = useViewportStore((s) => s.toggleCompass);
   const panelOpen = useViewportStore((s) => s.panelOpen);
   const togglePanel = useViewportStore((s) => s.togglePanel);
 
@@ -57,6 +67,9 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
   const redo = useAnnotationStore((s) => s.redo);
   const canUndo = useAnnotationStore((s) => s.past.length > 0);
   const canRedo = useAnnotationStore((s) => s.future.length > 0);
+
+  const setCalibration = useFilesStore((s) => s.setCalibration);
+  const [scaleDialogOpen, setScaleDialogOpen] = useState(false);
 
   const calibrated = !!file?.calibration;
 
@@ -114,12 +127,23 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
 
         <Separator orientation="vertical" className="mx-1 h-6" />
 
-        <ToolButton
-          icon={Ruler}
-          label="Kalibrer"
-          active={tool === 'calibrate'}
-          onClick={() => setTool('calibrate')}
-        />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(tool === 'calibrate' && 'bg-primary/10 text-primary hover:bg-primary/15')}
+              title="Kalibrer"
+            >
+              <Ruler />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onClick={() => setTool('calibrate')}>Tegn referanselinje</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setScaleDialogOpen(true)}>Angi skala (1:X)</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <ToolButton icon={Compass} label="Kompass" active={showCompass} onClick={toggleCompass} />
 
         <Separator orientation="vertical" className="mx-1 h-6" />
 
@@ -136,11 +160,11 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
           <ToolButton icon={ZoomOut} label="Zoom ut" onClick={() => zoomBy(1 / 1.25)} />
           <button
             type="button"
-            onClick={() => setZoom(1)}
+            onClick={() => setZoom(fitZoom)}
             className="w-12 rounded-md py-1 text-center text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
             title="Tilbakestill zoom"
           >
-            {Math.round(zoom * 100)}%
+            {Math.round((zoom / fitZoom) * 100)}%
           </button>
           <ToolButton icon={ZoomIn} label="Zoom inn" onClick={() => zoomBy(1.25)} />
         </div>
@@ -174,6 +198,17 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
           <Download /> Eksporter
         </Button>
       </div>
+
+      <ScaleCalibrationDialog
+        open={scaleDialogOpen}
+        isRecalibration={calibrated}
+        onCancel={() => setScaleDialogOpen(false)}
+        onConfirm={(scale) => {
+          if (!file) return;
+          void setCalibration(file.id, calibrationFromScale(scale));
+          setScaleDialogOpen(false);
+        }}
+      />
     </div>
   );
 }

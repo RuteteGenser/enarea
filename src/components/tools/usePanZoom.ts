@@ -1,22 +1,29 @@
 import { useCallback, useRef, useState, type RefObject } from 'react';
+import { flushSync } from 'react-dom';
 import { useViewportStore } from '@/store/viewportStore';
 
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 8;
 
-export function usePanZoom(containerRef: RefObject<HTMLDivElement | null>) {
+export type Pan = { x: number; y: number };
+
+function applyTransform(pageEl: HTMLDivElement, pan: Pan) {
+  pageEl.style.transform = `translate(${pan.x}px, ${pan.y}px)`;
+}
+
+export function usePanZoom(pageRef: RefObject<HTMLDivElement | null>, panRef: RefObject<Pan>) {
   const tool = useViewportStore((s) => s.tool);
   const isSpaceDown = useViewportStore((s) => s.isSpaceDown);
   const setZoom = useViewportStore((s) => s.setZoom);
 
   const isPanMode = tool === 'pan' || isSpaceDown;
   const [isPanningActive, setIsPanningActive] = useState(false);
-  const panState = useRef<{ startX: number; startY: number; scrollLeft: number; scrollTop: number } | null>(null);
+  const panState = useRef<{ startX: number; startY: number; pan: Pan } | null>(null);
 
   const handleWheel = useCallback(
     (e: React.WheelEvent<HTMLDivElement>) => {
-      const container = containerRef.current;
-      if (!container) return;
+      const page = pageRef.current;
+      if (!page) return;
       e.preventDefault();
 
       const oldZoom = useViewportStore.getState().zoom;
@@ -24,49 +31,57 @@ export function usePanZoom(containerRef: RefObject<HTMLDivElement | null>) {
       const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, oldZoom * factor));
       if (newZoom === oldZoom) return;
 
-      const rect = container.getBoundingClientRect();
-      const cursorContentX = e.clientX - rect.left + container.scrollLeft;
-      const cursorContentY = e.clientY - rect.top + container.scrollTop;
-      const pdfX = cursorContentX / oldZoom;
-      const pdfY = cursorContentY / oldZoom;
+      // Measure the cursor's position relative to the actual rendered page —
+      // this stays correct regardless of where the page is currently panned to.
+      const pageRectBefore = page.getBoundingClientRect();
+      const pdfX = (e.clientX - pageRectBefore.left) / oldZoom;
+      const pdfY = (e.clientY - pageRectBefore.top) / oldZoom;
 
-      setZoom(newZoom);
-
-      requestAnimationFrame(() => {
-        const el = containerRef.current;
-        if (!el) return;
-        el.scrollLeft = pdfX * newZoom - (e.clientX - rect.left);
-        el.scrollTop = pdfY * newZoom - (e.clientY - rect.top);
+      // Force the re-render synchronously (rather than waiting a frame) so the page
+      // element's new size is reflected in the DOM immediately below — otherwise
+      // there's a visible frame where the page has resized but the compensating
+      // pan hasn't landed yet, which reads as jitter during continuous zooming.
+      flushSync(() => {
+        setZoom(newZoom);
       });
+
+      const pageRectAfter = page.getBoundingClientRect();
+      const desiredLeft = e.clientX - pdfX * newZoom;
+      const desiredTop = e.clientY - pdfY * newZoom;
+      const pan = panRef.current;
+      pan.x += desiredLeft - pageRectAfter.left;
+      pan.y += desiredTop - pageRectAfter.top;
+      applyTransform(page, pan);
     },
-    [containerRef, setZoom],
+    [pageRef, panRef, setZoom],
   );
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (!isPanMode || e.button !== 0) return;
-      const container = containerRef.current;
-      if (!container) return;
       panState.current = {
         startX: e.clientX,
         startY: e.clientY,
-        scrollLeft: container.scrollLeft,
-        scrollTop: container.scrollTop,
+        pan: { ...panRef.current },
       };
       setIsPanningActive(true);
     },
-    [isPanMode, containerRef],
+    [isPanMode, panRef],
   );
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!panState.current || !containerRef.current) return;
-      const dx = e.clientX - panState.current.startX;
-      const dy = e.clientY - panState.current.startY;
-      containerRef.current.scrollLeft = panState.current.scrollLeft - dx;
-      containerRef.current.scrollTop = panState.current.scrollTop - dy;
+      const state = panState.current;
+      const page = pageRef.current;
+      if (!state || !page) return;
+      const dx = e.clientX - state.startX;
+      const dy = e.clientY - state.startY;
+      const pan = panRef.current;
+      pan.x = state.pan.x + dx;
+      pan.y = state.pan.y + dy;
+      applyTransform(page, pan);
     },
-    [containerRef],
+    [pageRef, panRef],
   );
 
   const handleMouseUp = useCallback(() => {

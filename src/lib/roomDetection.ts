@@ -173,6 +173,49 @@ function simplifyClosedPolygon(boundary: Point[], epsilon: number): Point[] {
 }
 
 /**
+ * Offsets a closed polygon outward by `dist` (miter join at each vertex).
+ * traceBoundary walks through the *centers* of the outermost room pixels, not
+ * their outer edges, so the raw traced polygon is systematically about half a
+ * pixel short of the true wall-inner-face boundary on every side — this
+ * corrects that bias. Winding-agnostic: it reads the polygon's own signed
+ * area to pick the outward direction, so it works regardless of which way
+ * traceBoundary happened to walk.
+ */
+function inflatePolygon(points: Point[], dist: number): Point[] {
+  const n = points.length;
+  if (n < 3) return points;
+
+  let signedArea = 0;
+  for (let i = 0; i < n; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % n];
+    signedArea += a.x * b.y - b.x * a.y;
+  }
+  const sign = signedArea >= 0 ? 1 : -1;
+
+  function outwardNormal(a: Point, b: Point): Point {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy);
+    if (len === 0) return { x: 0, y: 0 };
+    return { x: (sign * dy) / len, y: (-sign * dx) / len };
+  }
+
+  return points.map((v, i) => {
+    const prev = points[(i - 1 + n) % n];
+    const next = points[(i + 1) % n];
+    const n1 = outwardNormal(prev, v);
+    const n2 = outwardNormal(v, next);
+    let bisector = { x: n1.x + n2.x, y: n1.y + n2.y };
+    const blen = Math.hypot(bisector.x, bisector.y);
+    bisector = blen < 1e-9 ? n1 : { x: bisector.x / blen, y: bisector.y / blen };
+    const cos = bisector.x * n1.x + bisector.y * n1.y;
+    const miter = cos > 0.1 ? dist / cos : dist; // guard against extreme miters at very sharp/concave corners
+    return { x: v.x + bisector.x * miter, y: v.y + bisector.y * miter };
+  });
+}
+
+/**
  * Detects the enclosed room polygon containing (seedX, seedY) in raster pixel space, and
  * returns it converted to PDF-native coordinates (dividing by pixelsPerPdfUnit). Returns null
  * when the seed isn't inside a plausible enclosed room (on a wall, open to the page edge, or
@@ -193,5 +236,7 @@ export function detectRoomPolygon(
   const simplified = simplifyClosedPolygon(boundary, SIMPLIFY_EPSILON_PX);
   if (simplified.length < 3) return null;
 
-  return simplified.map((p) => ({ x: p.x / pixelsPerPdfUnit, y: p.y / pixelsPerPdfUnit }));
+  const corrected = inflatePolygon(simplified, 0.5);
+
+  return corrected.map((p) => ({ x: p.x / pixelsPerPdfUnit, y: p.y / pixelsPerPdfUnit }));
 }
