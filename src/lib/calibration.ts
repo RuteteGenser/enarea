@@ -9,6 +9,27 @@ export function metersPerUnit(calibration: Calibration): number {
   return calibration.realMeters / pdfDistance;
 }
 
+// PDF-native units are points (72 per inch), a fixed physical size independent
+// of on-screen zoom — the same unit baseWidth/baseHeight and annotation point
+// coordinates are already stored in.
+const POINTS_PER_INCH = 72;
+const METERS_PER_INCH = 0.0254;
+
+// Arbitrary reference distance (in PDF-native units) used to synthesize a
+// two-point calibration from a pure scale ratio — the ratio is what matters,
+// not which two points, since metersPerUnit only depends on realMeters/pdfDistance.
+const REFERENCE_UNITS = 100;
+
+/** Builds a Calibration equivalent to a known drawing scale (1:scale), with no drawn reference line. */
+export function calibrationFromScale(scale: number): Calibration {
+  const realMeters = (REFERENCE_UNITS / POINTS_PER_INCH) * METERS_PER_INCH * scale;
+  return {
+    pointA: { x: 0, y: 0 },
+    pointB: { x: REFERENCE_UNITS, y: 0 },
+    realMeters,
+  };
+}
+
 export function isCalibrated(calibration: Calibration): boolean {
   return calibration !== null;
 }

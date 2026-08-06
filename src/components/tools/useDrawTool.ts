@@ -43,6 +43,7 @@ export function useDrawTool(tool: ToolId, fileId: string, zoom: number) {
     setDragStart(null);
     setCursor(null);
     setSnapped(null);
+    useViewportStore.getState().setMagnifierScreenPos(null);
   };
 
   useEffect(() => {
@@ -86,6 +87,9 @@ export function useDrawTool(tool: ToolId, fileId: string, zoom: number) {
 
   function onMouseMove(e: ReactMouseEvent<SVGSVGElement>) {
     if (!isDrawTool || useViewportStore.getState().isSpaceDown) return;
+    useViewportStore
+      .getState()
+      .setMagnifierScreenPos(e.ctrlKey ? { x: e.clientX, y: e.clientY } : null);
     setCursor(resolvePoint(e, getReferencePoint()));
   }
 
