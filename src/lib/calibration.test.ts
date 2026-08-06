@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatArea, formatLength, isCalibrated, metersPerUnit } from '@/lib/calibration';
+import { calibrationFromArea, formatArea, formatLength, isCalibrated, metersPerUnit } from '@/lib/calibration';
 
 describe('metersPerUnit', () => {
   it('returns 1 when uncalibrated', () => {
@@ -14,6 +14,32 @@ describe('metersPerUnit', () => {
   it('falls back to 1 when the calibration line has zero length', () => {
     const calibration = { pointA: { x: 5, y: 5 }, pointB: { x: 5, y: 5 }, realMeters: 5 };
     expect(metersPerUnit(calibration)).toBe(1);
+  });
+});
+
+describe('calibrationFromArea', () => {
+  it('derives meters-per-unit as the square root of the area ratio', () => {
+    const square = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+      { x: 0, y: 10 },
+    ];
+    const calibration = calibrationFromArea(square, 25);
+    expect(metersPerUnit(calibration)).toBeCloseTo(0.5, 10);
+  });
+
+  it('returns null for a degenerate (zero-area) polygon', () => {
+    const collinear = [
+      { x: 0, y: 0 },
+      { x: 5, y: 0 },
+      { x: 10, y: 0 },
+    ];
+    expect(calibrationFromArea(collinear, 25)).toBeNull();
+  });
+
+  it('returns null for fewer than 3 points', () => {
+    expect(calibrationFromArea([{ x: 0, y: 0 }, { x: 1, y: 1 }], 25)).toBeNull();
   });
 });
 
