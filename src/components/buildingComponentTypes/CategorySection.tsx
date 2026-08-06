@@ -5,16 +5,8 @@ import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import BuildingComponentTypeRow from '@/components/buildingComponentTypes/BuildingComponentTypeRow';
 import { useBuildingComponentTypeStore } from '@/store/buildingComponentTypeStore';
+import { BUILDING_COMPONENT_CATEGORY_LABELS } from '@/types';
 import type { BuildingComponentCategory, BuildingComponentType } from '@/types';
-
-const CATEGORY_LABELS: Record<BuildingComponentCategory, string> = {
-  yttervegg: 'Yttervegg',
-  vindu: 'Vindu',
-  ytterdor: 'Ytterdør',
-  tak: 'Tak',
-  gulv: 'Gulv',
-  dekke: 'Dekke',
-};
 
 type CategorySectionProps = {
   category: BuildingComponentCategory;
@@ -56,7 +48,7 @@ export default function CategorySection({ category, types }: CategorySectionProp
 
   return (
     <section className="mb-8">
-      <h2 className="mb-2 text-sm font-semibold text-foreground">{CATEGORY_LABELS[category]}</h2>
+      <h2 className="mb-2 text-sm font-semibold text-foreground">{BUILDING_COMPONENT_CATEGORY_LABELS[category]}</h2>
 
       {types.length === 0 && !adding && <p className="mb-2 text-sm text-muted-foreground">Ingen typer ennå.</p>}
 

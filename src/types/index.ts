@@ -28,6 +28,7 @@ export type Orientation = 'N' | 'S' | 'E' | 'W';
 export type EdgeMeta = {
   wallType?: WallType;
   orientation?: Orientation;
+  buildingComponent?: BuildingComponentAssignment;
 };
 
 export type AnnotationType = 'rectangle' | 'polygon' | 'line';
@@ -42,6 +43,7 @@ export type Annotation = {
   color: AnnotationColor;
   locked: boolean;
   visible: boolean;
+  buildingComponent?: BuildingComponentAssignment;
   createdAt: number;
   updatedAt: number;
 };
@@ -80,4 +82,21 @@ export type BuildingComponentType = {
   wallThickness?: number; // mm — present only when category === 'yttervegg'
   createdAt: number;
   updatedAt: number;
+};
+
+export type BuildingComponentAssignment = {
+  typeId: string; // originating library type id — provenance/display only, never re-read live
+  category: BuildingComponentCategory;
+  name: string;
+  uValue: number;
+  wallThickness?: number; // present only when category === 'yttervegg'
+};
+
+export const BUILDING_COMPONENT_CATEGORY_LABELS: Record<BuildingComponentCategory, string> = {
+  yttervegg: 'Yttervegg',
+  vindu: 'Vindu',
+  ytterdor: 'Ytterdør',
+  tak: 'Tak',
+  gulv: 'Gulv',
+  dekke: 'Dekke',
 };
