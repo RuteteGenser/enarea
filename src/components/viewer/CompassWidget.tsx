@@ -5,8 +5,7 @@ import { Input } from '@/components/ui/input';
 import { useProjectStore } from '@/store/projectStore';
 
 // Converts a mouse position (relative to the dial's center) to a compass
-// bearing in degrees, where 0° = up/north and it increases clockwise — the
-// same convention the project-settings dialog's rotate(deg) preview uses.
+// bearing in degrees, where 0° = up/north and it increases clockwise.
 function bearingFromPoint(dx: number, dy: number) {
   const raw = (Math.atan2(dy, dx) * 180) / Math.PI + 90;
   return ((raw % 360) + 360) % 360;
