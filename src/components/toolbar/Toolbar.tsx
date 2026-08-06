@@ -6,6 +6,7 @@ import {
   Hexagon,
   Wand2,
   BrickWall,
+  Palette,
   Ruler,
   Compass,
   Undo2,
@@ -123,6 +124,13 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
           disabled={!calibrated}
           disabledReason="Kalibrer PDF-en først"
           onClick={() => setTool('wall')}
+        />
+        <ToolButton
+          icon={Palette}
+          label="Materialvelger"
+          shortcut="M"
+          active={tool === 'material'}
+          onClick={() => setTool('material')}
         />
 
         <Separator orientation="vertical" className="mx-1 h-6" />

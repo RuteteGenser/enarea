@@ -7,7 +7,7 @@ type BuildingComponentTypeStore = {
   types: BuildingComponentType[];
   loaded: boolean;
   loadTypes: () => Promise<void>;
-  createType: (category: BuildingComponentCategory, name: string, uValue: number, wallThickness?: number) => Promise<void>;
+  createType: (category: BuildingComponentCategory, name: string, uValue: number, wallThickness?: number) => Promise<BuildingComponentType>;
   updateType: (id: string, patch: Partial<Pick<BuildingComponentType, 'name' | 'uValue' | 'wallThickness'>>) => Promise<void>;
   deleteType: (id: string) => Promise<void>;
 };
@@ -34,6 +34,7 @@ export const useBuildingComponentTypeStore = create<BuildingComponentTypeStore>(
     };
     await buildingComponentTypesRepo.put(type);
     set((state) => ({ types: [...state.types, type] }));
+    return type;
   },
 
   updateType: async (id, patch) => {
