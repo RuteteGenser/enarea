@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Plus, Ruler } from 'lucide-react';
+import { Plus, Ruler, Wrench } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import NewProjectDialog from '@/components/project/NewProjectDialog';
@@ -9,6 +10,7 @@ import { useProjectStore } from '@/store/projectStore';
 import { toast } from 'sonner';
 
 export default function ProjectList() {
+  const navigate = useNavigate();
   const { projects, loaded, loadProjects, createProject, renameProject, deleteProject } = useProjectStore();
   const [newOpen, setNewOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<string | null>(null);
@@ -33,9 +35,14 @@ export default function ProjectList() {
             <p className="mt-1 text-xs text-muted-foreground">Oppmålingsverktøy for energirådgivere</p>
           </div>
         </div>
-        <Button onClick={() => setNewOpen(true)}>
-          <Plus /> Nytt prosjekt
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate('/bygningsdeltyper')}>
+            <Wrench /> Bygningsdeltyper
+          </Button>
+          <Button onClick={() => setNewOpen(true)}>
+            <Plus /> Nytt prosjekt
+          </Button>
+        </div>
       </header>
 
       {loaded && projects.length === 0 && (

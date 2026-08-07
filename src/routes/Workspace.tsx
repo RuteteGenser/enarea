@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Settings, Upload } from 'lucide-react';
+import { ArrowLeft, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import FileTabs from '@/components/project/FileTabs';
-import ProjectSettingsDialog from '@/components/project/ProjectSettingsDialog';
 import ExportDialog from '@/components/export/ExportDialog';
 import Toolbar from '@/components/toolbar/Toolbar';
 import PdfCanvas from '@/components/viewer/PdfCanvas';
@@ -26,7 +25,6 @@ export default function Workspace() {
   const project = projects.find((p) => p.id === projectId);
   const files = projectId ? (filesByProject[projectId] ?? []) : [];
   const activeFile = activeFileId ? getFile(activeFileId) : undefined;
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
 
   useKeyboardShortcuts(true);
@@ -64,16 +62,8 @@ export default function Workspace() {
         </Button>
         <span className="truncate text-sm font-medium text-foreground">{project?.name}</span>
         <div className="flex-1" />
-        {project && (
-          <Button variant="ghost" size="icon-sm" onClick={() => setSettingsOpen(true)} title="Prosjektinnstillinger">
-            <Settings className="size-4" />
-          </Button>
-        )}
       </div>
 
-      {project && (
-        <ProjectSettingsDialog open={settingsOpen} project={project} onOpenChange={setSettingsOpen} />
-      )}
       {project && (
         <ExportDialog open={exportOpen} project={project} files={files} onOpenChange={setExportOpen} />
       )}

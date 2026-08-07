@@ -1,6 +1,6 @@
 export type Point = { x: number; y: number };
 
-export type ToolId = 'select' | 'line' | 'rectangle' | 'polygon' | 'calibrate' | 'calibrate-area' | 'pan' | 'detect' | 'wall';
+export type ToolId = 'select' | 'line' | 'rectangle' | 'polygon' | 'calibrate' | 'calibrate-area' | 'pan' | 'detect' | 'wall' | 'material';
 
 export type Unit = 'm' | 'mm';
 
@@ -25,9 +25,14 @@ export type WallType = 'external' | 'internal';
 
 export type Orientation = 'N' | 'S' | 'E' | 'W';
 
+// `wallType`/`orientation` (set by the "wall" tool) and `buildingComponent` (set by the
+// material-picker tool) are independent, tool-specific fields with no automatic reconciliation
+// between them today — e.g. `wallType: 'internal'` can coexist with a `buildingComponent` of
+// category 'yttervegg'. A future increment may need to unify them.
 export type EdgeMeta = {
   wallType?: WallType;
   orientation?: Orientation;
+  buildingComponent?: BuildingComponentAssignment;
 };
 
 export type AnnotationType = 'rectangle' | 'polygon' | 'line';
@@ -42,6 +47,7 @@ export type Annotation = {
   color: AnnotationColor;
   locked: boolean;
   visible: boolean;
+  buildingComponent?: BuildingComponentAssignment;
   createdAt: number;
   updatedAt: number;
 };
@@ -68,4 +74,33 @@ export type Project = {
   northDirection: number;
   createdAt: number;
   updatedAt: number;
+};
+
+export type BuildingComponentCategory = 'yttervegg' | 'vindu' | 'ytterdor' | 'tak' | 'gulv' | 'dekke';
+
+export type BuildingComponentType = {
+  id: string;
+  category: BuildingComponentCategory;
+  name: string;
+  uValue: number; // W/m²K
+  wallThickness?: number; // mm — present only when category === 'yttervegg'
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type BuildingComponentAssignment = {
+  typeId: string; // originating library type id — provenance/display only, never re-read live
+  category: BuildingComponentCategory;
+  name: string;
+  uValue: number;
+  wallThickness?: number; // present only when category === 'yttervegg'
+};
+
+export const BUILDING_COMPONENT_CATEGORY_LABELS: Record<BuildingComponentCategory, string> = {
+  yttervegg: 'Yttervegg',
+  vindu: 'Vindu',
+  ytterdor: 'Ytterdør',
+  tak: 'Tak',
+  gulv: 'Gulv',
+  dekke: 'Dekke',
 };

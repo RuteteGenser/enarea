@@ -15,6 +15,15 @@ Appen er bygget rundt konseptet **Bygningsdel**. Brukeren kan opprette egne type
 
 Brukeren skal fritt kunne opprette nye typer utover disse eksemplene.
 
+### 1a. To lag: bibliotek vs. prosjekt (lagt til etter implementering av bygningsdeltype-biblioteket)
+
+Det globale biblioteket (siden `/bygningsdeltyper`, implementert) fungerer som en **mal** — et sted å definere standardverdier én gang (f.eks. "Yttervegg type 1" med en gitt U-verdi/veggtykkelse).
+
+Inne i et enkelt prosjekt trengs i tillegg en **prosjektspesifikk liste** over hvilke bygningsdeltyper som faktisk er i bruk i akkurat det prosjektet. Denne listen bygges ved å "hente" (importere) typer fra det globale biblioteket:
+
+- Når en type hentes inn i et prosjekt, kopieres verdiene inn som et **uavhengig snapshot** — prosjektets kopi kan justeres videre (f.eks. en litt annen U-verdi for akkurat denne bygningen) uten at det globale biblioteket eller andre prosjekter påvirkes.
+- Redigeringsverktøyets vegg-/gulvtype-meny (se punkt 2) skal vise **prosjektets egen liste**, ikke hele det globale biblioteket direkte — brukeren velger først hvilke typer som er relevante for prosjektet, deretter brukes de på konkrete vegger/gulv via redigeringsverktøyet.
+
 ## 2. Redigeringsverktøy (annotasjoner)
 
 - Dagens "vegg-verktøy" bør generaliseres til ett **felles verktøy for å redigere alle markeringer/annotasjoner** (ikke bare vegger).
