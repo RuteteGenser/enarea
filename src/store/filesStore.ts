@@ -5,6 +5,7 @@ import type { Calibration, PdfFile } from '@/types';
 
 type FilesStore = {
   filesByProject: Record<string, PdfFile[]>;
+  filesLoaded: Record<string, boolean>;
   activeFileId: string | null;
   loadFiles: (projectId: string) => Promise<PdfFile[]>;
   addFile: (projectId: string, name: string, blob: Blob) => Promise<PdfFile>;
@@ -17,11 +18,15 @@ type FilesStore = {
 
 export const useFilesStore = create<FilesStore>((set, get) => ({
   filesByProject: {},
+  filesLoaded: {},
   activeFileId: null,
 
   loadFiles: async (projectId: string) => {
     const files = await filesRepo.listByProject(projectId);
-    set((state) => ({ filesByProject: { ...state.filesByProject, [projectId]: files } }));
+    set((state) => ({
+      filesByProject: { ...state.filesByProject, [projectId]: files },
+      filesLoaded: { ...state.filesLoaded, [projectId]: true },
+    }));
     return files;
   },
 

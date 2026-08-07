@@ -42,9 +42,10 @@ type Status = 'loading' | 'ready' | 'error';
 
 type PdfCanvasProps = {
   file: PdfFile;
+  onFirstRender?: () => void;
 };
 
-export default function PdfCanvas({ file }: PdfCanvasProps) {
+export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
   const zoom = useViewportStore((s) => s.zoom);
   const fitZoom = useViewportStore((s) => s.fitZoom);
   const setFitZoom = useViewportStore((s) => s.setFitZoom);
@@ -56,6 +57,7 @@ export default function PdfCanvas({ file }: PdfCanvasProps) {
 
   const [status, setStatus] = useState<Status>('loading');
   const [page, setPage] = useState<PdfPageProxy | null>(null);
+  const [firstPaintDone, setFirstPaintDone] = useState(false);
   const [baseWidth, setBaseWidth] = useState(0);
   const [baseHeight, setBaseHeight] = useState(0);
 
@@ -111,6 +113,7 @@ export default function PdfCanvas({ file }: PdfCanvasProps) {
     canvas.height = viewport.height;
     const ctx = canvas.getContext('2d');
     ctx?.drawImage(offscreen, 0, 0);
+    setFirstPaintDone(true);
   }, [fitZoom]);
 
   // Load document + first page when the file changes.
@@ -118,6 +121,7 @@ export default function PdfCanvas({ file }: PdfCanvasProps) {
     let cancelled = false;
     setStatus('loading');
     setPage(null);
+    setFirstPaintDone(false);
 
     (async () => {
       try {
@@ -141,6 +145,13 @@ export default function PdfCanvas({ file }: PdfCanvasProps) {
       renderTaskRef.current?.cancel();
     };
   }, [file.id, file.pdfBlob]);
+
+  // Tell the parent once the PDF is actually visible — either the first paint
+  // landed, or loading failed (so a load failure doesn't leave a caller stuck
+  // waiting forever for a render that will never happen).
+  useEffect(() => {
+    if (firstPaintDone || status === 'error') onFirstRender?.();
+  }, [firstPaintDone, status, onFirstRender]);
 
   // Once the page's native size and the container's on-screen size are both
   // known, compute the scale that shows the whole page with no scrolling and
@@ -269,7 +280,12 @@ export default function PdfCanvas({ file }: PdfCanvasProps) {
         {status === 'ready' && (
           <div ref={pageRef} className="absolute shadow-lg" style={{ width: pageWidth, height: pageHeight }}>
             <canvas ref={canvasRef} className="absolute inset-0" />
-            {showAnnotations && (
+            {!firstPaintDone && (
+              <div className="absolute inset-0 flex items-center justify-center gap-2 bg-canvas text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" /> Laster PDF …
+              </div>
+            )}
+            {showAnnotations && firstPaintDone && (
               <AnnotationLayer
                 fileId={file.id}
                 zoom={zoom}

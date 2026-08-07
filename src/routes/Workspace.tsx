@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Upload } from 'lucide-react';
+import { ArrowLeft, Loader2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import FileTabs from '@/components/project/FileTabs';
 import ExportDialog from '@/components/export/ExportDialog';
@@ -18,16 +18,23 @@ export default function Workspace() {
   const navigate = useNavigate();
 
   const { projects, loaded, loadProjects } = useProjectStore();
-  const { filesByProject, loadFiles, activeFileId, setActiveFile, getFile } = useFilesStore();
+  const { filesByProject, filesLoaded: filesLoadedByProject, loadFiles, activeFileId, setActiveFile, getFile } =
+    useFilesStore();
   const loadAnnotationsForFile = useAnnotationStore((s) => s.loadForFile);
   const panelOpen = useViewportStore((s) => s.panelOpen);
 
   const project = projects.find((p) => p.id === projectId);
   const files = projectId ? (filesByProject[projectId] ?? []) : [];
+  const filesLoaded = projectId ? !!filesLoadedByProject[projectId] : false;
   const activeFile = activeFileId ? getFile(activeFileId) : undefined;
   const [exportOpen, setExportOpen] = useState(false);
+  const [initialPdfReady, setInitialPdfReady] = useState(false);
 
   useKeyboardShortcuts(true);
+
+  useEffect(() => {
+    setInitialPdfReady(false);
+  }, [projectId]);
 
   useEffect(() => {
     if (!loaded) void loadProjects();
@@ -54,8 +61,17 @@ export default function Workspace() {
     );
   }
 
+  const showSpinner =
+    !loaded || (!!project && !filesLoaded) || (!!project && filesLoaded && files.length > 0 && !initialPdfReady);
+
   return (
-    <div className="flex h-svh flex-col overflow-hidden bg-background">
+    <div className="relative flex h-svh flex-col overflow-hidden bg-background">
+      {showSpinner && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
       <div className="flex h-11 shrink-0 items-center gap-3 border-b border-border bg-toolbar px-3">
         <Button variant="ghost" size="icon-sm" onClick={() => navigate('/')} title="Til prosjektliste">
           <ArrowLeft className="size-4" />
@@ -76,7 +92,7 @@ export default function Workspace() {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         {activeFile ? (
-          <PdfCanvas key={activeFile.id} file={activeFile} />
+          <PdfCanvas key={activeFile.id} file={activeFile} onFirstRender={() => setInitialPdfReady(true)} />
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
             <Upload className="size-6" />
