@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 import { annotationsRepo } from '@/lib/db';
 import { createId } from '@/lib/id';
-import type { Annotation, EdgeMeta } from '@/types';
+import type { Annotation, BuildingComponentAssignment, EdgeMeta } from '@/types';
+
+export type BulkAssignTarget = { annotationId: string; edgeIndex?: number };
 
 const MAX_HISTORY = 50;
 
@@ -23,6 +25,7 @@ type AnnotationStore = {
   toggleVisible: (id: string) => void;
   setEdgeMeta: (id: string, edgeIndex: number, meta: EdgeMeta) => void;
   bulkUpdateBuildingComponent: (typeId: string, patch: { uValue?: number; wallThickness?: number }) => void;
+  bulkAssignBuildingComponent: (targets: BulkAssignTarget[], assignment: BuildingComponentAssignment) => void;
   copySelected: () => void;
   pasteClipboard: () => void;
   undo: () => void;
@@ -105,6 +108,32 @@ export const useAnnotationStore = create<AnnotationStore>((set, get) => ({
         ...annotation,
         ...(matchesShape && { buildingComponent: { ...annotation.buildingComponent!, ...patch } }),
         ...(edgesChanged && { edges }),
+        updatedAt: now,
+      };
+    });
+    get().commit(next);
+  },
+
+  bulkAssignBuildingComponent: (targets: BulkAssignTarget[], assignment: BuildingComponentAssignment) => {
+    const now = Date.now();
+    const next = get().annotations.map((annotation) => {
+      const shapeTarget = targets.some((t) => t.annotationId === annotation.id && t.edgeIndex === undefined);
+      const edgeTargetIndexes = targets
+        .filter((t) => t.annotationId === annotation.id && t.edgeIndex !== undefined)
+        .map((t) => t.edgeIndex!);
+      if (!shapeTarget && edgeTargetIndexes.length === 0) return annotation;
+
+      const edges =
+        edgeTargetIndexes.length > 0
+          ? (annotation.edges ?? annotation.points.map(() => ({}))).map((edge, i) =>
+              edgeTargetIndexes.includes(i) ? { ...edge, buildingComponent: assignment } : edge,
+            )
+          : undefined;
+
+      return {
+        ...annotation,
+        ...(shapeTarget && { buildingComponent: assignment }),
+        ...(edges && { edges }),
         updatedAt: now,
       };
     });

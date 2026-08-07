@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Eye, EyeOff, Hexagon, Lock, Slash, Square, Trash2, Unlock } from 'lucide-react';
+import { Eye, EyeOff, Hexagon, Lock, Plus, Slash, Square, Trash2, Unlock } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import BuildingComponentPicker from '@/components/material/BuildingComponentPicker';
+import { useAnnotationStore } from '@/store/annotationStore';
 import { cn } from '@/lib/utils';
 import { formatArea, formatLength, metersPerUnit } from '@/lib/calibration';
 import { distance, polygonArea } from '@/lib/geometry';
@@ -39,8 +41,10 @@ export default function MeasurementRow({
   onToggleLock,
   onToggleVisible,
 }: MeasurementRowProps) {
+  const updateAnnotation = useAnnotationStore((s) => s.updateAnnotation);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(annotation.name ?? '');
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const mpu = metersPerUnit(calibration);
   const value =
@@ -128,11 +132,28 @@ export default function MeasurementRow({
 
       <span className="shrink-0 tabular-nums text-muted-foreground">{value}</span>
 
-      {annotation.buildingComponent && (
-        <span className="shrink-0 truncate text-xs text-muted-foreground">
-          · {annotation.buildingComponent.name}
-          {annotation.buildingComponent.uValue !== undefined && ` (${annotation.buildingComponent.uValue} W/m²K)`}
-        </span>
+      {annotation.buildingComponent?.uValue !== undefined && (
+        <span className="shrink-0 text-xs text-muted-foreground">{annotation.buildingComponent.uValue} W/m²K</span>
+      )}
+
+      {annotation.type !== 'line' && !annotation.buildingComponent && (
+        <BuildingComponentPicker
+          categories={['gulv', 'dekke']}
+          open={pickerOpen}
+          onOpenChange={setPickerOpen}
+          onSelect={(next) => {
+            if (next) updateAnnotation(annotation.id, { buildingComponent: next });
+          }}
+        >
+          <button
+            type="button"
+            onClick={(e) => e.stopPropagation()}
+            className="shrink-0 rounded-md p-1 text-muted-foreground opacity-0 hover:bg-secondary group-hover:opacity-100"
+            title="Tilordne type"
+          >
+            <Plus className="size-3.5" />
+          </button>
+        </BuildingComponentPicker>
       )}
 
       <div className="flex shrink-0 items-center opacity-0 group-hover:opacity-100">

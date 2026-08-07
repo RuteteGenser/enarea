@@ -1,9 +1,9 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { Ruler } from 'lucide-react';
 import MeasurementRow from '@/components/panel/MeasurementRow';
 import MeasurementWallRow from '@/components/panel/MeasurementWallRow';
-import BuildingComponentGroupHeader from '@/components/panel/BuildingComponentGroupHeader';
-import { useAnnotationStore } from '@/store/annotationStore';
+import MeasurementGroupHeader from '@/components/panel/MeasurementGroupHeader';
+import { useAnnotationStore, type BulkAssignTarget } from '@/store/annotationStore';
 import { useViewportStore } from '@/store/viewportStore';
 import { formatArea, metersPerUnit } from '@/lib/calibration';
 import { polygonArea } from '@/lib/geometry';
@@ -21,6 +21,9 @@ type PanelEntry =
 
 type FilterValue = 'all' | 'yttervegg' | 'gulv' | 'dekke';
 
+const UNCATEGORIZED_WALL_KEY = 'uncategorized-wall';
+const UNCATEGORIZED_SHAPE_KEY = 'uncategorized-shape';
+
 const FILTERS: { value: FilterValue; label: string }[] = [
   { value: 'all', label: 'Alle' },
   { value: 'yttervegg', label: BUILDING_COMPONENT_CATEGORY_LABELS.yttervegg },
@@ -28,12 +31,23 @@ const FILTERS: { value: FilterValue; label: string }[] = [
   { value: 'dekke', label: BUILDING_COMPONENT_CATEGORY_LABELS.dekke },
 ];
 
-function entryCategory(entry: PanelEntry): BuildingComponentCategory | undefined {
-  return entry.kind === 'wall' ? entry.edge.buildingComponent?.category : entry.annotation.buildingComponent?.category;
+function groupKeyFor(entry: PanelEntry): string {
+  if (entry.kind === 'wall') return entry.edge.buildingComponent?.typeId ?? UNCATEGORIZED_WALL_KEY;
+  return entry.annotation.buildingComponent?.typeId ?? UNCATEGORIZED_SHAPE_KEY;
 }
 
-function entryTypeId(entry: PanelEntry): string | undefined {
-  return entry.kind === 'wall' ? entry.edge.buildingComponent?.typeId : entry.annotation.buildingComponent?.typeId;
+function entryMatchesFilter(entry: PanelEntry, filter: FilterValue): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'yttervegg') return entry.kind === 'wall';
+  if (entry.kind !== 'shape') return false;
+  const category = entry.annotation.buildingComponent?.category;
+  return category === filter || category === undefined;
+}
+
+function entryTarget(entry: PanelEntry): BulkAssignTarget {
+  return entry.kind === 'wall'
+    ? { annotationId: entry.annotation.id, edgeIndex: entry.edgeIndex }
+    : { annotationId: entry.annotation.id };
 }
 
 export default function MeasurementPanel({ calibration }: MeasurementPanelProps) {
@@ -47,20 +61,44 @@ export default function MeasurementPanel({ calibration }: MeasurementPanelProps)
   const unit = useViewportStore((s) => s.unit);
 
   const [filter, setFilter] = useState<FilterValue>('all');
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+
+  function toggleGroup(key: string) {
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   const mpu = metersPerUnit(calibration);
   const totalArea = annotations
     .filter((a) => a.type !== 'line')
     .reduce((sum, a) => sum + polygonArea(a.points) * mpu * mpu, 0);
 
-  const entries: PanelEntry[] = [];
+  const lineAnnotations = annotations.filter((a) => a.type === 'line');
+
+  const groups = new Map<string, PanelEntry[]>();
   for (const annotation of annotations) {
-    entries.push({ kind: 'shape', annotation });
-    if (annotation.type !== 'line') {
-      annotation.edges?.forEach((edge, edgeIndex) => {
-        if (edge.buildingComponent) entries.push({ kind: 'wall', annotation, edgeIndex, edge });
-      });
+    if (annotation.type === 'line') continue;
+
+    const shapeEntry: PanelEntry = { kind: 'shape', annotation };
+    if (entryMatchesFilter(shapeEntry, filter)) {
+      const key = groupKeyFor(shapeEntry);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(shapeEntry);
     }
+
+    const edges = annotation.edges ?? annotation.points.map(() => ({}) as EdgeMeta);
+    edges.forEach((edge, edgeIndex) => {
+      const wallEntry: PanelEntry = { kind: 'wall', annotation, edgeIndex, edge };
+      if (entryMatchesFilter(wallEntry, filter)) {
+        const key = groupKeyFor(wallEntry);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(wallEntry);
+      }
+    });
   }
 
   function renderEntry(entry: PanelEntry) {
@@ -95,45 +133,7 @@ export default function MeasurementPanel({ calibration }: MeasurementPanelProps)
     );
   }
 
-  let content: ReactNode;
-
-  if (filter === 'all') {
-    content = entries.map(renderEntry);
-  } else {
-    const filtered = entries.filter((e) => entryCategory(e) === filter);
-    const groups = new Map<string, PanelEntry[]>();
-    for (const entry of filtered) {
-      const typeId = entryTypeId(entry);
-      if (!typeId) continue;
-      if (!groups.has(typeId)) groups.set(typeId, []);
-      groups.get(typeId)!.push(entry);
-    }
-
-    content =
-      groups.size === 0 ? (
-        <p className="px-2 py-4 text-center text-sm text-muted-foreground">
-          Ingen elementer med denne kategorien ennå.
-        </p>
-      ) : (
-        Array.from(groups.entries()).map(([typeId, groupEntries]) => {
-          const first = groupEntries[0];
-          const assignment = first.kind === 'wall' ? first.edge.buildingComponent! : first.annotation.buildingComponent!;
-          return (
-            <div key={typeId}>
-              <BuildingComponentGroupHeader
-                typeId={typeId}
-                name={assignment.name}
-                category={assignment.category}
-                count={groupEntries.length}
-                currentUValue={assignment.uValue}
-                currentWallThickness={assignment.wallThickness}
-              />
-              {groupEntries.map(renderEntry)}
-            </div>
-          );
-        })
-      );
-  }
+  const hasAnyContent = annotations.length > 0;
 
   return (
     <div className="flex h-full flex-col">
@@ -146,7 +146,7 @@ export default function MeasurementPanel({ calibration }: MeasurementPanelProps)
         )}
       </div>
 
-      {annotations.length === 0 ? (
+      {!hasAnyContent ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-1.5 text-center text-sm text-muted-foreground">
           <Ruler className="size-5" />
           Ingen målinger ennå. Velg et verktøy i toolbaren for å starte.
@@ -170,7 +170,73 @@ export default function MeasurementPanel({ calibration }: MeasurementPanelProps)
               </button>
             ))}
           </div>
-          <div className="flex-1 space-y-0.5 overflow-y-auto p-1.5">{content}</div>
+          <div className="flex-1 space-y-0.5 overflow-y-auto p-1.5">
+            {filter === 'all' &&
+              lineAnnotations.map((annotation) => (
+                <MeasurementRow
+                  key={annotation.id}
+                  annotation={annotation}
+                  selected={annotation.id === selectedId}
+                  unit={unit}
+                  calibration={calibration}
+                  onSelect={() => setSelected(annotation.id)}
+                  onDelete={() => deleteAnnotation(annotation.id)}
+                  onRename={(name) => updateAnnotation(annotation.id, { name })}
+                  onColorChange={(color) => updateAnnotation(annotation.id, { color })}
+                  onToggleLock={() => toggleLock(annotation.id)}
+                  onToggleVisible={() => toggleVisible(annotation.id)}
+                />
+              ))}
+
+            {groups.size === 0 && lineAnnotations.length === 0 && (
+              <p className="px-2 py-4 text-center text-sm text-muted-foreground">
+                Ingen elementer med denne kategorien ennå.
+              </p>
+            )}
+
+            {Array.from(groups.entries()).map(([key, groupEntries]) => {
+              const isOpen = openGroups.has(key);
+              const first = groupEntries[0];
+
+              if (key === UNCATEGORIZED_WALL_KEY || key === UNCATEGORIZED_SHAPE_KEY) {
+                const label = key === UNCATEGORIZED_WALL_KEY ? 'Ukategorisert vegg' : 'Ukategorisert gulv/dekke';
+                const categories: BuildingComponentCategory[] =
+                  key === UNCATEGORIZED_WALL_KEY ? ['yttervegg'] : ['gulv', 'dekke'];
+                return (
+                  <div key={key}>
+                    <MeasurementGroupHeader
+                      mode="uncategorized"
+                      label={label}
+                      count={groupEntries.length}
+                      open={isOpen}
+                      onToggleOpen={() => toggleGroup(key)}
+                      categories={categories}
+                      targets={groupEntries.map(entryTarget)}
+                    />
+                    {isOpen && groupEntries.map(renderEntry)}
+                  </div>
+                );
+              }
+
+              const assignment = first.kind === 'wall' ? first.edge.buildingComponent! : first.annotation.buildingComponent!;
+              return (
+                <div key={key}>
+                  <MeasurementGroupHeader
+                    mode="assigned"
+                    label={assignment.name}
+                    count={groupEntries.length}
+                    open={isOpen}
+                    onToggleOpen={() => toggleGroup(key)}
+                    typeId={key}
+                    category={assignment.category}
+                    currentUValue={assignment.uValue}
+                    currentWallThickness={assignment.wallThickness}
+                  />
+                  {isOpen && groupEntries.map(renderEntry)}
+                </div>
+              );
+            })}
+          </div>
         </>
       )}
     </div>
