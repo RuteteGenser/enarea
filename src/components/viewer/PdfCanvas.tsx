@@ -203,21 +203,28 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
     };
   }, [zoom, page, baseWidth, baseHeight, renderAtZoom]);
 
-  // Pan the selected annotation into view (e.g. when clicked in the measurement panel).
-  const selectedId = useAnnotationStore((s) => s.selectedId);
+  // Pan the annotation into view — but only on an explicit jump request (e.g.
+  // clicked in the measurement panel), never as a side effect of selection
+  // itself. Newly created/detected annotations get auto-selected (for
+  // highlighting/delete) without requesting a jump, so the camera stays put.
+  const pendingJumpId = useViewportStore((s) => s.pendingJumpId);
+  const requestJump = useViewportStore((s) => s.requestJump);
   useEffect(() => {
     const container = containerRef.current;
     const page = pageRef.current;
-    if (!selectedId || !container || !page) return;
-    const annotation = useAnnotationStore.getState().annotations.find((a) => a.id === selectedId);
-    if (!annotation) return;
+    if (!pendingJumpId || !container || !page) return;
+    const annotation = useAnnotationStore.getState().annotations.find((a) => a.id === pendingJumpId);
+    if (!annotation) {
+      requestJump(null);
+      return;
+    }
     const xs = annotation.points.map((p) => p.x);
     const ys = annotation.points.map((p) => p.y);
     const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
     const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
 
     // Read zoom fresh rather than depending on it (see deps below) — this
-    // jump should only happen once, right when a *new* selection is made,
+    // jump should only happen once, right when a new jump is requested,
     // using whatever zoom is current at that moment. Depending on `zoom`
     // here would re-run this on every subsequent wheel-zoom tick too, fighting
     // the cursor-anchored zoom and re-centering on the selection instead —
@@ -233,12 +240,13 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
     // so they stay instant.
     page.style.transition = `transform ${JUMP_TRANSITION_MS}ms ease`;
     page.style.transform = `translate(${pan.x}px, ${pan.y}px)`;
+    requestJump(null);
     const timeout = window.setTimeout(() => {
       page.style.transition = '';
     }, JUMP_TRANSITION_MS);
     return () => window.clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- zoom read fresh, intentionally not a trigger (see comment above)
-  }, [selectedId]);
+  }, [pendingJumpId]);
 
   const pageWidth = zoom * baseWidth;
   const pageHeight = zoom * baseHeight;
@@ -328,8 +336,12 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
         )}
       </div>
 
-      {status === 'ready' && showScaleBar && <ScaleBar zoom={zoom} calibration={file.calibration} />}
-      {status === 'ready' && showCompass && <CompassWidget />}
+      {status === 'ready' && (showCompass || showScaleBar) && (
+        <div className="absolute bottom-4 left-4 flex flex-col items-start gap-2">
+          {showCompass && <CompassWidget />}
+          {showScaleBar && <ScaleBar zoom={zoom} calibration={file.calibration} />}
+        </div>
+      )}
       {status === 'ready' && <MagnifierLoupe canvasRef={canvasRef} />}
     </div>
   );

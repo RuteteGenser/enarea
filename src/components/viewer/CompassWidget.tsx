@@ -80,7 +80,7 @@ export default function CompassWidget() {
   if (!project) return null;
 
   return (
-    <div className="absolute top-4 right-4 flex flex-col items-center gap-2 rounded-md bg-card/90 px-3 py-2.5 shadow-sm ring-1 ring-border">
+    <div className="flex flex-col items-center gap-2 rounded-md bg-card/90 px-3 py-2.5 shadow-sm ring-1 ring-border">
       <div
         ref={dialRef}
         onMouseDown={handleMouseDown}

@@ -40,12 +40,14 @@ type MeasurementGroupHeaderProps = {
 
 export default function MeasurementGroupHeader(props: MeasurementGroupHeaderProps) {
   const { label, count, open, onToggleOpen } = props;
+  const [popoverOpen, setPopoverOpen] = useState(false);
 
   return (
     <div className="mb-1 mt-3 flex items-center gap-1 px-2 first:mt-0">
       <button
         type="button"
         onClick={onToggleOpen}
+        onDoubleClick={() => setPopoverOpen(true)}
         className="flex flex-1 items-center gap-1 text-left text-xs font-semibold text-foreground"
       >
         {open ? <ChevronDown className="size-3.5 text-muted-foreground" /> : <ChevronRight className="size-3.5 text-muted-foreground" />}
@@ -58,9 +60,17 @@ export default function MeasurementGroupHeader(props: MeasurementGroupHeaderProp
           currentUValue={props.currentUValue}
           currentWallThickness={props.currentWallThickness}
           count={count}
+          open={popoverOpen}
+          onOpenChange={setPopoverOpen}
         />
       ) : (
-        <BulkAssignPopover categories={props.categories} targets={props.targets} count={count} />
+        <BulkAssignPopover
+          categories={props.categories}
+          targets={props.targets}
+          count={count}
+          open={popoverOpen}
+          onOpenChange={setPopoverOpen}
+        />
       )}
     </div>
   );
@@ -72,13 +82,22 @@ type BulkEditValuePopoverProps = {
   currentUValue?: number;
   currentWallThickness?: number;
   count: number;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 };
 
-function BulkEditValuePopover({ typeId, category, currentUValue, currentWallThickness, count }: BulkEditValuePopoverProps) {
+function BulkEditValuePopover({
+  typeId,
+  category,
+  currentUValue,
+  currentWallThickness,
+  count,
+  open,
+  onOpenChange,
+}: BulkEditValuePopoverProps) {
   const bulkUpdateBuildingComponent = useAnnotationStore((s) => s.bulkUpdateBuildingComponent);
   const isYttervegg = category === 'yttervegg';
 
-  const [open, setOpen] = useState(false);
   const [uValue, setUValue] = useState('');
   const [wallThickness, setWallThickness] = useState('');
 
@@ -95,7 +114,7 @@ function BulkEditValuePopover({ typeId, category, currentUValue, currentWallThic
       setUValue(currentUValue !== undefined ? String(currentUValue) : '');
       setWallThickness(currentWallThickness !== undefined ? String(currentWallThickness) : '');
     }
-    setOpen(next);
+    onOpenChange(next);
   }
 
   function handleApply() {
@@ -104,7 +123,7 @@ function BulkEditValuePopover({ typeId, category, currentUValue, currentWallThic
       ...(parsedUValue !== undefined && { uValue: parsedUValue }),
       ...(isYttervegg && parsedThickness !== undefined && { wallThickness: parsedThickness }),
     });
-    setOpen(false);
+    onOpenChange(false);
   }
 
   return (
@@ -146,14 +165,15 @@ type BulkAssignPopoverProps = {
   categories: BuildingComponentCategory[];
   targets: BulkAssignTarget[];
   count: number;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 };
 
-function BulkAssignPopover({ categories, targets, count }: BulkAssignPopoverProps) {
+function BulkAssignPopover({ categories, targets, count, open, onOpenChange }: BulkAssignPopoverProps) {
   const types = useBuildingComponentTypeStore((s) => s.types);
   const createType = useBuildingComponentTypeStore((s) => s.createType);
   const bulkAssignBuildingComponent = useAnnotationStore((s) => s.bulkAssignBuildingComponent);
 
-  const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [addCategory, setAddCategory] = useState<BuildingComponentCategory>(categories[0]);
   const [name, setName] = useState('');
@@ -179,7 +199,7 @@ function BulkAssignPopover({ categories, targets, count }: BulkAssignPopoverProp
 
   function handleOpenChange(next: boolean) {
     if (!next) resetForm();
-    setOpen(next);
+    onOpenChange(next);
   }
 
   function assignAndClose(assignment: BuildingComponentAssignment) {

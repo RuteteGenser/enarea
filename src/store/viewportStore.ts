@@ -16,6 +16,7 @@ type ViewportStore = {
   isSpaceDown: boolean;
   isShiftDown: boolean;
   magnifierScreenPos: { x: number; y: number } | null;
+  pendingJumpId: string | null;
 
   setTool: (tool: ToolId) => void;
   setZoom: (zoom: number) => void;
@@ -29,6 +30,7 @@ type ViewportStore = {
   setSpaceDown: (down: boolean) => void;
   setShiftDown: (down: boolean) => void;
   setMagnifierScreenPos: (pos: { x: number; y: number } | null) => void;
+  requestJump: (id: string | null) => void;
 };
 
 export const useViewportStore = create<ViewportStore>((set, get) => ({
@@ -37,12 +39,13 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   fitZoom: 1,
   unit: 'm',
   showScaleBar: true,
-  showCompass: false,
+  showCompass: true,
   showAnnotations: true,
   panelOpen: true,
   isSpaceDown: false,
   isShiftDown: false,
   magnifierScreenPos: null,
+  pendingJumpId: null,
 
   setTool: (tool) => set({ tool }),
   setZoom: (zoom) => set({ zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom)) }),
@@ -62,4 +65,5 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   setSpaceDown: (down) => set({ isSpaceDown: down }),
   setShiftDown: (down) => set({ isShiftDown: down }),
   setMagnifierScreenPos: (pos) => set({ magnifierScreenPos: pos }),
+  requestJump: (id) => set({ pendingJumpId: id }),
 }));

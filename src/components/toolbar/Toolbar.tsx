@@ -8,7 +8,6 @@ import {
   BrickWall,
   Palette,
   Ruler,
-  Compass,
   Undo2,
   Redo2,
   ZoomIn,
@@ -154,7 +153,6 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
             <DropdownMenuItem onClick={() => setScaleDialogOpen(true)}>Angi skala (1:X)</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <ToolButton icon={Compass} label="Kompass" active={showCompass} onClick={toggleCompass} />
 
         <Separator orientation="vertical" className="mx-1 h-6" />
 
@@ -194,6 +192,9 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem checked={showScaleBar} onCheckedChange={toggleScaleBar}>
               Vis målestokk
+            </DropdownMenuCheckboxItem>
+            <DropdownMenuCheckboxItem checked={showCompass} onCheckedChange={toggleCompass}>
+              Vis kompass
             </DropdownMenuCheckboxItem>
             <DropdownMenuCheckboxItem checked={panelOpen} onCheckedChange={togglePanel}>
               Vis målepanel

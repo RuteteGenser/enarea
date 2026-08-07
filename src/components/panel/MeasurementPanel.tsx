@@ -66,6 +66,12 @@ export default function MeasurementPanel({ calibration }: MeasurementPanelProps)
   const toggleLock = useAnnotationStore((s) => s.toggleLock);
   const toggleVisible = useAnnotationStore((s) => s.toggleVisible);
   const unit = useViewportStore((s) => s.unit);
+  const requestJump = useViewportStore((s) => s.requestJump);
+
+  function selectAndJump(id: string) {
+    setSelected(id);
+    requestJump(id);
+  }
 
   const [filter, setFilter] = useState<FilterValue>('all');
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
@@ -118,7 +124,7 @@ export default function MeasurementPanel({ calibration }: MeasurementPanelProps)
           selected={entry.annotation.id === selectedId}
           unit={unit}
           calibration={calibration}
-          onSelect={() => setSelected(entry.annotation.id)}
+          onSelect={() => selectAndJump(entry.annotation.id)}
           onDelete={() => deleteAnnotation(entry.annotation.id)}
           onRename={(name) => updateAnnotation(entry.annotation.id, { name })}
           onColorChange={(color) => updateAnnotation(entry.annotation.id, { color })}
@@ -136,7 +142,7 @@ export default function MeasurementPanel({ calibration }: MeasurementPanelProps)
         selected={entry.annotation.id === selectedId}
         unit={unit}
         calibration={calibration}
-        onSelect={() => setSelected(entry.annotation.id)}
+        onSelect={() => selectAndJump(entry.annotation.id)}
       />
     );
   }
@@ -187,7 +193,7 @@ export default function MeasurementPanel({ calibration }: MeasurementPanelProps)
                   selected={annotation.id === selectedId}
                   unit={unit}
                   calibration={calibration}
-                  onSelect={() => setSelected(annotation.id)}
+                  onSelect={() => selectAndJump(annotation.id)}
                   onDelete={() => deleteAnnotation(annotation.id)}
                   onRename={(name) => updateAnnotation(annotation.id, { name })}
                   onColorChange={(color) => updateAnnotation(annotation.id, { color })}

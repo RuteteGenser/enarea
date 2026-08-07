@@ -31,7 +31,7 @@ export default function ScaleBar({ zoom, calibration }: ScaleBarProps) {
   const label = unit === 'mm' ? `${(meters * 1000).toLocaleString('nb-NO')} mm` : `${meters.toLocaleString('nb-NO')} m`;
 
   return (
-    <div className="pointer-events-none absolute bottom-4 left-4 flex flex-col items-start gap-1 rounded-md bg-card/90 px-2.5 py-1.5 shadow-sm ring-1 ring-border">
+    <div className="pointer-events-none flex flex-col items-start gap-1 rounded-md bg-card/90 px-2.5 py-1.5 shadow-sm ring-1 ring-border">
       <div className="flex h-2.5 items-end" style={{ width: widthPx }}>
         <div className="h-1.5 w-full border-x border-t border-foreground/70" />
       </div>

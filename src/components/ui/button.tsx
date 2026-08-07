@@ -35,6 +35,7 @@ function Button({
   variant,
   size,
   asChild = false,
+  onMouseDown,
   ...props
 }: React.ComponentProps<'button'> &
   VariantProps<typeof buttonVariants> & { asChild?: boolean }) {
@@ -43,6 +44,15 @@ function Button({
     <Comp
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      // Mouse clicks shouldn't leave the button holding keyboard focus — a
+      // focused button intercepts the NEXT keypress (e.g. Space) as a native
+      // re-click, which reads as "the last-used tool reactivated itself".
+      // Keyboard users tabbing to the button are unaffected: this only
+      // suppresses the browser's default mouse-driven focus, not Tab/Enter/Space.
+      onMouseDown={(e) => {
+        onMouseDown?.(e);
+        if (!e.defaultPrevented) e.preventDefault();
+      }}
       {...props}
     />
   );

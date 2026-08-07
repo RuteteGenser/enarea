@@ -8,6 +8,14 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
 }
 
+// A focused <button> should get its own native Space/Enter activation instead
+// of the app's pan-mode shortcut also firing — relevant for keyboard users who
+// Tab to a button (mouse clicks no longer leave buttons focused, see Button's
+// onMouseDown, but Tab-focus is intentionally left alone for accessibility).
+function isButtonTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && target.tagName === 'BUTTON';
+}
+
 const TOOL_KEYS: Record<string, 'select' | 'line' | 'rectangle' | 'polygon' | 'pan' | 'detect' | 'wall' | 'material'> = {
   v: 'select',
   l: 'line',
@@ -27,6 +35,7 @@ export function useKeyboardShortcuts(enabled: boolean) {
       if (isEditableTarget(e.target)) return;
 
       if (e.code === 'Space') {
+        if (isButtonTarget(e.target)) return;
         e.preventDefault();
         useViewportStore.getState().setSpaceDown(true);
         return;
@@ -81,6 +90,7 @@ export function useKeyboardShortcuts(enabled: boolean) {
 
     function handleKeyUp(e: KeyboardEvent) {
       if (e.code === 'Space') {
+        if (!isButtonTarget(e.target)) e.preventDefault();
         useViewportStore.getState().setSpaceDown(false);
       }
       if (e.key === 'Shift') {
