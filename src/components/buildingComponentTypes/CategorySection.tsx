@@ -25,13 +25,13 @@ export default function CategorySection({ category, types }: CategorySectionProp
   const [deleteTarget, setDeleteTarget] = useState<BuildingComponentType | null>(null);
 
   const isYttervegg = category === 'yttervegg';
-  const parsedUValue = Number(uValue.replace(',', '.'));
-  const parsedThickness = Number(wallThickness.replace(',', '.'));
-  const canSubmit =
-    name.trim().length > 0 &&
-    Number.isFinite(parsedUValue) &&
-    parsedUValue > 0 &&
-    (!isYttervegg || (Number.isFinite(parsedThickness) && parsedThickness > 0));
+  const trimmedUValue = uValue.trim();
+  const trimmedThickness = wallThickness.trim();
+  const parsedUValue = trimmedUValue ? Number(trimmedUValue.replace(',', '.')) : undefined;
+  const parsedThickness = trimmedThickness ? Number(trimmedThickness.replace(',', '.')) : undefined;
+  const uValueValid = parsedUValue === undefined || (Number.isFinite(parsedUValue) && parsedUValue > 0);
+  const thicknessValid = parsedThickness === undefined || (Number.isFinite(parsedThickness) && parsedThickness > 0);
+  const canSubmit = name.trim().length > 0 && uValueValid && (!isYttervegg || thicknessValid);
 
   function resetForm() {
     setName('');
@@ -74,18 +74,18 @@ export default function CategorySection({ category, types }: CategorySectionProp
               />
               <Input
                 inputMode="decimal"
-                placeholder="U-verdi"
+                placeholder="U-verdi (valgfritt)"
                 value={uValue}
                 onChange={(e) => setUValue(e.target.value)}
-                className="h-7 w-24 px-1.5 py-0 text-sm"
+                className="h-7 w-32 px-1.5 py-0 text-sm"
               />
               {isYttervegg && (
                 <Input
                   inputMode="decimal"
-                  placeholder="Tykkelse (mm)"
+                  placeholder="Tykkelse, mm (valgfritt)"
                   value={wallThickness}
                   onChange={(e) => setWallThickness(e.target.value)}
-                  className="h-7 w-28 px-1.5 py-0 text-sm"
+                  className="h-7 w-36 px-1.5 py-0 text-sm"
                 />
               )}
               <Button size="sm" disabled={!canSubmit} onClick={handleCreate}>

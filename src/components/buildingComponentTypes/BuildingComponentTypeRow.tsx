@@ -28,7 +28,13 @@ export default function BuildingComponentTypeRow({ type, onUpdate, onDelete }: B
   }
 
   function commitNumber(field: 'uValue' | 'wallThickness') {
-    const parsed = Number(draft.replace(',', '.'));
+    const trimmed = draft.trim();
+    if (!trimmed) {
+      onUpdate({ [field]: undefined });
+      setEditing(null);
+      return;
+    }
+    const parsed = Number(trimmed.replace(',', '.'));
     if (Number.isFinite(parsed) && parsed > 0) {
       onUpdate({ [field]: parsed });
     }
@@ -67,15 +73,15 @@ export default function BuildingComponentTypeRow({ type, onUpdate, onDelete }: B
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onBlur={() => commitNumber('uValue')}
-          onKeyDown={(e) => handleKeyDown(e, () => commitNumber('uValue'), String(type.uValue))}
+          onKeyDown={(e) => handleKeyDown(e, () => commitNumber('uValue'), String(type.uValue ?? ''))}
           className="h-7 w-24 px-1.5 py-0 text-sm"
         />
       ) : (
         <span
           className="w-24 shrink-0 tabular-nums text-muted-foreground"
-          onDoubleClick={() => startEdit('uValue', String(type.uValue))}
+          onDoubleClick={() => startEdit('uValue', String(type.uValue ?? ''))}
         >
-          {type.uValue} W/m²K
+          {type.uValue !== undefined ? `${type.uValue} W/m²K` : '—'}
         </span>
       )}
 

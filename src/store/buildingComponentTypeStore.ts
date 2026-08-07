@@ -7,7 +7,7 @@ type BuildingComponentTypeStore = {
   types: BuildingComponentType[];
   loaded: boolean;
   loadTypes: () => Promise<void>;
-  createType: (category: BuildingComponentCategory, name: string, uValue: number, wallThickness?: number) => Promise<BuildingComponentType>;
+  createType: (category: BuildingComponentCategory, name: string, uValue?: number, wallThickness?: number) => Promise<BuildingComponentType>;
   updateType: (id: string, patch: Partial<Pick<BuildingComponentType, 'name' | 'uValue' | 'wallThickness'>>) => Promise<void>;
   deleteType: (id: string) => Promise<void>;
 };
