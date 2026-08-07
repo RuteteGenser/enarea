@@ -45,13 +45,13 @@ export default function BuildingComponentPicker({
   const [wallThickness, setWallThickness] = useState('');
 
   const isYttervegg = addCategory === 'yttervegg';
-  const parsedUValue = Number(uValue.replace(',', '.'));
-  const parsedThickness = Number(wallThickness.replace(',', '.'));
-  const canSubmit =
-    name.trim().length > 0 &&
-    Number.isFinite(parsedUValue) &&
-    parsedUValue > 0 &&
-    (!isYttervegg || (Number.isFinite(parsedThickness) && parsedThickness > 0));
+  const trimmedUValue = uValue.trim();
+  const trimmedThickness = wallThickness.trim();
+  const parsedUValue = trimmedUValue ? Number(trimmedUValue.replace(',', '.')) : undefined;
+  const parsedThickness = trimmedThickness ? Number(trimmedThickness.replace(',', '.')) : undefined;
+  const uValueValid = parsedUValue === undefined || (Number.isFinite(parsedUValue) && parsedUValue > 0);
+  const thicknessValid = parsedThickness === undefined || (Number.isFinite(parsedThickness) && parsedThickness > 0);
+  const canSubmit = name.trim().length > 0 && uValueValid && (!isYttervegg || thicknessValid);
 
   function resetForm() {
     setName('');
@@ -105,7 +105,7 @@ export default function BuildingComponentPicker({
                       >
                         <span className="truncate">{type.name}</span>
                         <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
-                          {type.uValue} W/m²K
+                          {type.uValue !== undefined && `${type.uValue} W/m²K`}
                           {current?.typeId === type.id && <Check className="size-3.5 text-primary" />}
                         </span>
                       </button>
@@ -170,7 +170,7 @@ export default function BuildingComponentPicker({
             />
             <Input
               inputMode="decimal"
-              placeholder="U-verdi"
+              placeholder="U-verdi (valgfritt)"
               value={uValue}
               onChange={(e) => setUValue(e.target.value)}
               className="h-8 text-sm"
@@ -178,7 +178,7 @@ export default function BuildingComponentPicker({
             {isYttervegg && (
               <Input
                 inputMode="decimal"
-                placeholder="Tykkelse (mm)"
+                placeholder="Tykkelse, mm (valgfritt)"
                 value={wallThickness}
                 onChange={(e) => setWallThickness(e.target.value)}
                 className="h-8 text-sm"

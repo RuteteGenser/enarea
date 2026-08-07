@@ -82,8 +82,8 @@ export type BuildingComponentType = {
   id: string;
   category: BuildingComponentCategory;
   name: string;
-  uValue: number; // W/m²K
-  wallThickness?: number; // mm — present only when category === 'yttervegg'
+  uValue?: number; // W/m²K
+  wallThickness?: number; // mm — only meaningful when category === 'yttervegg'
   createdAt: number;
   updatedAt: number;
 };
@@ -92,8 +92,8 @@ export type BuildingComponentAssignment = {
   typeId: string; // originating library type id — provenance/display only, never re-read live
   category: BuildingComponentCategory;
   name: string;
-  uValue: number;
-  wallThickness?: number; // present only when category === 'yttervegg'
+  uValue?: number;
+  wallThickness?: number; // only meaningful when category === 'yttervegg'
 };
 
 export const BUILDING_COMPONENT_CATEGORY_LABELS: Record<BuildingComponentCategory, string> = {
