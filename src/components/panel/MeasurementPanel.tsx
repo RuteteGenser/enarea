@@ -50,6 +50,13 @@ function entryTarget(entry: PanelEntry): BulkAssignTarget {
     : { annotationId: entry.annotation.id };
 }
 
+function groupTypeLabel(kind: PanelEntry['kind'], category?: BuildingComponentCategory): string {
+  if (kind === 'wall') return 'Vegg';
+  if (category === 'gulv') return BUILDING_COMPONENT_CATEGORY_LABELS.gulv;
+  if (category === 'dekke') return BUILDING_COMPONENT_CATEGORY_LABELS.dekke;
+  return 'Gulv/Dekke';
+}
+
 export default function MeasurementPanel({ calibration }: MeasurementPanelProps) {
   const annotations = useAnnotationStore((s) => s.annotations);
   const selectedId = useAnnotationStore((s) => s.selectedId);
@@ -199,7 +206,8 @@ export default function MeasurementPanel({ calibration }: MeasurementPanelProps)
               const first = groupEntries[0];
 
               if (key === UNCATEGORIZED_WALL_KEY || key === UNCATEGORIZED_SHAPE_KEY) {
-                const label = key === UNCATEGORIZED_WALL_KEY ? 'Ukategorisert vegg' : 'Ukategorisert gulv/dekke';
+                const kind = key === UNCATEGORIZED_WALL_KEY ? 'wall' : 'shape';
+                const label = `${groupTypeLabel(kind)}: Ukategorisert`;
                 const categories: BuildingComponentCategory[] =
                   key === UNCATEGORIZED_WALL_KEY ? ['yttervegg'] : ['gulv', 'dekke'];
                 return (
@@ -219,11 +227,12 @@ export default function MeasurementPanel({ calibration }: MeasurementPanelProps)
               }
 
               const assignment = first.kind === 'wall' ? first.edge.buildingComponent! : first.annotation.buildingComponent!;
+              const label = `${groupTypeLabel(first.kind, assignment.category)}: ${assignment.name}`;
               return (
                 <div key={key}>
                   <MeasurementGroupHeader
                     mode="assigned"
-                    label={assignment.name}
+                    label={label}
                     count={groupEntries.length}
                     open={isOpen}
                     onToggleOpen={() => toggleGroup(key)}
