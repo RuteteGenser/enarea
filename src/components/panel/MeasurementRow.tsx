@@ -128,6 +128,13 @@ export default function MeasurementRow({
 
       <span className="shrink-0 tabular-nums text-muted-foreground">{value}</span>
 
+      {annotation.buildingComponent && (
+        <span className="shrink-0 truncate text-xs text-muted-foreground">
+          · {annotation.buildingComponent.name}
+          {annotation.buildingComponent.uValue !== undefined && ` (${annotation.buildingComponent.uValue} W/m²K)`}
+        </span>
+      )}
+
       <div className="flex shrink-0 items-center opacity-0 group-hover:opacity-100">
         <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); onToggleVisible(); }}>
           {annotation.visible ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}

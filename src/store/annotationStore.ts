@@ -22,6 +22,7 @@ type AnnotationStore = {
   toggleLock: (id: string) => void;
   toggleVisible: (id: string) => void;
   setEdgeMeta: (id: string, edgeIndex: number, meta: EdgeMeta) => void;
+  bulkUpdateBuildingComponent: (typeId: string, patch: { uValue?: number; wallThickness?: number }) => void;
   copySelected: () => void;
   pasteClipboard: () => void;
   undo: () => void;
@@ -87,6 +88,27 @@ export const useAnnotationStore = create<AnnotationStore>((set, get) => ({
     const edges = [...(annotation.edges ?? annotation.points.map(() => ({})))];
     edges[edgeIndex] = { ...edges[edgeIndex], ...meta };
     get().updateAnnotation(id, { edges });
+  },
+
+  bulkUpdateBuildingComponent: (typeId: string, patch: { uValue?: number; wallThickness?: number }) => {
+    const now = Date.now();
+    const next = get().annotations.map((annotation) => {
+      const matchesShape = annotation.buildingComponent?.typeId === typeId;
+      const edges = annotation.edges?.map((edge) =>
+        edge.buildingComponent?.typeId === typeId
+          ? { ...edge, buildingComponent: { ...edge.buildingComponent, ...patch } }
+          : edge,
+      );
+      const edgesChanged = edges && edges.some((edge, i) => edge !== annotation.edges?.[i]);
+      if (!matchesShape && !edgesChanged) return annotation;
+      return {
+        ...annotation,
+        ...(matchesShape && { buildingComponent: { ...annotation.buildingComponent!, ...patch } }),
+        ...(edgesChanged && { edges }),
+        updatedAt: now,
+      };
+    });
+    get().commit(next);
   },
 
   copySelected: () => {
