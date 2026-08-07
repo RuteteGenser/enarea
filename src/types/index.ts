@@ -1,5 +1,7 @@
 export type Point = { x: number; y: number };
 
+export type PdfLayer = { id: string; name: string; visible: boolean };
+
 export type ToolId = 'select' | 'line' | 'rectangle' | 'polygon' | 'calibrate' | 'calibrate-area' | 'pan' | 'detect' | 'wall' | 'material';
 
 export type Unit = 'm' | 'mm';
@@ -74,6 +76,7 @@ export type Project = {
   northDirection: number;
   createdAt: number;
   updatedAt: number;
+  layerVisibilitySelection?: string[]; // OCG layer *names* targeted by the layer-visibility toggle
 };
 
 export type BuildingComponentCategory = 'yttervegg' | 'vindu' | 'ytterdor' | 'tak' | 'gulv' | 'dekke';

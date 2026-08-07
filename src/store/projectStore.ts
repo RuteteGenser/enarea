@@ -11,6 +11,7 @@ type ProjectStore = {
   renameProject: (id: string, name: string) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   updateNorthDirection: (id: string, degrees: number) => Promise<void>;
+  updateLayerSelection: (id: string, layerNames: string[]) => Promise<void>;
   getProject: (id: string) => Project | undefined;
 };
 
@@ -55,6 +56,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     if (!project) return;
     const normalized = ((degrees % 360) + 360) % 360;
     const updated: Project = { ...project, northDirection: normalized, updatedAt: Date.now() };
+    await projectsRepo.put(updated);
+    set((state) => ({ projects: state.projects.map((p) => (p.id === id ? updated : p)) }));
+  },
+
+  updateLayerSelection: async (id: string, layerNames: string[]) => {
+    const project = get().projects.find((p) => p.id === id);
+    if (!project) return;
+    const updated: Project = { ...project, layerVisibilitySelection: layerNames, updatedAt: Date.now() };
     await projectsRepo.put(updated);
     set((state) => ({ projects: state.projects.map((p) => (p.id === id ? updated : p)) }));
   },
