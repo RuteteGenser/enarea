@@ -14,6 +14,7 @@ import {
   ZoomIn,
   ZoomOut,
   Eye,
+  Layers,
   Download,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -28,13 +29,18 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { calibrationFromScale } from '@/lib/calibration';
+import { EMPTY_LAYER_SELECTION } from '@/lib/layers';
 import { useViewportStore } from '@/store/viewportStore';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useFilesStore } from '@/store/filesStore';
+import { useProjectStore } from '@/store/projectStore';
 import type { PdfFile, ToolId } from '@/types';
 
 type ToolbarProps = {
@@ -63,6 +69,22 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
   const toggleCompass = useViewportStore((s) => s.toggleCompass);
   const panelOpen = useViewportStore((s) => s.panelOpen);
   const togglePanel = useViewportStore((s) => s.togglePanel);
+  const pdfLayers = useViewportStore((s) => s.pdfLayers);
+  const layersVisible = useViewportStore((s) => s.layersVisible);
+  const toggleLayersVisible = useViewportStore((s) => s.toggleLayersVisible);
+
+  const projects = useProjectStore((s) => s.projects);
+  const updateLayerSelection = useProjectStore((s) => s.updateLayerSelection);
+  const layerSelection =
+    (file && projects.find((p) => p.id === file.projectId)?.layerVisibilitySelection) ?? EMPTY_LAYER_SELECTION;
+
+  function toggleLayerSelected(name: string) {
+    if (!file) return;
+    const next = layerSelection.includes(name)
+      ? layerSelection.filter((n) => n !== name)
+      : [...layerSelection, name];
+    void updateLayerSelection(file.projectId, next);
+  }
 
   const undo = useAnnotationStore((s) => s.undo);
   const redo = useAnnotationStore((s) => s.redo);
@@ -200,6 +222,45 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
             </DropdownMenuCheckboxItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {pdfLayers.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(!layersVisible && 'bg-primary/10 text-primary hover:bg-primary/15')}
+                title="Lag"
+              >
+                <Layers />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuCheckboxItem
+                checked={!layersVisible}
+                onCheckedChange={toggleLayersVisible}
+                disabled={layerSelection.length === 0}
+              >
+                Skjul valgte lag
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>Velg lag ({layerSelection.length})</DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {pdfLayers.map((layer) => (
+                    <DropdownMenuCheckboxItem
+                      key={layer.id}
+                      checked={layerSelection.includes(layer.name)}
+                      onCheckedChange={() => toggleLayerSelected(layer.name)}
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      {layer.name}
+                    </DropdownMenuCheckboxItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
         <ShortcutsHelp />
 

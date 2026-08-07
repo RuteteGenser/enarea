@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ToolId, Unit } from '@/types';
+import type { PdfLayer, ToolId, Unit } from '@/types';
 
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 8;
@@ -16,6 +16,8 @@ type ViewportStore = {
   isSpaceDown: boolean;
   isShiftDown: boolean;
   magnifierScreenPos: { x: number; y: number } | null;
+  pdfLayers: PdfLayer[];
+  layersVisible: boolean;
 
   setTool: (tool: ToolId) => void;
   setZoom: (zoom: number) => void;
@@ -29,6 +31,9 @@ type ViewportStore = {
   setSpaceDown: (down: boolean) => void;
   setShiftDown: (down: boolean) => void;
   setMagnifierScreenPos: (pos: { x: number; y: number } | null) => void;
+  setPdfLayers: (layers: PdfLayer[]) => void;
+  toggleLayersVisible: () => void;
+  resetLayersVisible: () => void;
 };
 
 export const useViewportStore = create<ViewportStore>((set, get) => ({
@@ -43,6 +48,8 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   isSpaceDown: false,
   isShiftDown: false,
   magnifierScreenPos: null,
+  pdfLayers: [],
+  layersVisible: true,
 
   setTool: (tool) => set({ tool }),
   setZoom: (zoom) => set({ zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom)) }),
@@ -62,4 +69,7 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   setSpaceDown: (down) => set({ isSpaceDown: down }),
   setShiftDown: (down) => set({ isShiftDown: down }),
   setMagnifierScreenPos: (pos) => set({ magnifierScreenPos: pos }),
+  setPdfLayers: (layers) => set({ pdfLayers: layers }),
+  toggleLayersVisible: () => set((s) => ({ layersVisible: !s.layersVisible })),
+  resetLayersVisible: () => set({ layersVisible: true }),
 }));

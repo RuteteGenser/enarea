@@ -21,6 +21,7 @@ export default function Workspace() {
   const { filesByProject, loadFiles, activeFileId, setActiveFile, getFile } = useFilesStore();
   const loadAnnotationsForFile = useAnnotationStore((s) => s.loadForFile);
   const panelOpen = useViewportStore((s) => s.panelOpen);
+  const resetLayersVisible = useViewportStore((s) => s.resetLayersVisible);
 
   const project = projects.find((p) => p.id === projectId);
   const files = projectId ? (filesByProject[projectId] ?? []) : [];
@@ -36,6 +37,10 @@ export default function Workspace() {
   useEffect(() => {
     if (projectId) void loadFiles(projectId);
   }, [projectId, loadFiles]);
+
+  useEffect(() => {
+    resetLayersVisible();
+  }, [projectId, resetLayersVisible]);
 
   useEffect(() => {
     if (!activeFileId && files.length > 0) setActiveFile(files[0].id);

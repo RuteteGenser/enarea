@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Loader2, TriangleAlert } from 'lucide-react';
-import { loadPdfDocument, type PdfPageProxy } from '@/lib/pdf';
+import { detectPdfLayers, loadPdfDocument, type PdfOptionalContentConfig, type PdfPageProxy } from '@/lib/pdf';
+import { computeLayerVisibilityUpdates, EMPTY_LAYER_SELECTION } from '@/lib/layers';
+import { useProjectStore } from '@/store/projectStore';
 import { usePanZoom, type Pan } from '@/components/tools/usePanZoom';
 import AnnotationLayer from '@/components/viewer/AnnotationLayer';
 import ScaleBar from '@/components/viewer/ScaleBar';
@@ -53,6 +55,12 @@ export default function PdfCanvas({ file }: PdfCanvasProps) {
   const showScaleBar = useViewportStore((s) => s.showScaleBar);
   const showCompass = useViewportStore((s) => s.showCompass);
   const unit = useViewportStore((s) => s.unit);
+  const pdfLayers = useViewportStore((s) => s.pdfLayers);
+  const setPdfLayers = useViewportStore((s) => s.setPdfLayers);
+  const layersVisible = useViewportStore((s) => s.layersVisible);
+  const layerSelection =
+    useProjectStore((s) => s.projects.find((p) => p.id === file.projectId)?.layerVisibilitySelection) ??
+    EMPTY_LAYER_SELECTION;
 
   const [status, setStatus] = useState<Status>('loading');
   const [page, setPage] = useState<PdfPageProxy | null>(null);
@@ -66,6 +74,7 @@ export default function PdfCanvas({ file }: PdfCanvasProps) {
   const debounceRef = useRef<number | null>(null);
   const pendingCenterRef = useRef(false);
   const panRef = useRef<Pan>({ x: 0, y: 0 });
+  const ocgConfigRef = useRef<PdfOptionalContentConfig | null>(null);
 
   const { handleWheel, handleMouseDown, handleMouseMove, handleMouseUp, isPanMode, isPanningActive } = usePanZoom(
     pageRef,
@@ -96,7 +105,12 @@ export default function PdfCanvas({ file }: PdfCanvasProps) {
     offscreen.height = viewport.height;
     const offscreenCtx = offscreen.getContext('2d');
     if (!offscreenCtx) return;
-    const task = targetPage.render({ canvasContext: offscreenCtx, viewport, canvas: offscreen });
+    const task = targetPage.render({
+      canvasContext: offscreenCtx,
+      viewport,
+      canvas: offscreen,
+      ...(ocgConfigRef.current ? { optionalContentConfigPromise: Promise.resolve(ocgConfigRef.current) } : {}),
+    });
     renderTaskRef.current = task;
     try {
       await task.promise;
@@ -118,6 +132,8 @@ export default function PdfCanvas({ file }: PdfCanvasProps) {
     let cancelled = false;
     setStatus('loading');
     setPage(null);
+    setPdfLayers([]);
+    ocgConfigRef.current = null;
 
     (async () => {
       try {
@@ -130,6 +146,13 @@ export default function PdfCanvas({ file }: PdfCanvasProps) {
         setBaseHeight(viewport.height);
         setPage(loadedPage);
         setStatus('ready');
+
+        const detected = await detectPdfLayers(doc);
+        if (cancelled) return;
+        if (detected) {
+          ocgConfigRef.current = detected.config;
+          setPdfLayers(detected.layers);
+        }
       } catch (err) {
         console.error('Kunne ikke laste PDF', err);
         if (!cancelled) setStatus('error');
@@ -140,7 +163,7 @@ export default function PdfCanvas({ file }: PdfCanvasProps) {
       cancelled = true;
       renderTaskRef.current?.cancel();
     };
-  }, [file.id, file.pdfBlob]);
+  }, [file.id, file.pdfBlob, setPdfLayers]);
 
   // Once the page's native size and the container's on-screen size are both
   // known, compute the scale that shows the whole page with no scrolling and
@@ -191,6 +214,26 @@ export default function PdfCanvas({ file }: PdfCanvasProps) {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
   }, [zoom, page, baseWidth, baseHeight, renderAtZoom]);
+
+  // Apply layer visibility (toggle + persisted selection) and re-render immediately —
+  // deliberately not debounced like the zoom effect above, since a checkbox click is a
+  // discrete action rather than a continuous drag and should feel instant.
+  useEffect(() => {
+    const config = ocgConfigRef.current;
+    if (!config || pdfLayers.length === 0) return;
+
+    const updates = computeLayerVisibilityUpdates(pdfLayers, layerSelection, layersVisible);
+    const changed = updates.some(({ id, visible }) => {
+      const group = config.getGroup(id) as { visible: boolean } | null;
+      return !!group && group.visible !== visible;
+    });
+    if (!changed) return;
+
+    for (const { id, visible } of updates) config.setVisibility(id, visible);
+
+    const canvas = canvasRef.current;
+    if (canvas && page) void renderAtZoom(page, zoom, canvas);
+  }, [layersVisible, layerSelection, pdfLayers, page, zoom, renderAtZoom]);
 
   // Pan the selected annotation into view (e.g. when clicked in the measurement panel).
   const selectedId = useAnnotationStore((s) => s.selectedId);
