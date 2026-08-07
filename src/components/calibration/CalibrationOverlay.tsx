@@ -1,7 +1,8 @@
 import { useEffect, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import CalibrationDialog from '@/components/calibration/CalibrationDialog';
 import { useSnapCandidates, snapCursor } from '@/components/tools/useSnap';
-import { constrainAngle } from '@/lib/geometry';
+import { MIN_DRAG_PDF_UNITS } from '@/components/tools/useDrawTool';
+import { constrainAngle, distance } from '@/lib/geometry';
 import { cn } from '@/lib/utils';
 import { useFilesStore } from '@/store/filesStore';
 import { useViewportStore } from '@/store/viewportStore';
@@ -21,18 +22,18 @@ export default function CalibrationOverlay({ fileId, zoom, width, height, calibr
   const isSpaceDown = useViewportStore((s) => s.isSpaceDown);
   const snapCandidates = useSnapCandidates();
 
-  const [points, setPoints] = useState<Point[]>([]);
+  const [dragStart, setDragStart] = useState<Point | null>(null);
   const [cursor, setCursor] = useState<Point | null>(null);
   const [snapped, setSnapped] = useState<Point | null>(null);
   const [pendingLine, setPendingLine] = useState<[Point, Point] | null>(null);
 
-  function toPdfPoint(e: ReactMouseEvent<SVGSVGElement>): Point {
+  function toPdfPoint(e: ReactMouseEvent<SVGSVGElement>, referencePoint: Point | null = null): Point {
     const rect = e.currentTarget.getBoundingClientRect();
     const raw = { x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom };
 
-    if (points.length === 1 && useViewportStore.getState().isShiftDown) {
+    if (referencePoint && useViewportStore.getState().isShiftDown) {
       setSnapped(null);
-      return constrainAngle(points[0], raw);
+      return constrainAngle(referencePoint, raw);
     }
 
     const { point, snappedTo } = snapCursor(raw, snapCandidates, zoom);
@@ -42,23 +43,26 @@ export default function CalibrationOverlay({ fileId, zoom, width, height, calibr
 
   function handleMouseMove(e: ReactMouseEvent<SVGSVGElement>) {
     if (useViewportStore.getState().isSpaceDown) return;
-    setCursor(toPdfPoint(e));
+    setCursor(toPdfPoint(e, dragStart));
   }
 
-  function handleClick(e: ReactMouseEvent<SVGSVGElement>) {
+  function handleMouseDown(e: ReactMouseEvent<SVGSVGElement>) {
     if (useViewportStore.getState().isSpaceDown) return;
-    const point = toPdfPoint(e);
-    if (points.length === 0) {
-      setPoints([point]);
-    } else {
-      setPendingLine([points[0], point]);
-      setPoints([]);
+    setDragStart(toPdfPoint(e));
+  }
+
+  function handleMouseUp(e: ReactMouseEvent<SVGSVGElement>) {
+    if (useViewportStore.getState().isSpaceDown || !dragStart) return;
+    const point = toPdfPoint(e, dragStart);
+    if (distance(dragStart, point) >= MIN_DRAG_PDF_UNITS) {
+      setPendingLine([dragStart, point]);
     }
+    setDragStart(null);
   }
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') setPoints([]);
+      if (e.key === 'Escape') setDragStart(null);
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -74,12 +78,13 @@ export default function CalibrationOverlay({ fileId, zoom, width, height, calibr
         height={height}
         viewBox={`0 0 ${width} ${height}`}
         onMouseMove={handleMouseMove}
-        onClick={handleClick}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
       >
-        {points.length === 1 && cursor && (
+        {dragStart && cursor && (
           <line
-            x1={points[0].x * zoom}
-            y1={points[0].y * zoom}
+            x1={dragStart.x * zoom}
+            y1={dragStart.y * zoom}
             x2={cursor.x * zoom}
             y2={cursor.y * zoom}
             stroke="#f5a623"
@@ -87,9 +92,7 @@ export default function CalibrationOverlay({ fileId, zoom, width, height, calibr
             strokeDasharray="6 4"
           />
         )}
-        {points.map((p, i) => (
-          <circle key={i} cx={p.x * zoom} cy={p.y * zoom} r={4} className="fill-amber-500" />
-        ))}
+        {dragStart && <circle cx={dragStart.x * zoom} cy={dragStart.y * zoom} r={4} className="fill-amber-500" />}
         {snapped && (
           <circle
             cx={snapped.x * zoom}

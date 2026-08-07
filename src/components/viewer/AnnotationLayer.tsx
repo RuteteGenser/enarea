@@ -41,11 +41,12 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
   let previewLabel: { pos: Point; text: string } | null = null;
   let previewShape: React.ReactNode = null;
 
-  if (tool === 'line' && points.length === 1 && cursor) {
-    const a = toScreen(points[0], zoom);
-    const b = toScreen(cursor, zoom);
+  if (tool === 'line' && dragPreviewPoints) {
+    const [start, end] = dragPreviewPoints;
+    const a = toScreen(start, zoom);
+    const b = toScreen(end, zoom);
     previewShape = <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#0091ff" strokeWidth={2} strokeDasharray="6 4" />;
-    const meters = distance(points[0], cursor) * mpu;
+    const meters = distance(start, end) * mpu;
     previewLabel = { pos: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 - 12 }, text: formatLength(meters, unit) };
   } else if (tool === 'polygon' && points.length >= 1 && cursor) {
     const screenPts = [...points, cursor].map((p) => toScreen(p, zoom));

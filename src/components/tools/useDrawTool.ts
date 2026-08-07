@@ -6,7 +6,7 @@ import { useAnnotationStore } from '@/store/annotationStore';
 import { useViewportStore } from '@/store/viewportStore';
 import type { Annotation, AnnotationType, Point, ToolId } from '@/types';
 
-const MIN_DRAG_PDF_UNITS = 2;
+export const MIN_DRAG_PDF_UNITS = 2;
 
 function buildAnnotation(type: AnnotationType, points: Point[], fileId: string): Annotation {
   const now = Date.now();
@@ -60,7 +60,8 @@ export function useDrawTool(tool: ToolId, fileId: string, zoom: number) {
 
   /** Line/polygon segments are constrained relative to the last placed point; rectangle isn't (no natural axis-lock there). */
   function getReferencePoint(): Point | null {
-    if (tool === 'line' || tool === 'polygon') {
+    if (tool === 'line') return dragStart;
+    if (tool === 'polygon') {
       return pointsRef.current.length > 0 ? pointsRef.current[pointsRef.current.length - 1] : null;
     }
     return null;
@@ -95,35 +96,30 @@ export function useDrawTool(tool: ToolId, fileId: string, zoom: number) {
 
   function onMouseDown(e: ReactMouseEvent<SVGSVGElement>) {
     // Holding space always means "pan" — leave dragStart unset so the container drags the view instead.
-    if (tool !== 'rectangle' || useViewportStore.getState().isSpaceDown) return;
+    if ((tool !== 'rectangle' && tool !== 'line') || useViewportStore.getState().isSpaceDown) return;
     const p = resolvePoint(e);
     setDragStart(p);
   }
 
   function onMouseUp(e: ReactMouseEvent<SVGSVGElement>) {
-    if (tool !== 'rectangle' || !dragStart) return;
-    const p = resolvePoint(e);
+    if ((tool !== 'rectangle' && tool !== 'line') || !dragStart) return;
+    const p = resolvePoint(e, getReferencePoint());
     if (distance(dragStart, p) >= MIN_DRAG_PDF_UNITS) {
-      commit('rectangle', rectangleFromCorners(dragStart, p));
+      if (tool === 'rectangle') {
+        commit('rectangle', rectangleFromCorners(dragStart, p));
+      } else {
+        commit('line', [dragStart, p]);
+      }
     }
     setDragStart(null);
   }
 
   function onClick(e: ReactMouseEvent<SVGSVGElement>) {
-    if (tool !== 'line' && tool !== 'polygon') return;
+    if (tool !== 'polygon') return;
     if (useViewportStore.getState().isSpaceDown) return;
     const p = resolvePoint(e, getReferencePoint());
-    if (tool === 'line') {
-      pointsRef.current = [...pointsRef.current, p];
-      setPoints(pointsRef.current);
-      if (pointsRef.current.length === 2) {
-        commit('line', pointsRef.current);
-        resetDrawing();
-      }
-    } else if (tool === 'polygon') {
-      pointsRef.current = [...pointsRef.current, p];
-      setPoints(pointsRef.current);
-    }
+    pointsRef.current = [...pointsRef.current, p];
+    setPoints(pointsRef.current);
   }
 
   function onDoubleClick(e: ReactMouseEvent<SVGSVGElement>) {
@@ -136,7 +132,12 @@ export function useDrawTool(tool: ToolId, fileId: string, zoom: number) {
     resetDrawing();
   }
 
-  const dragPreviewPoints = tool === 'rectangle' && dragStart && cursor ? rectangleFromCorners(dragStart, cursor) : null;
+  const dragPreviewPoints =
+    tool === 'rectangle' && dragStart && cursor
+      ? rectangleFromCorners(dragStart, cursor)
+      : tool === 'line' && dragStart && cursor
+        ? [dragStart, cursor]
+        : null;
 
   return {
     isDrawTool,
