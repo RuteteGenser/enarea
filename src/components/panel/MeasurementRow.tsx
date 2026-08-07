@@ -102,21 +102,26 @@ export default function MeasurementRow({
       <Icon className="size-3.5 shrink-0 text-muted-foreground" />
 
       {editing ? (
-        <Input
-          autoFocus
-          value={draft}
-          onClick={(e) => e.stopPropagation()}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commitRename}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') commitRename();
-            if (e.key === 'Escape') {
-              setDraft(annotation.name ?? '');
-              setEditing(false);
-            }
-          }}
-          className="h-6 flex-1 px-1.5 py-0 text-sm"
-        />
+        <>
+          <Input
+            autoFocus
+            value={draft}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitRename();
+              if (e.key === 'Escape') {
+                setDraft(annotation.name ?? '');
+                setEditing(false);
+              }
+            }}
+            className="h-6 flex-1 px-1.5 py-0 text-sm"
+          />
+          <span className="shrink-0 truncate text-xs text-muted-foreground">
+            {annotation.buildingComponent ? annotation.buildingComponent.name : 'Mangler type'}
+          </span>
+        </>
       ) : (
         <span
           className="flex-1 truncate text-foreground"

@@ -48,6 +48,12 @@ export default function ShapeRenderer({
     };
   }
 
+  // A label placed at the click point when a type was assigned (see MaterialPickerOverlay)
+  // overrides the computed centroid/midpoint — annotations without one keep the default.
+  if (annotation.labelPos) {
+    labelPos = { x: annotation.labelPos.x * zoom, y: annotation.labelPos.y * zoom };
+  }
+
   const pointsAttr = screenPoints.map((p) => `${p.x},${p.y}`).join(' ');
   const strokeDasharray = annotation.locked ? '5 3' : undefined;
   const labelText = annotation.name ? `${annotation.name}  ${valueLabel}` : valueLabel;

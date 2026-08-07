@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import BuildingComponentPicker from '@/components/material/BuildingComponentPicker';
 import { polygonArea } from '@/lib/geometry';
 import { cn } from '@/lib/utils';
@@ -32,6 +32,13 @@ export default function MaterialPickerOverlay({ zoom, width, height }: MaterialP
 
   const [openTarget, setOpenTarget] = useState<OpenTarget | null>(null);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const [clickPos, setClickPos] = useState<Point | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  function resolveClickPoint(e: ReactMouseEvent): Point {
+    const rect = svgRef.current!.getBoundingClientRect();
+    return { x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom };
+  }
 
   useEffect(() => {
     if (!loaded) void loadTypes();
@@ -50,6 +57,7 @@ export default function MaterialPickerOverlay({ zoom, width, height }: MaterialP
 
   return (
     <svg
+      ref={svgRef}
       className={cn('absolute inset-0', !isSpaceDown && 'cursor-pointer')}
       width={width}
       height={height}
@@ -72,12 +80,18 @@ export default function MaterialPickerOverlay({ zoom, width, height }: MaterialP
               current={annotation.buildingComponent}
               open={isOpen(areaTarget)}
               onOpenChange={(open) => setOpenTarget(open ? areaTarget : null)}
-              onSelect={(assignment) => updateAnnotation(annotation.id, { buildingComponent: assignment ?? undefined })}
+              onSelect={(assignment) =>
+                updateAnnotation(annotation.id, {
+                  buildingComponent: assignment ?? undefined,
+                  ...(assignment && clickPos ? { labelPos: clickPos } : {}),
+                })
+              }
             >
               <polygon
                 points={pointsAttr}
                 fill="transparent"
                 pointerEvents={isSpaceDown ? 'none' : 'all'}
+                onClick={(e) => setClickPos(resolveClickPoint(e))}
                 onMouseEnter={() => setHoveredKey(areaHoverKey)}
                 onMouseLeave={() => setHoveredKey((k) => (k === areaHoverKey ? null : k))}
               />

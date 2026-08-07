@@ -46,6 +46,7 @@ export type Annotation = {
   points: Point[];
   edges?: EdgeMeta[];
   name?: string;
+  labelPos?: Point;
   color: AnnotationColor;
   locked: boolean;
   visible: boolean;
