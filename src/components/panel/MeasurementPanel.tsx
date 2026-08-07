@@ -99,6 +99,7 @@ export default function MeasurementPanel({ calibration }: MeasurementPanelProps)
 
     const edges = annotation.edges ?? annotation.points.map(() => ({}) as EdgeMeta);
     edges.forEach((edge, edgeIndex) => {
+      if (edge.wallType === undefined) return;
       const wallEntry: PanelEntry = { kind: 'wall', annotation, edgeIndex, edge };
       if (entryMatchesFilter(wallEntry, filter)) {
         const key = groupKeyFor(wallEntry);
