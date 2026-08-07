@@ -6,7 +6,7 @@ import MeasurementGroupHeader from '@/components/panel/MeasurementGroupHeader';
 import { useAnnotationStore, type BulkAssignTarget } from '@/store/annotationStore';
 import { useViewportStore } from '@/store/viewportStore';
 import { formatArea, metersPerUnit } from '@/lib/calibration';
-import { polygonArea } from '@/lib/geometry';
+import { annotationArea } from '@/lib/geometry';
 import { cn } from '@/lib/utils';
 import { BUILDING_COMPONENT_CATEGORY_LABELS } from '@/types';
 import type { Annotation, BuildingComponentCategory, Calibration, EdgeMeta } from '@/types';
@@ -88,7 +88,7 @@ export default function MeasurementPanel({ calibration }: MeasurementPanelProps)
   const mpu = metersPerUnit(calibration);
   const totalArea = annotations
     .filter((a) => a.type !== 'line')
-    .reduce((sum, a) => sum + polygonArea(a.points) * mpu * mpu, 0);
+    .reduce((sum, a) => sum + annotationArea(a) * mpu * mpu, 0);
 
   const lineAnnotations = annotations.filter((a) => a.type === 'line');
 

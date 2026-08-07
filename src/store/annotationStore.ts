@@ -157,6 +157,7 @@ export const useAnnotationStore = create<AnnotationStore>((set, get) => ({
       fileId,
       name: clipboard.name ? `${clipboard.name} kopi` : undefined,
       points: clipboard.points.map((p) => ({ x: p.x + offset, y: p.y + offset })),
+      regions: clipboard.regions?.map((region) => region.map((p) => ({ x: p.x + offset, y: p.y + offset }))),
       locked: false,
       createdAt: Date.now(),
       updatedAt: Date.now(),

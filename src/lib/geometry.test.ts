@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  annotationArea,
   buildSnapCandidates,
   constrainAngle,
   distance,
   findSnapCandidate,
+  isPointInPolygon,
   midpoint,
   polygonArea,
   polygonPerimeter,
@@ -82,6 +84,68 @@ describe('polygonArea', () => {
       { x: 10, y: 0 },
     ];
     expect(polygonArea(clockwise)).toBe(50);
+  });
+});
+
+describe('annotationArea', () => {
+  function makeAnnotation(overrides: Partial<Annotation> = {}): Annotation {
+    return {
+      id: 'a1',
+      fileId: 'f1',
+      type: 'polygon',
+      points: rectangleFromCorners({ x: 0, y: 0 }, { x: 10, y: 5 }),
+      color: 'blue',
+      locked: false,
+      visible: true,
+      createdAt: 0,
+      updatedAt: 0,
+      ...overrides,
+    };
+  }
+
+  it('matches plain polygonArea when there are no extra regions', () => {
+    const annotation = makeAnnotation();
+    expect(annotationArea(annotation)).toBe(polygonArea(annotation.points));
+  });
+
+  it('sums the primary ring and every extra region', () => {
+    const annotation = makeAnnotation({
+      regions: [rectangleFromCorners({ x: 20, y: 0 }, { x: 24, y: 3 })],
+    });
+    expect(annotationArea(annotation)).toBe(50 + 12);
+  });
+
+  it('uses primaryOverride for the primary ring while still adding regions', () => {
+    const annotation = makeAnnotation({
+      regions: [rectangleFromCorners({ x: 20, y: 0 }, { x: 24, y: 3 })],
+    });
+    const liveOverride = rectangleFromCorners({ x: 0, y: 0 }, { x: 2, y: 2 });
+    expect(annotationArea(annotation, liveOverride)).toBe(4 + 12);
+  });
+});
+
+describe('isPointInPolygon', () => {
+  const square = rectangleFromCorners({ x: 0, y: 0 }, { x: 10, y: 10 });
+
+  it('returns true for a point clearly inside', () => {
+    expect(isPointInPolygon({ x: 5, y: 5 }, square)).toBe(true);
+  });
+
+  it('returns false for a point clearly outside', () => {
+    expect(isPointInPolygon({ x: 20, y: 20 }, square)).toBe(false);
+  });
+
+  it('handles a concave (L-shaped) polygon correctly', () => {
+    const lShape = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 5 },
+      { x: 5, y: 5 },
+      { x: 5, y: 10 },
+      { x: 0, y: 10 },
+    ];
+    expect(isPointInPolygon({ x: 2, y: 2 }, lShape)).toBe(true);
+    expect(isPointInPolygon({ x: 8, y: 8 }, lShape)).toBe(false);
   });
 });
 

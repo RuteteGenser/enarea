@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import BuildingComponentPicker from '@/components/material/BuildingComponentPicker';
-import { polygonArea } from '@/lib/geometry';
+import { annotationArea } from '@/lib/geometry';
 import { cn } from '@/lib/utils';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useBuildingComponentTypeStore } from '@/store/buildingComponentTypeStore';
@@ -45,7 +45,7 @@ export default function MaterialPickerOverlay({ zoom, width, height }: MaterialP
   }, [loaded, loadTypes]);
 
   const eligible = annotations.filter((a) => a.type !== 'line' && a.visible && !a.locked);
-  const sortedByAreaDesc: Annotation[] = [...eligible].sort((a, b) => polygonArea(b.points) - polygonArea(a.points));
+  const sortedByAreaDesc: Annotation[] = [...eligible].sort((a, b) => annotationArea(b) - annotationArea(a));
 
   function isOpen(target: OpenTarget): boolean {
     if (!openTarget || openTarget.kind !== target.kind || openTarget.annotationId !== target.annotationId) {
@@ -64,8 +64,8 @@ export default function MaterialPickerOverlay({ zoom, width, height }: MaterialP
       viewBox={`0 0 ${width} ${height}`}
     >
       {sortedByAreaDesc.map((annotation) => {
+        const rings = [annotation.points, ...(annotation.regions ?? [])];
         const screenPoints = annotation.points.map((p) => toScreen(p, zoom));
-        const pointsAttr = screenPoints.map((p) => `${p.x},${p.y}`).join(' ');
         const areaTarget: OpenTarget = { kind: 'area', annotationId: annotation.id };
         const centroid = {
           x: screenPoints.reduce((sum, p) => sum + p.x, 0) / screenPoints.length,
@@ -87,14 +87,20 @@ export default function MaterialPickerOverlay({ zoom, width, height }: MaterialP
                 })
               }
             >
-              <polygon
-                points={pointsAttr}
-                fill="transparent"
+              <g
                 pointerEvents={isSpaceDown ? 'none' : 'all'}
                 onClick={(e) => setClickPos(resolveClickPoint(e))}
                 onMouseEnter={() => setHoveredKey(areaHoverKey)}
                 onMouseLeave={() => setHoveredKey((k) => (k === areaHoverKey ? null : k))}
-              />
+              >
+                {rings.map((ring, ringIndex) => (
+                  <polygon
+                    key={ringIndex}
+                    points={ring.map((p) => toScreen(p, zoom)).map((p) => `${p.x},${p.y}`).join(' ')}
+                    fill="transparent"
+                  />
+                ))}
+              </g>
             </BuildingComponentPicker>
 
             {hoveredKey === areaHoverKey && (

@@ -7,7 +7,7 @@ import BuildingComponentPicker from '@/components/material/BuildingComponentPick
 import { useAnnotationStore } from '@/store/annotationStore';
 import { cn } from '@/lib/utils';
 import { formatArea, formatLength, metersPerUnit } from '@/lib/calibration';
-import { distance, polygonArea } from '@/lib/geometry';
+import { annotationArea, distance } from '@/lib/geometry';
 import { displayName } from '@/lib/annotationLabel';
 import { ANNOTATION_COLORS } from '@/types';
 import type { Annotation, AnnotationColor, Calibration, Unit } from '@/types';
@@ -50,7 +50,7 @@ export default function MeasurementRow({
   const value =
     annotation.type === 'line'
       ? formatLength(distance(annotation.points[0], annotation.points[1]) * mpu, unit)
-      : formatArea(polygonArea(annotation.points) * mpu * mpu, unit);
+      : formatArea(annotationArea(annotation) * mpu * mpu, unit);
 
   const Icon = TYPE_ICON[annotation.type];
 

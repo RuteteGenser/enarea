@@ -3,6 +3,7 @@ import { Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { detectRoomPolygon } from '@/lib/roomDetection';
 import { createId } from '@/lib/id';
+import { isPointInPolygon } from '@/lib/geometry';
 import { cn } from '@/lib/utils';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useViewportStore } from '@/store/viewportStore';
@@ -19,7 +20,7 @@ type RoomDetectionOverlayProps = {
 export default function RoomDetectionOverlay({ fileId, zoom, width, height, canvasRef }: RoomDetectionOverlayProps) {
   const addAnnotation = useAnnotationStore((s) => s.addAnnotation);
   const isSpaceDown = useViewportStore((s) => s.isSpaceDown);
-  const [draftPoints, setDraftPoints] = useState<Point[] | null>(null);
+  const [pendingRegions, setPendingRegions] = useState<Point[][]>([]);
 
   function handleClick(e: ReactMouseEvent<SVGSVGElement>) {
     if (useViewportStore.getState().isSpaceDown) return;
@@ -33,6 +34,13 @@ export default function RoomDetectionOverlay({ fileId, zoom, width, height, canv
     const seedY = (e.clientY - rect.top) * ratioY;
     const pixelsPerPdfUnit = zoom * ratioX;
 
+    const seedPdf = { x: seedX / pixelsPerPdfUnit, y: seedY / pixelsPerPdfUnit };
+    const existingIndex = pendingRegions.findIndex((region) => isPointInPolygon(seedPdf, region));
+    if (existingIndex !== -1) {
+      setPendingRegions((prev) => prev.filter((_, i) => i !== existingIndex));
+      return;
+    }
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -40,21 +48,22 @@ export default function RoomDetectionOverlay({ fileId, zoom, width, height, canv
     const result = detectRoomPolygon(imageData, seedX, seedY, pixelsPerPdfUnit);
     if (!result) {
       toast.error('Fant ikke et avgrenset rom her');
-      setDraftPoints(null);
       return;
     }
-    setDraftPoints(result);
+    setPendingRegions((prev) => [...prev, result]);
   }
 
   function confirm() {
-    if (!draftPoints) return;
+    if (pendingRegions.length === 0) return;
+    const [primary, ...rest] = pendingRegions;
     const now = Date.now();
     addAnnotation({
       id: createId(),
       fileId,
       type: 'polygon',
-      points: draftPoints,
-      edges: draftPoints.map(() => ({})),
+      points: primary,
+      regions: rest.length > 0 ? rest : undefined,
+      edges: primary.map(() => ({})),
       name: undefined,
       color: 'blue',
       locked: false,
@@ -62,28 +71,30 @@ export default function RoomDetectionOverlay({ fileId, zoom, width, height, canv
       createdAt: now,
       updatedAt: now,
     });
-    setDraftPoints(null);
+    setPendingRegions([]);
   }
 
   function discard() {
-    setDraftPoints(null);
+    setPendingRegions([]);
   }
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') setDraftPoints(null);
+      if (e.key === 'Escape') setPendingRegions([]);
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  const screenPoints = draftPoints?.map((p) => ({ x: p.x * zoom, y: p.y * zoom })) ?? null;
-  const centroid = screenPoints
-    ? {
-        x: screenPoints.reduce((sum, p) => sum + p.x, 0) / screenPoints.length,
-        y: Math.min(...screenPoints.map((p) => p.y)),
-      }
-    : null;
+  const screenRegions = pendingRegions.map((region) => region.map((p) => ({ x: p.x * zoom, y: p.y * zoom })));
+  const allScreenPoints = screenRegions.flat();
+  const toolbarPos =
+    allScreenPoints.length > 0
+      ? {
+          x: allScreenPoints.reduce((sum, p) => sum + p.x, 0) / allScreenPoints.length,
+          y: Math.min(...allScreenPoints.map((p) => p.y)),
+        }
+      : null;
 
   return (
     <>
@@ -94,8 +105,9 @@ export default function RoomDetectionOverlay({ fileId, zoom, width, height, canv
         viewBox={`0 0 ${width} ${height}`}
         onClick={handleClick}
       >
-        {screenPoints && (
+        {screenRegions.map((screenPoints, i) => (
           <polygon
+            key={i}
             points={screenPoints.map((p) => `${p.x},${p.y}`).join(' ')}
             fill="#f5a623"
             fillOpacity={0.2}
@@ -103,14 +115,17 @@ export default function RoomDetectionOverlay({ fileId, zoom, width, height, canv
             strokeWidth={2}
             strokeDasharray="6 4"
           />
-        )}
+        ))}
       </svg>
 
-      {centroid && (
+      {toolbarPos && (
         <div
           className="absolute z-10 flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-md border border-border bg-card p-1 shadow-md"
-          style={{ left: centroid.x, top: centroid.y - 10 }}
+          style={{ left: toolbarPos.x, top: toolbarPos.y - 10 }}
         >
+          {pendingRegions.length > 1 && (
+            <span className="px-1 text-xs font-medium text-muted-foreground">{pendingRegions.length}</span>
+          )}
           <button
             type="button"
             onClick={confirm}

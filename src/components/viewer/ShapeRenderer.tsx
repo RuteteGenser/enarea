@@ -1,5 +1,5 @@
 import { formatArea, formatLength, metersPerUnit } from '@/lib/calibration';
-import { polygonArea, distance } from '@/lib/geometry';
+import { annotationArea, distance } from '@/lib/geometry';
 import { ANNOTATION_COLORS } from '@/types';
 import type { Annotation, Calibration, Point, Unit } from '@/types';
 
@@ -40,7 +40,7 @@ export default function ShapeRenderer({
       y: (screenPoints[0].y + screenPoints[1].y) / 2,
     };
   } else {
-    const squareMeters = polygonArea(geometryPoints) * mpu * mpu;
+    const squareMeters = annotationArea(annotation, geometryPoints) * mpu * mpu;
     valueLabel = formatArea(squareMeters, unit);
     labelPos = {
       x: screenPoints.reduce((sum, p) => sum + p.x, 0) / screenPoints.length,
@@ -79,14 +79,27 @@ export default function ShapeRenderer({
           strokeDasharray={strokeDasharray}
         />
       ) : (
-        <polygon
-          points={pointsAttr}
-          fill={color}
-          fillOpacity={selected ? 0.18 : 0.1}
-          stroke={color}
-          strokeWidth={selected ? 3 : 2}
-          strokeDasharray={strokeDasharray}
-        />
+        <>
+          <polygon
+            points={pointsAttr}
+            fill={color}
+            fillOpacity={selected ? 0.18 : 0.1}
+            stroke={color}
+            strokeWidth={selected ? 3 : 2}
+            strokeDasharray={strokeDasharray}
+          />
+          {annotation.regions?.map((region, i) => (
+            <polygon
+              key={`region-${i}`}
+              points={region.map((p) => `${p.x * zoom},${p.y * zoom}`).join(' ')}
+              fill={color}
+              fillOpacity={selected ? 0.18 : 0.1}
+              stroke={color}
+              strokeWidth={selected ? 3 : 2}
+              strokeDasharray={strokeDasharray}
+            />
+          ))}
+        </>
       )}
 
       {annotation.type !== 'line' && annotation.edges && (

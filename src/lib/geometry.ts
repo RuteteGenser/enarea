@@ -20,6 +20,26 @@ export function polygonArea(points: Point[]): number {
   return Math.abs(sum) / 2;
 }
 
+/** Total area of an annotation, including any extra merged regions. `primaryOverride` lets
+ *  callers substitute a live (in-drag) primary ring instead of the stored `annotation.points`. */
+export function annotationArea(annotation: Annotation, primaryOverride?: Point[]): number {
+  const primary = primaryOverride ?? annotation.points;
+  const regionsArea = (annotation.regions ?? []).reduce((sum, region) => sum + polygonArea(region), 0);
+  return polygonArea(primary) + regionsArea;
+}
+
+/** Standard ray-casting point-in-polygon test. */
+export function isPointInPolygon(point: Point, polygon: Point[]): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const { x: xi, y: yi } = polygon[i];
+    const { x: xj, y: yj } = polygon[j];
+    const intersects = yi > point.y !== yj > point.y && point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
 export function polygonPerimeter(points: Point[]): number {
   if (points.length < 2) return 0;
   let sum = 0;
@@ -88,14 +108,16 @@ export function buildSnapCandidates(annotations: Annotation[], excludeId?: strin
   const candidates: SnapCandidate[] = [];
   for (const annotation of annotations) {
     if (annotation.id === excludeId || !annotation.visible) continue;
-    for (const point of annotation.points) {
-      candidates.push({ point, kind: annotation.type === 'line' ? 'endpoint' : 'vertex' });
-    }
-    if (annotation.points.length >= 2) {
-      const segmentCount = annotation.type === 'line' ? annotation.points.length - 1 : annotation.points.length;
+    const rings = annotation.type === 'line' ? [annotation.points] : [annotation.points, ...(annotation.regions ?? [])];
+    for (const ring of rings) {
+      for (const point of ring) {
+        candidates.push({ point, kind: annotation.type === 'line' ? 'endpoint' : 'vertex' });
+      }
+      if (ring.length < 2) continue;
+      const segmentCount = annotation.type === 'line' ? ring.length - 1 : ring.length;
       for (let i = 0; i < segmentCount; i++) {
-        const a = annotation.points[i];
-        const b = annotation.points[(i + 1) % annotation.points.length];
+        const a = ring[i];
+        const b = ring[(i + 1) % ring.length];
         candidates.push({ point: midpoint(a, b), kind: 'midpoint' });
       }
     }

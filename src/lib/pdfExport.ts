@@ -1,5 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
-import { distance, polygonArea } from '@/lib/geometry';
+import { annotationArea, distance } from '@/lib/geometry';
 import { formatArea, formatLength, metersPerUnit } from '@/lib/calibration';
 import { displayName, TYPE_LABEL_NB } from '@/lib/annotationLabel';
 import { ANNOTATION_COLORS } from '@/types';
@@ -22,7 +22,7 @@ function annotationValueLabel(annotation: Annotation, mpu: number, unit: Unit): 
   if (annotation.type === 'line') {
     return formatLength(distance(annotation.points[0], annotation.points[1]) * mpu, unit);
   }
-  return formatArea(polygonArea(annotation.points) * mpu * mpu, unit);
+  return formatArea(annotationArea(annotation) * mpu * mpu, unit);
 }
 
 function drawCoverPage(
@@ -121,7 +121,7 @@ function drawCoverPage(
       y -= 16;
 
       if (annotation.type !== 'line') {
-        grandTotalArea += polygonArea(annotation.points) * mpu * mpu;
+        grandTotalArea += annotationArea(annotation) * mpu * mpu;
       }
     }
     y -= 14;
@@ -149,10 +149,14 @@ function drawAnnotationsOnPage(page: PDFPage, annotations: Annotation[], font: P
     if (annotation.type === 'line') {
       page.drawLine({ start: flipped[0], end: flipped[1], thickness: 1, color });
     } else {
-      for (let i = 0; i < flipped.length; i++) {
-        const a = flipped[i];
-        const b = flipped[(i + 1) % flipped.length];
-        page.drawLine({ start: a, end: b, thickness: 1, color });
+      const rings = [annotation.points, ...(annotation.regions ?? [])];
+      for (const ring of rings) {
+        const flippedRing = ring.map((p) => flip(p.x, p.y));
+        for (let i = 0; i < flippedRing.length; i++) {
+          const a = flippedRing[i];
+          const b = flippedRing[(i + 1) % flippedRing.length];
+          page.drawLine({ start: a, end: b, thickness: 1, color });
+        }
       }
     }
 

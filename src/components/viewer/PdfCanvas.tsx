@@ -261,8 +261,9 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
       requestJump(null);
       return;
     }
-    const xs = annotation.points.map((p) => p.x);
-    const ys = annotation.points.map((p) => p.y);
+    const allPoints = [annotation.points, ...(annotation.regions ?? [])].flat();
+    const xs = allPoints.map((p) => p.x);
+    const ys = allPoints.map((p) => p.y);
     const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
     const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
 

@@ -44,6 +44,11 @@ export type Annotation = {
   fileId: string;
   type: AnnotationType;
   points: Point[];
+  // Additional closed polygon rings merged into this annotation (e.g. two halves of a room
+  // split by a door threshold, joined via the multi-region "magic wand" flow). Only meaningful
+  // for type: 'polygon'. Regions are immutable after creation — no vertex-drag handles and no
+  // per-edge wall/material assignment (`edges` only ever pairs with `points`).
+  regions?: Point[][];
   edges?: EdgeMeta[];
   name?: string;
   labelPos?: Point;
