@@ -1,15 +1,16 @@
 import { useState } from 'react';
-import { Eye, EyeOff, Hexagon, Lock, Plus, Slash, Square, Trash2, Unlock } from 'lucide-react';
+import { Eye, EyeOff, Hexagon, Lock, Plus, Slash, Square, TriangleAlert, Trash2, Unlock, Wind } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import BuildingComponentPicker from '@/components/material/BuildingComponentPicker';
+import RoomTemplatePicker from '@/components/roomTemplate/RoomTemplatePicker';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { cn } from '@/lib/utils';
 import { formatArea, formatLength, metersPerUnit } from '@/lib/calibration';
 import { annotationArea, distance } from '@/lib/geometry';
 import { displayName } from '@/lib/annotationLabel';
-import { ANNOTATION_COLORS } from '@/types';
+import { ANNOTATION_COLORS, VENTILATION_UNIT_LABELS } from '@/types';
 import type { Annotation, AnnotationColor, Calibration, Unit } from '@/types';
 
 const TYPE_ICON = { line: Slash, rectangle: Square, polygon: Hexagon } as const;
@@ -45,6 +46,7 @@ export default function MeasurementRow({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(annotation.name ?? '');
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [roomPickerOpen, setRoomPickerOpen] = useState(false);
 
   const mpu = metersPerUnit(calibration);
   const value =
@@ -159,6 +161,46 @@ export default function MeasurementRow({
             <Plus className="size-3.5" />
           </button>
         </BuildingComponentPicker>
+      )}
+
+      {annotation.type !== 'line' && (
+        <RoomTemplatePicker
+          current={annotation.roomTemplate}
+          open={roomPickerOpen}
+          onOpenChange={setRoomPickerOpen}
+          onSelect={(next) => updateAnnotation(annotation.id, { roomTemplate: next ?? undefined })}
+        >
+          {annotation.roomTemplate ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setRoomPickerOpen(true);
+              }}
+              className="flex shrink-0 items-center gap-1 rounded-md px-1 py-0.5 text-xs text-muted-foreground hover:bg-secondary"
+              title={
+                annotation.roomTemplate.matchType === 'fuzzy'
+                  ? 'Automatisk (usikker) match — klikk for å bekrefte eller endre'
+                  : 'Romtype — klikk for å endre'
+              }
+            >
+              {annotation.roomTemplate.matchType === 'fuzzy' && <TriangleAlert className="size-3.5 text-amber-500" />}
+              <Wind className="size-3.5" />
+              {annotation.roomTemplate.ventilationRate !== undefined
+                ? `${annotation.roomTemplate.ventilationRate} ${VENTILATION_UNIT_LABELS[annotation.roomTemplate.ventilationUnit ?? 'm3h_per_m2']}`
+                : annotation.roomTemplate.name}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0 rounded-md p-1 text-muted-foreground opacity-0 hover:bg-secondary group-hover:opacity-100"
+              title="Tilordne romtype (TEK17)"
+            >
+              <Wind className="size-3.5" />
+            </button>
+          )}
+        </RoomTemplatePicker>
       )}
 
       <div className="flex shrink-0 items-center opacity-0 group-hover:opacity-100">

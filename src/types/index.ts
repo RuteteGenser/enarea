@@ -51,11 +51,13 @@ export type Annotation = {
   regions?: Point[][];
   edges?: EdgeMeta[];
   name?: string;
+  roomNumber?: string;
   labelPos?: Point;
   color: AnnotationColor;
   locked: boolean;
   visible: boolean;
   buildingComponent?: BuildingComponentAssignment;
+  roomTemplate?: RoomTemplateAssignment;
   createdAt: number;
   updatedAt: number;
 };
@@ -112,4 +114,36 @@ export const BUILDING_COMPONENT_CATEGORY_LABELS: Record<BuildingComponentCategor
   tak: 'Tak',
   gulv: 'Gulv',
   dekke: 'Dekke',
+};
+
+export type VentilationUnit = 'm3h_per_m2' | 'm3h_per_person' | 'm3h_total';
+
+export const VENTILATION_UNIT_LABELS: Record<VentilationUnit, string> = {
+  m3h_per_m2: 'm³/h per m²',
+  m3h_per_person: 'm³/h per person',
+  m3h_total: 'm³/h (totalt)',
+};
+
+// A user-built library of room categories (e.g. "Møterom") with TEK17 ventilation
+// criteria, matched against `Annotation.name` to produce a `RoomTemplateAssignment`.
+export type RoomTemplate = {
+  id: string;
+  name: string; // primary label + primary match keyword, e.g. "Møterom"
+  aliases?: string[]; // extra match keywords, e.g. ["konferanserom"]
+  ventilationRate?: number;
+  ventilationUnit?: VentilationUnit;
+  note?: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type RoomTemplateMatchType = 'exact' | 'fuzzy' | 'manual';
+
+export type RoomTemplateAssignment = {
+  templateId: string; // originating library template id — provenance/display only, never re-read live
+  name: string;
+  ventilationRate?: number;
+  ventilationUnit?: VentilationUnit;
+  note?: string;
+  matchType: RoomTemplateMatchType;
 };

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Ruler, Wrench } from 'lucide-react';
+import { Plus, Ruler, Wind, Wrench } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -38,6 +38,9 @@ export default function ProjectList() {
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => navigate('/bygningsdeltyper')}>
             <Wrench /> Bygningsdeltyper
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/romtyper')}>
+            <Wind /> Romtyper
           </Button>
           <Button onClick={() => setNewOpen(true)}>
             <Plus /> Nytt prosjekt

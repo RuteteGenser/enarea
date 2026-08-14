@@ -11,6 +11,7 @@ import { useProjectStore } from '@/store/projectStore';
 import { useFilesStore } from '@/store/filesStore';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useViewportStore } from '@/store/viewportStore';
+import { useRoomTemplateStore } from '@/store/roomTemplateStore';
 import { useKeyboardShortcuts } from '@/components/tools/useKeyboardShortcuts';
 
 export default function Workspace() {
@@ -23,6 +24,8 @@ export default function Workspace() {
   const loadAnnotationsForFile = useAnnotationStore((s) => s.loadForFile);
   const panelOpen = useViewportStore((s) => s.panelOpen);
   const resetLayersVisible = useViewportStore((s) => s.resetLayersVisible);
+  const roomTemplatesLoaded = useRoomTemplateStore((s) => s.loaded);
+  const loadRoomTemplates = useRoomTemplateStore((s) => s.loadTemplates);
 
   const project = projects.find((p) => p.id === projectId);
   const files = projectId ? (filesByProject[projectId] ?? []) : [];
@@ -56,6 +59,10 @@ export default function Workspace() {
   useEffect(() => {
     if (activeFileId) void loadAnnotationsForFile(activeFileId);
   }, [activeFileId, loadAnnotationsForFile]);
+
+  useEffect(() => {
+    if (!roomTemplatesLoaded) void loadRoomTemplates();
+  }, [roomTemplatesLoaded, loadRoomTemplates]);
 
   if (loaded && !project) {
     return (

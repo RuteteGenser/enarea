@@ -1,6 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import { toast } from 'sonner';
-import type { Annotation, BuildingComponentType, PdfFile, Project } from '@/types';
+import type { Annotation, BuildingComponentType, PdfFile, Project, RoomTemplate } from '@/types';
 
 interface EnareaDB extends DBSchema {
   projects: {
@@ -21,13 +21,17 @@ interface EnareaDB extends DBSchema {
     key: string;
     value: BuildingComponentType;
   };
+  roomTemplates: {
+    key: string;
+    value: RoomTemplate;
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<EnareaDB>> | null = null;
 
 function getDb() {
   if (!dbPromise) {
-    dbPromise = openDB<EnareaDB>('enarea', 2, {
+    dbPromise = openDB<EnareaDB>('enarea', 3, {
       upgrade(db, oldVersion) {
         if (oldVersion < 1) {
           db.createObjectStore('projects', { keyPath: 'id' });
@@ -38,6 +42,9 @@ function getDb() {
         }
         if (oldVersion < 2) {
           db.createObjectStore('buildingComponentTypes', { keyPath: 'id' });
+        }
+        if (oldVersion < 3) {
+          db.createObjectStore('roomTemplates', { keyPath: 'id' });
         }
       },
       blocking() {
@@ -162,5 +169,25 @@ export const buildingComponentTypesRepo = {
   async remove(id: string): Promise<void> {
     const db = await getDb();
     await db.delete('buildingComponentTypes', id);
+  },
+};
+
+export const roomTemplatesRepo = {
+  async list(): Promise<RoomTemplate[]> {
+    const db = await getDb();
+    const all = await db.getAll('roomTemplates');
+    return all.sort((a, b) => a.createdAt - b.createdAt);
+  },
+  async get(id: string): Promise<RoomTemplate | undefined> {
+    const db = await getDb();
+    return db.get('roomTemplates', id);
+  },
+  async put(template: RoomTemplate): Promise<void> {
+    const db = await getDb();
+    await db.put('roomTemplates', template);
+  },
+  async remove(id: string): Promise<void> {
+    const db = await getDb();
+    await db.delete('roomTemplates', id);
   },
 };
