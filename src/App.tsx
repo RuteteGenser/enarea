@@ -20,7 +20,7 @@ function RouteFallback() {
 function App() {
   return (
     <TooltipProvider delayDuration={300}>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/" element={<ProjectList />} />
