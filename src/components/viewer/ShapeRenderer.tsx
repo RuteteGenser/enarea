@@ -57,7 +57,9 @@ export default function ShapeRenderer({
   const pointsAttr = screenPoints.map((p) => `${p.x},${p.y}`).join(' ');
   const strokeDasharray = annotation.locked ? '5 3' : undefined;
   const labelText = annotation.name ? `${annotation.name}  ${valueLabel}` : valueLabel;
-  const labelWidth = labelText.length * 6.2 + 12;
+  const peopleText =
+    annotation.type !== 'line' && annotation.people ? `${annotation.people} ${annotation.people === 1 ? 'person' : 'personer'}` : '';
+  const labelWidth = Math.max(labelText.length, peopleText.length) * 6.2 + 12;
 
   return (
     <g
@@ -167,7 +169,7 @@ export default function ShapeRenderer({
           x={-labelWidth / 2}
           y={-19}
           width={labelWidth}
-          height={20}
+          height={peopleText ? 33 : 20}
           rx={4}
           className="fill-card/90 stroke-border"
           strokeWidth={1}
@@ -182,6 +184,11 @@ export default function ShapeRenderer({
             valueLabel
           )}
         </text>
+        {peopleText && (
+          <text x={0} y={9} textAnchor="middle" fontSize={11} className="select-none fill-muted-foreground" style={{ fontWeight: 500 }}>
+            {peopleText}
+          </text>
+        )}
       </g>
     </g>
   );

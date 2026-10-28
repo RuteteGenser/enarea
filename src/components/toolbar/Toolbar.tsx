@@ -7,6 +7,7 @@ import {
   Wand2,
   BrickWall,
   Palette,
+  Users,
   Ruler,
   Undo2,
   Redo2,
@@ -152,6 +153,13 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
           shortcut="M"
           active={tool === 'material'}
           onClick={() => setTool('material')}
+        />
+        <ToolButton
+          icon={Users}
+          label="Personer"
+          shortcut="O"
+          active={tool === 'people'}
+          onClick={() => setTool('people')}
         />
 
         <Separator orientation="vertical" className="mx-1 h-6" />

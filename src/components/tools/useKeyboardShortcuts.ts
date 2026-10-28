@@ -16,7 +16,7 @@ function isButtonTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && target.tagName === 'BUTTON';
 }
 
-const TOOL_KEYS: Record<string, 'select' | 'line' | 'rectangle' | 'polygon' | 'pan' | 'detect' | 'wall' | 'material'> = {
+const TOOL_KEYS: Record<string, 'select' | 'line' | 'rectangle' | 'polygon' | 'pan' | 'detect' | 'wall' | 'material' | 'people'> = {
   v: 'select',
   l: 'line',
   r: 'rectangle',
@@ -25,6 +25,7 @@ const TOOL_KEYS: Record<string, 'select' | 'line' | 'rectangle' | 'polygon' | 'p
   d: 'detect',
   w: 'wall',
   m: 'material',
+  o: 'people',
 };
 
 export function useKeyboardShortcuts(enabled: boolean) {
