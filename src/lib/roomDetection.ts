@@ -241,50 +241,128 @@ export function detectRoomPolygon(
   return corrected.map((p) => ({ x: p.x / pixelsPerPdfUnit, y: p.y / pixelsPerPdfUnit }));
 }
 
-function closestPointOnSegment(p: Point, a: Point, b: Point): Point {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const lenSq = dx * dx + dy * dy;
-  if (lenSq === 0) return a;
-  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq));
-  return { x: a.x + t * dx, y: a.y + t * dy };
+/** Scanline even-odd fill of a polygon (already in mask pixel coordinates) into the mask. */
+function fillPolygonMask(mask: Uint8Array, width: number, height: number, poly: Point[]) {
+  const n = poly.length;
+  for (let y = 0; y < height; y++) {
+    const yc = y + 0.5;
+    const xs: number[] = [];
+    for (let i = 0; i < n; i++) {
+      const a = poly[i];
+      const b = poly[(i + 1) % n];
+      if ((a.y <= yc && b.y > yc) || (b.y <= yc && a.y > yc)) {
+        xs.push(a.x + ((yc - a.y) / (b.y - a.y)) * (b.x - a.x));
+      }
+    }
+    xs.sort((p, q) => p - q);
+    for (let i = 0; i + 1 < xs.length; i += 2) {
+      const from = Math.max(0, Math.ceil(xs[i] - 0.5));
+      const to = Math.min(width - 1, Math.floor(xs[i + 1] - 0.5));
+      for (let x = from; x <= to; x++) mask[y * width + x] = 1;
+    }
+  }
 }
 
 /**
- * Joins a newly detected area to the areas already picked for the same room: a vertex that
- * lies within `tolerance` of another area's corner or edge is moved onto it. Used when the
- * user adds a second area across something the detector can't see through (e.g. a door),
- * where the two outlines end up almost — but not quite — touching.
+ * One separable pass of a square-window dilation (`erode` = false) or erosion (`erode` = true)
+ * of radius r, using running sums so the cost doesn't depend on r. Out-of-range counts as 0.
  */
-export function snapRegionToRegions(region: Point[], others: Point[][], tolerance: number): Point[] {
-  if (others.length === 0) return region;
+function windowPass(src: Uint8Array, width: number, height: number, r: number, vertical: boolean, erode: boolean) {
+  const out = new Uint8Array(src.length);
+  const lines = vertical ? width : height;
+  const len = vertical ? height : width;
+  const at = (line: number, i: number) => (vertical ? i * width + line : line * width + i);
+  const need = erode ? 2 * r + 1 : 1;
+  for (let line = 0; line < lines; line++) {
+    let sum = 0;
+    for (let i = 0; i < Math.min(r, len); i++) sum += src[at(line, i)];
+    for (let i = 0; i < len; i++) {
+      if (i + r < len) sum += src[at(line, i + r)];
+      if (i - r - 1 >= 0) sum -= src[at(line, i - r - 1)];
+      out[at(line, i)] = sum >= need ? 1 : 0;
+    }
+  }
+  return out;
+}
 
-  return region.map((v) => {
-    let best: Point | null = null;
-    let bestDist = tolerance;
+/** Morphological closing: fills gaps up to ~2r px wide between (and inside) the filled shapes. */
+function closeMask(mask: Uint8Array, width: number, height: number, r: number) {
+  let m = windowPass(mask, width, height, r, false, false);
+  m = windowPass(m, width, height, r, true, false);
+  m = windowPass(m, width, height, r, false, true);
+  return windowPass(m, width, height, r, true, true);
+}
 
-    // Corners win over edges so matching corners meet cleanly.
-    for (const other of others) {
-      for (const c of other) {
-        const d = Math.hypot(v.x - c.x, v.y - c.y);
-        if (d <= bestDist) {
-          best = c;
-          bestDist = d;
-        }
+const MAX_MERGE_MASK_PIXELS = 16_000_000;
+
+/**
+ * Merges the areas picked for one room into as few outlines as possible. Areas whose outlines are
+ * separated only by a thin gap (<= `gapPdfUnits`, e.g. the detail line of a door swing) are joined
+ * into one polygon that includes the gap; areas further apart stay separate polygons.
+ * Works by filling all areas into one raster mask, closing the gaps, and tracing each blob.
+ */
+export function mergeRegions(regions: Point[][], pixelsPerPdfUnit: number, gapPdfUnits: number): Point[][] {
+  if (regions.length < 2) return regions;
+
+  const all = regions.flat();
+  const minX = Math.min(...all.map((p) => p.x));
+  const minY = Math.min(...all.map((p) => p.y));
+  const maxX = Math.max(...all.map((p) => p.x));
+  const maxY = Math.max(...all.map((p) => p.y));
+
+  const r = Math.max(1, Math.ceil((gapPdfUnits * pixelsPerPdfUnit) / 2) + 1);
+  const pad = 2 * r + 4;
+  const width = Math.ceil((maxX - minX) * pixelsPerPdfUnit) + 2 * pad;
+  const height = Math.ceil((maxY - minY) * pixelsPerPdfUnit) + 2 * pad;
+  if (width * height > MAX_MERGE_MASK_PIXELS) return regions;
+
+  const toPx = (p: Point): Point => ({ x: (p.x - minX) * pixelsPerPdfUnit + pad, y: (p.y - minY) * pixelsPerPdfUnit + pad });
+  const toPdf = (p: Point): Point => ({ x: (p.x - pad) / pixelsPerPdfUnit + minX, y: (p.y - pad) / pixelsPerPdfUnit + minY });
+
+  const filled = new Uint8Array(width * height);
+  for (const region of regions) fillPolygonMask(filled, width, height, region.map(toPx));
+  const closed = closeMask(filled, width, height, r);
+
+  const seen = new Uint8Array(width * height);
+  const result: Point[][] = [];
+  for (let start = 0; start < closed.length; start++) {
+    if (!closed[start] || seen[start]) continue;
+
+    // Collect this blob into its own mask (4-connected).
+    const blob = new Uint8Array(width * height);
+    const stack = [start];
+    seen[start] = 1;
+    let bMinX = width;
+    let bMinY = height;
+    let bMaxX = 0;
+    let bMaxY = 0;
+    while (stack.length > 0) {
+      const idx = stack.pop()!;
+      blob[idx] = 1;
+      const y = Math.floor(idx / width);
+      const x = idx - y * width;
+      if (x < bMinX) bMinX = x;
+      if (x > bMaxX) bMaxX = x;
+      if (y < bMinY) bMinY = y;
+      if (y > bMaxY) bMaxY = y;
+      for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+        const n = ny * width + nx;
+        if (!closed[n] || seen[n]) continue;
+        seen[n] = 1;
+        stack.push(n);
       }
     }
-    if (best) return best;
 
-    for (const other of others) {
-      for (let i = 0; i < other.length; i++) {
-        const q = closestPointOnSegment(v, other[i], other[(i + 1) % other.length]);
-        const d = Math.hypot(v.x - q.x, v.y - q.y);
-        if (d < bestDist) {
-          best = q;
-          bestDist = d;
-        }
-      }
-    }
-    return best ?? v;
-  });
+    const boundary = traceBoundary(blob, width, height, bMinX, bMinY, bMaxX, bMaxY);
+    if (!boundary || boundary.length < 3) continue;
+    const simplified = simplifyClosedPolygon(boundary, SIMPLIFY_EPSILON_PX);
+    if (simplified.length < 3) continue;
+    result.push(inflatePolygon(simplified, 0.5).map(toPdf));
+  }
+
+  // Never lose what the user picked if the raster merge produced nothing usable.
+  return result.length > 0 ? result : regions;
 }
