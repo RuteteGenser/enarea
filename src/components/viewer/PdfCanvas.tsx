@@ -8,6 +8,7 @@ import AnnotationLayer from '@/components/viewer/AnnotationLayer';
 import ScaleBar from '@/components/viewer/ScaleBar';
 import CompassWidget from '@/components/viewer/CompassWidget';
 import { useSlowCursor } from '@/components/tools/useSlowCursor';
+import PeopleToolOverlay from '@/components/people/PeopleToolOverlay';
 import MagnifierLoupe from '@/components/viewer/MagnifierLoupe';
 import CalibrationOverlay from '@/components/calibration/CalibrationOverlay';
 import CalibrationAreaOverlay from '@/components/calibration/CalibrationAreaOverlay';
@@ -404,6 +405,7 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
               />
             )}
             {tool === 'wall' && <WallToolOverlay zoom={zoom} width={pageWidth} height={pageHeight} />}
+            {tool === 'people' && <PeopleToolOverlay zoom={zoom} width={pageWidth} height={pageHeight} />}
             {tool === 'material' && <MaterialPickerOverlay zoom={zoom} width={pageWidth} height={pageHeight} />}
           </div>
         )}

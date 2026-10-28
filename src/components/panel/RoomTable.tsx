@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, Eye, EyeOff, Lock, Search, Trash2, TriangleAlert, Unlock, Wind } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -18,12 +18,13 @@ import type { Annotation, AnnotationColor, Calibration, Unit } from '@/types';
 
 const COLOR_ORDER: AnnotationColor[] = ['red', 'blue', 'green', 'yellow', 'purple', 'black'];
 
-type ColumnKey = 'rom' | 'romnr' | 'area' | 'gulvdekke' | 'veggtype' | 'luftmengde';
+type ColumnKey = 'romnr' | 'rom' | 'area' | 'personer' | 'gulvdekke' | 'veggtype' | 'luftmengde';
 
 const COLUMNS: { key: ColumnKey; label: string }[] = [
-  { key: 'rom', label: 'Rom' },
-  { key: 'romnr', label: 'Romnr' },
+  { key: 'romnr', label: 'Nr' },
+  { key: 'rom', label: 'Navn' },
   { key: 'area', label: 'Kvadratmeter' },
+  { key: 'personer', label: 'Personer' },
   { key: 'gulvdekke', label: 'Type gulv/dekke' },
   { key: 'veggtype', label: 'Type vegg' },
   { key: 'luftmengde', label: 'Luftmengde' },
@@ -46,8 +47,11 @@ function sortValue(annotation: Annotation, key: ColumnKey, mpu: number): string 
       return annotation.roomNumber?.toLowerCase() ?? '';
     case 'area':
       return annotationArea(annotation) * mpu * mpu;
+    case 'personer':
+      return annotation.people ?? -1;
     case 'gulvdekke':
       return annotation.buildingComponent?.name.toLowerCase() ?? '';
+
     case 'veggtype':
       return distinctWallTypeNames(annotation).join(', ').toLowerCase();
     case 'luftmengde':
@@ -207,6 +211,12 @@ function RoomTableRow({ annotation, selected, unit, mpu, onSelect }: RoomTableRo
   const [draft, setDraft] = useState('');
   const [gulvDekkePickerOpen, setGulvDekkePickerOpen] = useState(false);
   const [roomPickerOpen, setRoomPickerOpen] = useState(false);
+  const [peopleDraft, setPeopleDraft] = useState(String(annotation.people ?? ''));
+
+  // Follow changes made elsewhere (the Personer tool, undo/redo).
+  useEffect(() => {
+    setPeopleDraft(String(annotation.people ?? ''));
+  }, [annotation.people]);
 
   const area = formatArea(annotationArea(annotation) * mpu * mpu, unit);
   const wallTypes = distinctWallTypeNames(annotation).join(', ');
@@ -226,6 +236,13 @@ function RoomTableRow({ annotation, selected, unit, mpu, onSelect }: RoomTableRo
     setEditing(null);
     const trimmed = draft.trim();
     if (trimmed !== (annotation.roomNumber ?? '')) updateAnnotation(annotation.id, { roomNumber: trimmed || undefined });
+  }
+
+  function commitPeople() {
+    const parsed = Math.max(0, Math.round(Number(peopleDraft)));
+    const next = Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+    setPeopleDraft(String(next ?? ''));
+    if (next !== annotation.people) updateAnnotation(annotation.id, { people: next });
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>, commit: () => void, revertTo: string) {
@@ -248,30 +265,6 @@ function RoomTableRow({ annotation, selected, unit, mpu, onSelect }: RoomTableRo
         !annotation.visible && 'opacity-50',
       )}
     >
-      <td className="px-2 py-1.5">
-        {editing === 'rom' ? (
-          <Input
-            autoFocus
-            value={draft}
-            onClick={(e) => e.stopPropagation()}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commitRom}
-            onKeyDown={(e) => handleKeyDown(e, commitRom, annotation.name ?? '')}
-            className="h-6 min-w-32 px-1.5 py-0 text-sm"
-          />
-        ) : (
-          <span
-            className="block min-w-32 truncate text-foreground"
-            onDoubleClick={(e) => {
-              e.stopPropagation();
-              startEdit('rom', annotation.name ?? '');
-            }}
-          >
-            {displayName(annotation)}
-          </span>
-        )}
-      </td>
-
       <td className="px-2 py-1.5">
         {editing === 'romnr' ? (
           <Input
@@ -296,7 +289,51 @@ function RoomTableRow({ annotation, selected, unit, mpu, onSelect }: RoomTableRo
         )}
       </td>
 
+      <td className="px-2 py-1.5">
+        {editing === 'rom' ? (
+          <Input
+            autoFocus
+            value={draft}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commitRom}
+            onKeyDown={(e) => handleKeyDown(e, commitRom, annotation.name ?? '')}
+            className="h-6 min-w-32 px-1.5 py-0 text-sm"
+          />
+        ) : (
+          <span
+            className="block min-w-32 truncate text-foreground"
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              startEdit('rom', annotation.name ?? '');
+            }}
+          >
+            {displayName(annotation)}
+          </span>
+        )}
+      </td>
+
       <td className="px-2 py-1.5 tabular-nums text-muted-foreground">{area}</td>
+
+      <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
+        <Input
+          type="number"
+          min={0}
+          step={1}
+          value={peopleDraft}
+          placeholder="0"
+          onChange={(e) => setPeopleDraft(e.target.value)}
+          onBlur={commitPeople}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur();
+            if (e.key === 'Escape') {
+              setPeopleDraft(String(annotation.people ?? ''));
+              e.currentTarget.blur();
+            }
+          }}
+          className="h-6 w-16 px-1.5 py-0 text-sm tabular-nums"
+        />
+      </td>
 
       <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
         <BuildingComponentPicker

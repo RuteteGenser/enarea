@@ -2,7 +2,7 @@ export type Point = { x: number; y: number };
 
 export type PdfLayer = { id: string; name: string; visible: boolean };
 
-export type ToolId = 'select' | 'line' | 'rectangle' | 'polygon' | 'calibrate' | 'calibrate-area' | 'pan' | 'detect' | 'wall' | 'material';
+export type ToolId = 'select' | 'line' | 'rectangle' | 'polygon' | 'calibrate' | 'calibrate-area' | 'pan' | 'detect' | 'wall' | 'material' | 'people';
 
 export type Unit = 'm' | 'mm';
 
@@ -52,6 +52,8 @@ export type Annotation = {
   edges?: EdgeMeta[];
   name?: string;
   roomNumber?: string;
+  // Number of people in the area (set with the Personer tool or in Målinger); omitted when 0.
+  people?: number;
   labelPos?: Point;
   color: AnnotationColor;
   locked: boolean;
