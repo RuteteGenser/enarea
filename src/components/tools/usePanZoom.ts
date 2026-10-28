@@ -58,7 +58,10 @@ export function usePanZoom(pageRef: RefObject<HTMLDivElement | null>, panRef: Re
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!isPanMode || e.button !== 0) return;
+      const isMiddle = e.button === 1;
+      if (!isMiddle && (!isPanMode || e.button !== 0)) return;
+      // Stop the browser's middle-click autoscroll from taking over.
+      if (isMiddle) e.preventDefault();
       panState.current = {
         startX: e.clientX,
         startY: e.clientY,
