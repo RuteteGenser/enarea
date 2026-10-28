@@ -240,3 +240,51 @@ export function detectRoomPolygon(
 
   return corrected.map((p) => ({ x: p.x / pixelsPerPdfUnit, y: p.y / pixelsPerPdfUnit }));
 }
+
+function closestPointOnSegment(p: Point, a: Point, b: Point): Point {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return a;
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq));
+  return { x: a.x + t * dx, y: a.y + t * dy };
+}
+
+/**
+ * Joins a newly detected area to the areas already picked for the same room: a vertex that
+ * lies within `tolerance` of another area's corner or edge is moved onto it. Used when the
+ * user adds a second area across something the detector can't see through (e.g. a door),
+ * where the two outlines end up almost — but not quite — touching.
+ */
+export function snapRegionToRegions(region: Point[], others: Point[][], tolerance: number): Point[] {
+  if (others.length === 0) return region;
+
+  return region.map((v) => {
+    let best: Point | null = null;
+    let bestDist = tolerance;
+
+    // Corners win over edges so matching corners meet cleanly.
+    for (const other of others) {
+      for (const c of other) {
+        const d = Math.hypot(v.x - c.x, v.y - c.y);
+        if (d <= bestDist) {
+          best = c;
+          bestDist = d;
+        }
+      }
+    }
+    if (best) return best;
+
+    for (const other of others) {
+      for (let i = 0; i < other.length; i++) {
+        const q = closestPointOnSegment(v, other[i], other[(i + 1) % other.length]);
+        const d = Math.hypot(v.x - q.x, v.y - q.y);
+        if (d < bestDist) {
+          best = q;
+          bestDist = d;
+        }
+      }
+    }
+    return best ?? v;
+  });
+}
