@@ -26,6 +26,14 @@ export function usePanZoom(pageRef: RefObject<HTMLDivElement | null>, panRef: Re
       if (!page) return;
       e.preventDefault();
 
+      // Shift + scroll pans horizontally (some browsers already swap the delta onto deltaX).
+      if (e.shiftKey) {
+        const pan = panRef.current;
+        pan.x -= e.deltaX || e.deltaY;
+        applyTransform(page, pan);
+        return;
+      }
+
       const oldZoom = useViewportStore.getState().zoom;
       const factor = Math.exp(-e.deltaY * 0.0015);
       const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, oldZoom * factor));
