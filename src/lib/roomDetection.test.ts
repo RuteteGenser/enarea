@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectRoomPolygon, snapRegionToRegions } from '@/lib/roomDetection';
+import { detectRoomPolygon, mergeRegions } from '@/lib/roomDetection';
 import { polygonArea } from '@/lib/geometry';
 
 function makeCanvasImage(width: number, height: number): { data: Uint8ClampedArray; setPixel: (x: number, y: number, dark: boolean) => void } {
@@ -87,34 +87,46 @@ describe('detectRoomPolygon', () => {
   });
 });
 
-describe('snapRegionToRegions', () => {
-  const left = [
-    { x: 0, y: 0 },
-    { x: 100, y: 0 },
-    { x: 100, y: 100 },
-    { x: 0, y: 100 },
+describe('mergeRegions', () => {
+  const rect = (x0: number, y0: number, x1: number, y1: number) => [
+    { x: x0, y: y0 },
+    { x: x1, y: y0 },
+    { x: x1, y: y1 },
+    { x: x0, y: y1 },
   ];
 
-  it('moves nearby corners onto the other area\'s corners', () => {
-    const right = [
-      { x: 106, y: 1 },
+  it('joins two areas separated by a thin line into one polygon including the gap', () => {
+    const merged = mergeRegions([rect(0, 0, 100, 100), rect(102, 0, 200, 100)], 1, 4);
+    expect(merged).toHaveLength(1);
+    expect(Math.abs(polygonArea(merged[0]))).toBeGreaterThan(19500);
+    expect(Math.abs(polygonArea(merged[0]))).toBeLessThan(20500);
+  });
+
+  it('keeps areas that are far apart as separate polygons', () => {
+    const merged = mergeRegions([rect(0, 0, 100, 100), rect(140, 0, 240, 100)], 1, 4);
+    expect(merged).toHaveLength(2);
+  });
+
+  it('joins a curved door-swing sector to the room across a thin arc', () => {
+    // Sector of radius 60 centered at (0,0) in the room's corner, room wraps around it 2px away.
+    const sector = [{ x: 0, y: 0 }];
+    for (let a = 0; a <= 90; a += 5) {
+      const rad = (a * Math.PI) / 180;
+      sector.push({ x: 60 * Math.cos(rad), y: 60 * Math.sin(rad) });
+    }
+    const room = [
+      { x: 0, y: 63 },
+      { x: 63, y: 0 },
       { x: 200, y: 0 },
-      { x: 200, y: 100 },
-      { x: 105, y: 99 },
+      { x: 200, y: 200 },
+      { x: 0, y: 200 },
     ];
-    const snapped = snapRegionToRegions(right, [left], 10);
-    expect(snapped[0]).toEqual({ x: 100, y: 0 });
-    expect(snapped[3]).toEqual({ x: 100, y: 100 });
-    expect(snapped[1]).toEqual({ x: 200, y: 0 });
+    const merged = mergeRegions([room, sector], 1, 4);
+    expect(merged).toHaveLength(1);
   });
 
-  it('moves a nearby vertex onto the closest point of an edge', () => {
-    const snapped = snapRegionToRegions([{ x: 105, y: 50 }], [left], 10);
-    expect(snapped[0]).toEqual({ x: 100, y: 50 });
-  });
-
-  it('leaves distant vertices alone', () => {
-    const far = [{ x: 150, y: 50 }];
-    expect(snapRegionToRegions(far, [left], 10)).toEqual(far);
+  it('returns a single area unchanged', () => {
+    const only = rect(0, 0, 50, 50);
+    expect(mergeRegions([only], 1, 4)).toEqual([only]);
   });
 });

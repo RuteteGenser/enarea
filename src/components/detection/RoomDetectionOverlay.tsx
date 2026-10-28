@@ -1,8 +1,8 @@
-import { useEffect, useState, type MouseEvent as ReactMouseEvent, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from 'react';
 import { Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDrawingInProgress } from '@/components/tools/useDrawingInProgress';
-import { detectRoomPolygon, snapRegionToRegions } from '@/lib/roomDetection';
+import { detectRoomPolygon, mergeRegions } from '@/lib/roomDetection';
 import { createId } from '@/lib/id';
 import { isPointInPolygon } from '@/lib/geometry';
 import { cn } from '@/lib/utils';
@@ -18,15 +18,21 @@ type RoomDetectionOverlayProps = {
   canvasRef: RefObject<HTMLCanvasElement | null>;
 };
 
-// Max gap (in PDF units, so independent of zoom) between two picked areas' outlines that still counts as
-// the same wall, e.g. the thin detail line of a door. Must not depend on zoom: the line's width doesn't.
-const JOIN_TOLERANCE_PDF = 3;
+// Max gap (in PDF units, so independent of zoom) between two picked areas that still counts as the same room,
+// e.g. the thin detail line of a door swing. Areas closer than this are merged into one outline.
+const GAP_PDF_UNITS = 3;
 
 export default function RoomDetectionOverlay({ fileId, zoom, width, height, canvasRef }: RoomDetectionOverlayProps) {
   const addAnnotation = useAnnotationStore((s) => s.addAnnotation);
   const isSpaceDown = useViewportStore((s) => s.isSpaceDown);
   const [pendingRegions, setPendingRegions] = useState<Point[][]>([]);
   useDrawingInProgress(pendingRegions.length > 0);
+  const pixelsPerPdfUnitRef = useRef(1);
+  // What is shown and confirmed: picked areas joined across thin gaps. `pendingRegions` stays the raw picks.
+  const mergedRegions = useMemo(
+    () => mergeRegions(pendingRegions, pixelsPerPdfUnitRef.current, GAP_PDF_UNITS),
+    [pendingRegions],
+  );
 
   function handleClick(e: ReactMouseEvent<SVGSVGElement>) {
     if (useViewportStore.getState().isSpaceDown) return;
@@ -39,6 +45,7 @@ export default function RoomDetectionOverlay({ fileId, zoom, width, height, canv
     const seedX = (e.clientX - rect.left) * ratioX;
     const seedY = (e.clientY - rect.top) * ratioY;
     const pixelsPerPdfUnit = zoom * ratioX;
+    pixelsPerPdfUnitRef.current = pixelsPerPdfUnit;
 
     const seedPdf = { x: seedX / pixelsPerPdfUnit, y: seedY / pixelsPerPdfUnit };
     const existingIndex = pendingRegions.findIndex((region) => isPointInPolygon(seedPdf, region));
@@ -56,15 +63,12 @@ export default function RoomDetectionOverlay({ fileId, zoom, width, height, canv
       toast.error('Fant ikke et avgrenset rom her');
       return;
     }
-    setPendingRegions((prev) => [
-      ...prev,
-      snapRegionToRegions(result, prev, JOIN_TOLERANCE_PDF),
-    ]);
+    setPendingRegions((prev) => [...prev, result]);
   }
 
   function confirm() {
-    if (pendingRegions.length === 0) return;
-    const [primary, ...rest] = pendingRegions;
+    if (mergedRegions.length === 0) return;
+    const [primary, ...rest] = mergedRegions;
     const now = Date.now();
     addAnnotation({
       id: createId(),
@@ -95,7 +99,7 @@ export default function RoomDetectionOverlay({ fileId, zoom, width, height, canv
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  const screenRegions = pendingRegions.map((region) => region.map((p) => ({ x: p.x * zoom, y: p.y * zoom })));
+  const screenRegions = mergedRegions.map((region) => region.map((p) => ({ x: p.x * zoom, y: p.y * zoom })));
   const allScreenPoints = screenRegions.flat();
   const toolbarPos =
     allScreenPoints.length > 0
