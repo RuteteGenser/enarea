@@ -1,6 +1,7 @@
 import { useEffect, useState, type MouseEvent as ReactMouseEvent, type RefObject } from 'react';
 import { Check, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { useDrawingInProgress } from '@/components/tools/useDrawingInProgress';
 import { detectRoomPolygon, snapRegionToRegions } from '@/lib/roomDetection';
 import { createId } from '@/lib/id';
 import { isPointInPolygon } from '@/lib/geometry';
@@ -24,6 +25,7 @@ export default function RoomDetectionOverlay({ fileId, zoom, width, height, canv
   const addAnnotation = useAnnotationStore((s) => s.addAnnotation);
   const isSpaceDown = useViewportStore((s) => s.isSpaceDown);
   const [pendingRegions, setPendingRegions] = useState<Point[][]>([]);
+  useDrawingInProgress(pendingRegions.length > 0);
 
   function handleClick(e: ReactMouseEvent<SVGSVGElement>) {
     if (useViewportStore.getState().isSpaceDown) return;

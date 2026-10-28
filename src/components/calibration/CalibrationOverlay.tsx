@@ -1,5 +1,6 @@
 import { useEffect, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import CalibrationDialog from '@/components/calibration/CalibrationDialog';
+import { useDrawingInProgress } from '@/components/tools/useDrawingInProgress';
 import { useSnapCandidates, snapCursor } from '@/components/tools/useSnap';
 import { MIN_DRAG_PDF_UNITS } from '@/components/tools/useDrawTool';
 import { constrainAngle, distance } from '@/lib/geometry';
@@ -26,6 +27,7 @@ export default function CalibrationOverlay({ fileId, zoom, width, height, calibr
   const [cursor, setCursor] = useState<Point | null>(null);
   const [snapped, setSnapped] = useState<Point | null>(null);
   const [pendingLine, setPendingLine] = useState<[Point, Point] | null>(null);
+  useDrawingInProgress(dragStart !== null);
 
   function toPdfPoint(e: ReactMouseEvent<SVGSVGElement>, referencePoint: Point | null = null): Point {
     const rect = e.currentTarget.getBoundingClientRect();

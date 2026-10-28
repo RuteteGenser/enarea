@@ -76,12 +76,29 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
   const debounceRef = useRef<number | null>(null);
   const pendingCenterRef = useRef(false);
   const panRef = useRef<Pan>({ x: 0, y: 0 });
+  const lastMouseRef = useRef<{ x: number; y: number } | null>(null);
   const ocgConfigRef = useRef<PdfOptionalContentConfig | null>(null);
 
   const { handleWheel, handleMouseDown, handleMouseMove, handleMouseUp, isPanMode, isPanningActive } = usePanZoom(
     pageRef,
     panRef,
   );
+
+  // Pressing/releasing Ctrl shows/hides the loupe right away at the last known cursor
+  // position, instead of waiting for the next mouse move.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Control') return;
+      const pos = e.type === 'keydown' ? lastMouseRef.current : null;
+      useViewportStore.getState().setMagnifierScreenPos(pos);
+    }
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('keyup', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onKey);
+    };
+  }, []);
 
   const renderAtZoom = useCallback(async (targetPage: PdfPageProxy, zoomValue: number, canvas: HTMLCanvasElement) => {
     renderTaskRef.current?.cancel();
@@ -308,11 +325,13 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
         onMouseDown={handleMouseDown}
         onMouseMove={(e) => {
           handleMouseMove(e);
+          lastMouseRef.current = { x: e.clientX, y: e.clientY };
           // Ctrl shows the loupe in every tool (draw/select set it themselves; this covers pan etc.).
-          useViewportStore.getState().setMagnifierScreenPos(e.ctrlKey ? { x: e.clientX, y: e.clientY } : null);
+          useViewportStore.getState().setMagnifierScreenPos(e.ctrlKey ? lastMouseRef.current : null);
         }}
         onMouseUp={handleMouseUp}
         onMouseLeave={() => {
+          lastMouseRef.current = null;
           handleMouseUp();
           useViewportStore.getState().setMagnifierScreenPos(null);
         }}

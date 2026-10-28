@@ -1,5 +1,6 @@
 import { useEffect, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import AreaCalibrationDialog from '@/components/calibration/AreaCalibrationDialog';
+import { useDrawingInProgress } from '@/components/tools/useDrawingInProgress';
 import { useSnapCandidates, snapCursor } from '@/components/tools/useSnap';
 import { calibrationFromArea } from '@/lib/calibration';
 import { constrainAngle } from '@/lib/geometry';
@@ -32,6 +33,7 @@ export default function CalibrationAreaOverlay({
   const [cursor, setCursor] = useState<Point | null>(null);
   const [snapped, setSnapped] = useState<Point | null>(null);
   const [pendingArea, setPendingArea] = useState<Point[] | null>(null);
+  useDrawingInProgress(points.length > 0);
 
   function toPdfPoint(e: ReactMouseEvent<SVGSVGElement>): Point {
     const rect = e.currentTarget.getBoundingClientRect();

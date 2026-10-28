@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { constrainAngle, distance, rectangleFromCorners } from '@/lib/geometry';
 import { createId } from '@/lib/id';
+import { useDrawingInProgress } from '@/components/tools/useDrawingInProgress';
 import { useSnapCandidates, snapCursor } from '@/components/tools/useSnap';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useViewportStore } from '@/store/viewportStore';
@@ -36,6 +37,8 @@ export function useDrawTool(tool: ToolId, fileId: string, zoom: number) {
   const [dragStart, setDragStart] = useState<Point | null>(null);
   // Line only: a plain click (no drag) sets the first point; the next click sets the last.
   const clickPendingRef = useRef(false);
+
+  useDrawingInProgress(points.length > 0 || dragStart !== null);
 
   const isDrawTool = tool === 'line' || tool === 'rectangle' || tool === 'polygon';
 
