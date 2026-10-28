@@ -18,8 +18,9 @@ type RoomDetectionOverlayProps = {
   canvasRef: RefObject<HTMLCanvasElement | null>;
 };
 
-// How close (in raster pixels) two areas' outlines must be to count as touching, e.g. across a door.
-const JOIN_TOLERANCE_PX = 6;
+// Max gap (in PDF units, so independent of zoom) between two picked areas' outlines that still counts as
+// the same wall, e.g. the thin detail line of a door. Must not depend on zoom: the line's width doesn't.
+const JOIN_TOLERANCE_PDF = 3;
 
 export default function RoomDetectionOverlay({ fileId, zoom, width, height, canvasRef }: RoomDetectionOverlayProps) {
   const addAnnotation = useAnnotationStore((s) => s.addAnnotation);
@@ -57,7 +58,7 @@ export default function RoomDetectionOverlay({ fileId, zoom, width, height, canv
     }
     setPendingRegions((prev) => [
       ...prev,
-      snapRegionToRegions(result, prev, JOIN_TOLERANCE_PX / pixelsPerPdfUnit),
+      snapRegionToRegions(result, prev, JOIN_TOLERANCE_PDF),
     ]);
   }
 
