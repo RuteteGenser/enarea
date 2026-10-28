@@ -306,9 +306,18 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
         )}
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
+        onMouseMove={(e) => {
+          handleMouseMove(e);
+          // Keeps the loupe following the cursor in any tool while it's toggled on.
+          if (useViewportStore.getState().magnifierOn) {
+            useViewportStore.getState().setMagnifierScreenPos({ x: e.clientX, y: e.clientY });
+          }
+        }}
         onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onMouseLeave={() => {
+          handleMouseUp();
+          useViewportStore.getState().setMagnifierScreenPos(null);
+        }}
       >
         {status === 'loading' && (
           <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground">

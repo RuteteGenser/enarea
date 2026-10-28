@@ -90,7 +90,7 @@ export function useDrawTool(tool: ToolId, fileId: string, zoom: number) {
     if (!isDrawTool || useViewportStore.getState().isSpaceDown) return;
     useViewportStore
       .getState()
-      .setMagnifierScreenPos(e.ctrlKey ? { x: e.clientX, y: e.clientY } : null);
+      .setMagnifierScreenPos(e.ctrlKey || useViewportStore.getState().magnifierOn ? { x: e.clientX, y: e.clientY } : null);
     setCursor(resolvePoint(e, getReferencePoint()));
   }
 
