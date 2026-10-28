@@ -34,6 +34,8 @@ export function useDrawTool(tool: ToolId, fileId: string, zoom: number) {
   const [cursor, setCursor] = useState<Point | null>(null);
   const [snapped, setSnapped] = useState<Point | null>(null);
   const [dragStart, setDragStart] = useState<Point | null>(null);
+  // Line only: a plain click (no drag) sets the first point; the next click sets the last.
+  const clickPendingRef = useRef(false);
 
   const isDrawTool = tool === 'line' || tool === 'rectangle' || tool === 'polygon';
 
@@ -41,6 +43,7 @@ export function useDrawTool(tool: ToolId, fileId: string, zoom: number) {
     pointsRef.current = [];
     setPoints([]);
     setDragStart(null);
+    clickPendingRef.current = false;
     setCursor(null);
     setSnapped(null);
     useViewportStore.getState().setMagnifierScreenPos(null);
@@ -90,7 +93,7 @@ export function useDrawTool(tool: ToolId, fileId: string, zoom: number) {
     if (!isDrawTool || useViewportStore.getState().isSpaceDown) return;
     useViewportStore
       .getState()
-      .setMagnifierScreenPos(e.ctrlKey || useViewportStore.getState().magnifierOn ? { x: e.clientX, y: e.clientY } : null);
+      .setMagnifierScreenPos(e.ctrlKey ? { x: e.clientX, y: e.clientY } : null);
     setCursor(resolvePoint(e, getReferencePoint()));
   }
 
@@ -98,6 +101,7 @@ export function useDrawTool(tool: ToolId, fileId: string, zoom: number) {
     // Holding space always means "pan" — leave dragStart unset so the container drags the view instead.
     // Middle button pans too, so it must not start a drag either.
     if ((tool !== 'rectangle' && tool !== 'line') || useViewportStore.getState().isSpaceDown || e.button === 1) return;
+    if (tool === 'line' && clickPendingRef.current) return;
     const p = resolvePoint(e);
     setDragStart(p);
   }
@@ -111,7 +115,12 @@ export function useDrawTool(tool: ToolId, fileId: string, zoom: number) {
       } else {
         commit('line', [dragStart, p]);
       }
+    } else if (tool === 'line') {
+      // Released without dragging: keep the start point and wait for the second click.
+      clickPendingRef.current = true;
+      return;
     }
+    clickPendingRef.current = false;
     setDragStart(null);
   }
 
