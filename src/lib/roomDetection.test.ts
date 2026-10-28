@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectRoomPolygon } from '@/lib/roomDetection';
+import { detectRoomPolygon, snapRegionToRegions } from '@/lib/roomDetection';
 import { polygonArea } from '@/lib/geometry';
 
 function makeCanvasImage(width: number, height: number): { data: Uint8ClampedArray; setPixel: (x: number, y: number, dark: boolean) => void } {
@@ -84,5 +84,37 @@ describe('detectRoomPolygon', () => {
     const atScale2 = detectRoomPolygon(imageData, 25, 22, 2)!;
 
     expect(polygonArea(atScale2)).toBeCloseTo(polygonArea(atScale1) / 4, 0);
+  });
+});
+
+describe('snapRegionToRegions', () => {
+  const left = [
+    { x: 0, y: 0 },
+    { x: 100, y: 0 },
+    { x: 100, y: 100 },
+    { x: 0, y: 100 },
+  ];
+
+  it('moves nearby corners onto the other area\'s corners', () => {
+    const right = [
+      { x: 106, y: 1 },
+      { x: 200, y: 0 },
+      { x: 200, y: 100 },
+      { x: 105, y: 99 },
+    ];
+    const snapped = snapRegionToRegions(right, [left], 10);
+    expect(snapped[0]).toEqual({ x: 100, y: 0 });
+    expect(snapped[3]).toEqual({ x: 100, y: 100 });
+    expect(snapped[1]).toEqual({ x: 200, y: 0 });
+  });
+
+  it('moves a nearby vertex onto the closest point of an edge', () => {
+    const snapped = snapRegionToRegions([{ x: 105, y: 50 }], [left], 10);
+    expect(snapped[0]).toEqual({ x: 100, y: 50 });
+  });
+
+  it('leaves distant vertices alone', () => {
+    const far = [{ x: 150, y: 50 }];
+    expect(snapRegionToRegions(far, [left], 10)).toEqual(far);
   });
 });

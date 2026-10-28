@@ -1,7 +1,7 @@
 import { useEffect, useState, type MouseEvent as ReactMouseEvent, type RefObject } from 'react';
 import { Check, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { detectRoomPolygon } from '@/lib/roomDetection';
+import { detectRoomPolygon, snapRegionToRegions } from '@/lib/roomDetection';
 import { createId } from '@/lib/id';
 import { isPointInPolygon } from '@/lib/geometry';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,9 @@ type RoomDetectionOverlayProps = {
   height: number;
   canvasRef: RefObject<HTMLCanvasElement | null>;
 };
+
+// How close (in raster pixels) two areas' outlines must be to count as touching, e.g. across a door.
+const JOIN_TOLERANCE_PX = 14;
 
 export default function RoomDetectionOverlay({ fileId, zoom, width, height, canvasRef }: RoomDetectionOverlayProps) {
   const addAnnotation = useAnnotationStore((s) => s.addAnnotation);
@@ -50,7 +53,10 @@ export default function RoomDetectionOverlay({ fileId, zoom, width, height, canv
       toast.error('Fant ikke et avgrenset rom her');
       return;
     }
-    setPendingRegions((prev) => [...prev, result]);
+    setPendingRegions((prev) => [
+      ...prev,
+      snapRegionToRegions(result, prev, JOIN_TOLERANCE_PX / pixelsPerPdfUnit),
+    ]);
   }
 
   function confirm() {
