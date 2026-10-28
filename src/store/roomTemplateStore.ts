@@ -1,7 +1,26 @@
 import { create } from 'zustand';
 import { roomTemplatesRepo } from '@/lib/db';
 import { createId } from '@/lib/id';
+import { DEFAULT_ROOM_TEMPLATES } from '@/lib/defaultRoomTemplates';
 import type { RoomTemplate, VentilationUnit } from '@/types';
+
+const SEEDED_KEY = 'roomTemplatesSeeded';
+
+function wasSeeded(): boolean {
+  try {
+    return localStorage.getItem(SEEDED_KEY) === '1';
+  } catch {
+    return true; // storage unavailable: don't seed on every load
+  }
+}
+
+function markSeeded() {
+  try {
+    localStorage.setItem(SEEDED_KEY, '1');
+  } catch {
+    /* ignore */
+  }
+}
 
 type RoomTemplateStore = {
   templates: RoomTemplate[];
@@ -26,7 +45,21 @@ export const useRoomTemplateStore = create<RoomTemplateStore>((set, get) => ({
   loaded: false,
 
   loadTemplates: async () => {
-    const templates = await roomTemplatesRepo.list();
+    let templates = await roomTemplatesRepo.list();
+    // First use: add the standard room types once (never re-added after the user deletes them).
+    if (templates.length === 0 && !wasSeeded()) {
+      const now = Date.now();
+      templates = DEFAULT_ROOM_TEMPLATES.map((t, i) => ({
+        id: createId(),
+        name: t.name,
+        ventilationRate: t.rate,
+        ventilationUnit: t.unit,
+        createdAt: now + i,
+        updatedAt: now + i,
+      }));
+      for (const template of templates) await roomTemplatesRepo.put(template);
+    }
+    markSeeded();
     set({ templates, loaded: true });
   },
 
