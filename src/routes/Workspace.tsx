@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Loader2, Upload } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Loader2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import FileTabs from '@/components/project/FileTabs';
 import ExportDialog from '@/components/export/ExportDialog';
@@ -23,6 +23,7 @@ export default function Workspace() {
     useFilesStore();
   const loadAnnotationsForFile = useAnnotationStore((s) => s.loadForFile);
   const panelOpen = useViewportStore((s) => s.panelOpen);
+  const togglePanel = useViewportStore((s) => s.togglePanel);
   const resetLayersVisible = useViewportStore((s) => s.resetLayersVisible);
   const roomTemplatesLoaded = useRoomTemplateStore((s) => s.loaded);
   const loadRoomTemplates = useRoomTemplateStore((s) => s.loadTemplates);
@@ -112,10 +113,26 @@ export default function Workspace() {
           </div>
         )}
 
-        {activeFile && panelOpen && (
-          <div className="h-44 shrink-0 border-t border-border bg-panel">
-            <MeasurementPanel calibration={activeFile.calibration} />
-          </div>
+        {activeFile && (
+          <>
+            <button
+              type="button"
+              onClick={togglePanel}
+              title={panelOpen ? 'Skjul målinger' : 'Vis målinger'}
+              aria-expanded={panelOpen}
+              className="flex h-5 shrink-0 items-center justify-center border-t border-border bg-panel text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ChevronDown className={`size-4 transition-transform duration-300 ease-in-out ${panelOpen ? '' : 'rotate-180'}`} />
+            </button>
+            <div
+              className={`shrink-0 overflow-hidden bg-panel transition-[height] duration-300 ease-in-out motion-reduce:transition-none ${panelOpen ? 'h-44' : 'h-0'}`}
+              aria-hidden={!panelOpen}
+            >
+              <div className="h-44">
+                <MeasurementPanel calibration={activeFile.calibration} />
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>
