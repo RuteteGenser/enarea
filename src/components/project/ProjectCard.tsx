@@ -17,6 +17,14 @@ type ProjectCardProps = {
   onDelete: () => void;
 };
 
+// Long names shrink so they still fit on the card instead of being cut off.
+function nameSize(name: string) {
+  if (name.length > 36) return 'text-[10px]';
+  if (name.length > 28) return 'text-[11px]';
+  if (name.length > 20) return 'text-xs';
+  return 'text-sm';
+}
+
 export default function ProjectCard({ project, onRename, onDelete }: ProjectCardProps) {
   const navigate = useNavigate();
   const loadFiles = useFilesStore((s) => s.loadFiles);
@@ -67,7 +75,9 @@ export default function ProjectCard({ project, onRename, onDelete }: ProjectCard
         </DropdownMenu>
       </div>
       <div>
-        <h3 className="truncate text-sm font-semibold text-foreground">{project.name}</h3>
+        <h3 className={`truncate font-semibold text-foreground ${nameSize(project.name)}`} title={project.name}>
+          {project.name}
+        </h3>
         <p className="mt-0.5 text-xs text-muted-foreground">
           {files ? `${files.length} ${files.length === 1 ? 'fil' : 'filer'}` : '…'} · Sist endret {date}
         </p>

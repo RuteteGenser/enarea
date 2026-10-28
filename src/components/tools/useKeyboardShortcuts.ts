@@ -31,6 +31,13 @@ export function useKeyboardShortcuts(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
 
+    // Tools clear their drawing in their own Escape listeners, so note whether there was
+    // one before they run (capture phase fires ahead of every bubble listener).
+    let escapeCancelledDrawing = false;
+    function handleKeyDownCapture(e: KeyboardEvent) {
+      escapeCancelledDrawing = e.key === 'Escape' && useViewportStore.getState().drawingInProgress;
+    }
+
     function handleKeyDown(e: KeyboardEvent) {
       if (isEditableTarget(e.target)) return;
 
@@ -78,6 +85,9 @@ export function useKeyboardShortcuts(enabled: boolean) {
       }
 
       if (e.key === 'Escape') {
+        // First Escape only cancels the half-finished drawing (the tool clears it itself);
+        // the next one deselects and returns to the default tool.
+        if (escapeCancelledDrawing) return;
         useAnnotationStore.getState().setSelected(null);
         useViewportStore.getState().setTool('select');
         return;
@@ -106,10 +116,12 @@ export function useKeyboardShortcuts(enabled: boolean) {
       useViewportStore.getState().setShiftDown(false);
     }
 
+    window.addEventListener('keydown', handleKeyDownCapture, true);
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('blur', handleBlur);
     return () => {
+      window.removeEventListener('keydown', handleKeyDownCapture, true);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('blur', handleBlur);

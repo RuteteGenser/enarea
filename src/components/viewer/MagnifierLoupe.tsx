@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from 'react';
+import { useLayoutEffect, useRef, type RefObject } from 'react';
 import { computeLoupePosition, computeMagnifierCrop } from '@/lib/magnifier';
 import { useViewportStore } from '@/store/viewportStore';
 
@@ -14,7 +14,8 @@ export default function MagnifierLoupe({ canvasRef }: MagnifierLoupeProps) {
   const screenPos = useViewportStore((s) => s.magnifierScreenPos);
   const loupeCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  useEffect(() => {
+  // Layout effect: draw before paint so the loupe never shows a stale/blank frame.
+  useLayoutEffect(() => {
     if (!screenPos) return;
     const mainCanvas = canvasRef.current;
     const loupeCanvas = loupeCanvasRef.current;
@@ -46,16 +47,10 @@ export default function MagnifierLoupe({ canvasRef }: MagnifierLoupeProps) {
     ctx.stroke();
   }, [screenPos, canvasRef]);
 
-  if (!screenPos) return null;
-
-  const { left, top } = computeLoupePosition(
-    screenPos,
-    LOUPE_SIZE,
-    OFFSET,
-    OFFSET,
-    window.innerWidth,
-    window.innerHeight,
-  );
+  // The canvas stays mounted (just hidden) so showing the loupe costs no element creation.
+  const { left, top } = screenPos
+    ? computeLoupePosition(screenPos, LOUPE_SIZE, OFFSET, OFFSET, window.innerWidth, window.innerHeight)
+    : { left: 0, top: 0 };
 
   return (
     <canvas
@@ -63,7 +58,7 @@ export default function MagnifierLoupe({ canvasRef }: MagnifierLoupeProps) {
       width={LOUPE_SIZE}
       height={LOUPE_SIZE}
       className="pointer-events-none fixed z-50 rounded-full shadow-lg ring-2 ring-border"
-      style={{ left, top }}
+      style={{ left, top, display: screenPos ? 'block' : 'none' }}
     />
   );
 }

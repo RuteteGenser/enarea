@@ -1,3 +1,4 @@
+import { useDrawingInProgress } from '@/components/tools/useDrawingInProgress';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { buildSnapCandidates, constrainAngle, distance } from '@/lib/geometry';
 import { snapCursor } from '@/components/tools/useSnap';
@@ -21,6 +22,7 @@ export function useSelectTool(zoom: number, svgRef: RefObject<SVGSVGElement | nu
 
   const [drag, setDrag] = useState<DragState | null>(null);
   const [livePoints, setLivePoints] = useState<Point[] | null>(null);
+  useDrawingInProgress(drag !== null);
   const livePointsRef = useRef<Point[] | null>(null);
   const dragRef = useRef<DragState | null>(null);
 
