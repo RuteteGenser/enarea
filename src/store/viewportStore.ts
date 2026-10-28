@@ -16,6 +16,7 @@ type ViewportStore = {
   isSpaceDown: boolean;
   isShiftDown: boolean;
   magnifierScreenPos: { x: number; y: number } | null;
+  magnifierOn: boolean;
   pendingJumpId: string | null;
   pdfLayers: PdfLayer[];
   layersVisible: boolean;
@@ -32,6 +33,7 @@ type ViewportStore = {
   setSpaceDown: (down: boolean) => void;
   setShiftDown: (down: boolean) => void;
   setMagnifierScreenPos: (pos: { x: number; y: number } | null) => void;
+  toggleMagnifier: () => void;
   requestJump: (id: string | null) => void;
   setPdfLayers: (layers: PdfLayer[]) => void;
   toggleLayersVisible: () => void;
@@ -50,6 +52,7 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   isSpaceDown: false,
   isShiftDown: false,
   magnifierScreenPos: null,
+  magnifierOn: false,
   pendingJumpId: null,
   pdfLayers: [],
   layersVisible: true,
@@ -72,6 +75,7 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   setSpaceDown: (down) => set({ isSpaceDown: down }),
   setShiftDown: (down) => set({ isShiftDown: down }),
   setMagnifierScreenPos: (pos) => set({ magnifierScreenPos: pos }),
+  toggleMagnifier: () => set((s) => ({ magnifierOn: !s.magnifierOn, magnifierScreenPos: null })),
   requestJump: (id) => set({ pendingJumpId: id }),
   setPdfLayers: (layers) => set({ pdfLayers: layers }),
   toggleLayersVisible: () => set((s) => ({ layersVisible: !s.layersVisible })),

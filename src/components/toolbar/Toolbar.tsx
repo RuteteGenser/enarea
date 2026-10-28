@@ -12,6 +12,7 @@ import {
   Redo2,
   ZoomIn,
   ZoomOut,
+  Search,
   Eye,
   Layers,
   Download,
@@ -60,6 +61,8 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
   const fitZoom = useViewportStore((s) => s.fitZoom);
   const zoomBy = useViewportStore((s) => s.zoomBy);
   const setZoom = useViewportStore((s) => s.setZoom);
+  const magnifierOn = useViewportStore((s) => s.magnifierOn);
+  const toggleMagnifier = useViewportStore((s) => s.toggleMagnifier);
   const showAnnotations = useViewportStore((s) => s.showAnnotations);
   const toggleAnnotationsVisible = useViewportStore((s) => s.toggleAnnotationsVisible);
   const showScaleBar = useViewportStore((s) => s.showScaleBar);
@@ -198,6 +201,7 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
             {Math.round((zoom / fitZoom) * 100)}%
           </button>
           <ToolButton icon={ZoomIn} label="Zoom inn" onClick={() => zoomBy(1.25)} />
+          <ToolButton icon={Search} label="Forstørrelsesglass" active={magnifierOn} onClick={toggleMagnifier} />
         </div>
 
         <Separator orientation="vertical" className="mx-1 h-6" />
