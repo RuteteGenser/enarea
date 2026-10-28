@@ -308,10 +308,8 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
         onMouseDown={handleMouseDown}
         onMouseMove={(e) => {
           handleMouseMove(e);
-          // Keeps the loupe following the cursor in any tool while it's toggled on.
-          if (useViewportStore.getState().magnifierOn) {
-            useViewportStore.getState().setMagnifierScreenPos({ x: e.clientX, y: e.clientY });
-          }
+          // Ctrl shows the loupe in every tool (draw/select set it themselves; this covers pan etc.).
+          useViewportStore.getState().setMagnifierScreenPos(e.ctrlKey ? { x: e.clientX, y: e.clientY } : null);
         }}
         onMouseUp={handleMouseUp}
         onMouseLeave={() => {

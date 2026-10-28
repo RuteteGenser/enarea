@@ -79,6 +79,7 @@ export function useKeyboardShortcuts(enabled: boolean) {
 
       if (e.key === 'Escape') {
         useAnnotationStore.getState().setSelected(null);
+        useViewportStore.getState().setTool('select');
         return;
       }
 
