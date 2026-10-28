@@ -44,7 +44,7 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   tool: 'select',
   zoom: 1,
   fitZoom: 1,
-  unit: 'm',
+  unit: 'mm',
   showScaleBar: true,
   showCompass: true,
   showAnnotations: true,
