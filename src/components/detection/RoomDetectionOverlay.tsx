@@ -19,7 +19,7 @@ type RoomDetectionOverlayProps = {
 };
 
 // How close (in raster pixels) two areas' outlines must be to count as touching, e.g. across a door.
-const JOIN_TOLERANCE_PX = 14;
+const JOIN_TOLERANCE_PX = 6;
 
 export default function RoomDetectionOverlay({ fileId, zoom, width, height, canvasRef }: RoomDetectionOverlayProps) {
   const addAnnotation = useAnnotationStore((s) => s.addAnnotation);
