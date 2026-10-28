@@ -5,11 +5,11 @@ import type { Unit } from '@/types';
 const UNITS: Unit[] = ['m', 'mm'];
 
 export default function UnitToggle() {
-  const unit = useViewportStore((s) => s.unit);
-  const setUnit = useViewportStore((s) => s.setUnit);
+  const unit = useViewportStore((s) => s.calibrationUnit);
+  const setUnit = useViewportStore((s) => s.setCalibrationUnit);
 
   return (
-    <div className="flex h-8 items-center rounded-md bg-secondary p-0.5 text-xs font-medium">
+    <div title="Enhet for referanselinjen" className="flex h-8 items-center rounded-md bg-secondary p-0.5 text-xs font-medium">
       {UNITS.map((u) => (
         <button
           key={u}
