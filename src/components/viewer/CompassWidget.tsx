@@ -80,16 +80,18 @@ export default function CompassWidget() {
   if (!project) return null;
 
   return (
-    <div className="flex flex-col items-center gap-2 rounded-md bg-card/90 px-3 py-2.5 shadow-sm ring-1 ring-border">
+    <div className="flex flex-col items-center gap-1 rounded-md bg-card/60 px-1.5 py-1.5 opacity-70 transition-opacity hover:opacity-100">
       <div
         ref={dialRef}
         onMouseDown={handleMouseDown}
-        className="relative flex size-24 shrink-0 cursor-grab items-center justify-center rounded-full border border-border bg-background/50 active:cursor-grabbing"
+        className="relative flex size-14 shrink-0 cursor-grab items-center justify-center rounded-full border border-border/60 bg-background/40 active:cursor-grabbing"
         title="Dra for å sette nordretning"
       >
         <ArrowUp
-          className="pointer-events-none size-14 text-red-500 drop-shadow-sm"
-          strokeWidth={2.5}
+          className="pointer-events-none size-8 text-black"
+          strokeWidth={2}
+          strokeLinecap="butt"
+          strokeLinejoin="miter"
           style={{ transform: `rotate(${angle}deg)` }}
         />
       </div>
@@ -110,9 +112,9 @@ export default function CompassWidget() {
           onKeyDown={(e) => {
             if (e.key === 'Enter') e.currentTarget.blur();
           }}
-          className="h-7 w-16 px-2 text-center text-xs tabular-nums"
+          className="h-5 w-11 px-1 text-center text-[10px] tabular-nums"
         />
-        <span className="text-xs font-medium text-muted-foreground">°</span>
+        <span className="text-[10px] font-medium text-muted-foreground">°</span>
       </div>
     </div>
   );
