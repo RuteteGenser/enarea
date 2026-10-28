@@ -96,7 +96,8 @@ export function useDrawTool(tool: ToolId, fileId: string, zoom: number) {
 
   function onMouseDown(e: ReactMouseEvent<SVGSVGElement>) {
     // Holding space always means "pan" — leave dragStart unset so the container drags the view instead.
-    if ((tool !== 'rectangle' && tool !== 'line') || useViewportStore.getState().isSpaceDown) return;
+    // Middle button pans too, so it must not start a drag either.
+    if ((tool !== 'rectangle' && tool !== 'line') || useViewportStore.getState().isSpaceDown || e.button === 1) return;
     const p = resolvePoint(e);
     setDragStart(p);
   }
