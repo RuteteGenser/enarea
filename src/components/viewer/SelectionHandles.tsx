@@ -9,6 +9,8 @@ type SelectionHandlesProps = {
   annotation: Annotation;
   points: Point[];
   zoom: number;
+  /** Corner that was clicked once and now shows a red X; another click removes it. */
+  armedIndex: number | null;
   onVertexMouseDown: (index: number, e: React.MouseEvent) => void;
   onInsertPoint: (edgeIndex: number, point: Point) => void;
   onEdgeMetaChange: (edgeIndex: number, meta: EdgeMeta) => void;
@@ -18,6 +20,7 @@ export default function SelectionHandles({
   annotation,
   points,
   zoom,
+  armedIndex,
   onVertexMouseDown,
   onInsertPoint,
   onEdgeMetaChange,
@@ -79,6 +82,15 @@ export default function SelectionHandles({
 
       {screenPoints.map((p, i) => {
         const showDeleteHint = isShiftDown && canDeleteVertex && hoveredVertex === i;
+        if (armedIndex === i) {
+          return (
+            <g key={i} className="cursor-pointer" onMouseDown={(e) => onVertexMouseDown(i, e)}>
+              <circle cx={p.x} cy={p.y} r={9} fill="white" stroke="#dc2626" strokeWidth={1.5} />
+              <line x1={p.x - 4.5} y1={p.y - 4.5} x2={p.x + 4.5} y2={p.y + 4.5} stroke="#dc2626" strokeWidth={2.5} strokeLinecap="round" />
+              <line x1={p.x - 4.5} y1={p.y + 4.5} x2={p.x + 4.5} y2={p.y - 4.5} stroke="#dc2626" strokeWidth={2.5} strokeLinecap="round" />
+            </g>
+          );
+        }
         return (
           <rect
             key={i}

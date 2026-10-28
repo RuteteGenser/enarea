@@ -32,7 +32,7 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
 
   const svgRef = useRef<SVGSVGElement>(null);
   const { points, cursor, snapped, dragPreviewPoints, handlers } = useDrawTool(tool, fileId, zoom);
-  const { livePointsFor, startVertexDrag, insertPoint } = useSelectTool(zoom, svgRef);
+  const { livePointsFor, startVertexDrag, insertPoint, armedVertex } = useSelectTool(zoom, svgRef);
 
   const mpu = metersPerUnit(calibration);
   const isSelectTool = tool === 'select';
@@ -106,6 +106,7 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
           annotation={selectedAnnotation}
           points={livePointsFor(selectedAnnotation.id) ?? selectedAnnotation.points}
           zoom={zoom}
+          armedIndex={armedVertex?.annotationId === selectedAnnotation.id ? armedVertex.index : null}
           onVertexMouseDown={(index, e) => startVertexDrag(selectedAnnotation, index, e)}
           onInsertPoint={(edgeIndex, point) => insertPoint(selectedAnnotation, edgeIndex, point)}
           onEdgeMetaChange={(edgeIndex, meta) => setEdgeMeta(selectedAnnotation.id, edgeIndex, meta)}

@@ -21,9 +21,13 @@ export function useSelectTool(zoom: number, svgRef: RefObject<SVGSVGElement | nu
   const setSelected = useAnnotationStore((s) => s.setSelected);
 
   const [drag, setDrag] = useState<DragState | null>(null);
+  // A clicked corner is "armed" (shown as a red X); clicking it again deletes it.
+  const [armedVertex, setArmedVertex] = useState<{ annotationId: string; index: number } | null>(null);
   const [livePoints, setLivePoints] = useState<Point[] | null>(null);
   useDrawingInProgress(drag !== null);
   const livePointsRef = useRef<Point[] | null>(null);
+  const armedVertexRef = useRef(armedVertex);
+  armedVertexRef.current = armedVertex;
   const dragRef = useRef<DragState | null>(null);
 
   function clientToPdf(clientX: number, clientY: number): Point {
@@ -60,6 +64,27 @@ export function useSelectTool(zoom: number, svgRef: RefObject<SVGSVGElement | nu
     const edges = annotation.edges ? annotation.edges.filter((_, i) => i !== index) : undefined;
     updateAnnotation(annotationId, { points, edges });
   }
+
+  function canDeleteVertexOf(annotationId: string): boolean {
+    const annotation = useAnnotationStore.getState().annotations.find((a) => a.id === annotationId);
+    if (!annotation) return false;
+    return annotation.points.length > (annotation.type === 'line' ? 2 : 3);
+  }
+
+  // Clicking anywhere else (a vertex handle stops propagation before this) or pressing Escape disarms.
+  useEffect(() => {
+    if (!armedVertex) return;
+    const disarm = () => setArmedVertex(null);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') disarm();
+    };
+    window.addEventListener('mousedown', disarm);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', disarm);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [armedVertex]);
 
   useEffect(() => {
     if (!drag) return;
@@ -112,11 +137,25 @@ export function useSelectTool(zoom: number, svgRef: RefObject<SVGSVGElement | nu
           { x: current.startClientX, y: current.startClientY },
           { x: e.clientX, y: e.clientY },
         );
-        if (useViewportStore.getState().isShiftDown && moved < CLICK_MOVE_THRESHOLD_PX) {
+        const isClick = moved < CLICK_MOVE_THRESHOLD_PX;
+        if (isClick && useViewportStore.getState().isShiftDown) {
           deleteVertex(current.annotationId, current.index);
+          setArmedVertex(null);
           reset();
           return;
         }
+        if (isClick) {
+          const armed = armedVertexRef.current;
+          if (armed && armed.annotationId === current.annotationId && armed.index === current.index) {
+            deleteVertex(current.annotationId, current.index);
+            setArmedVertex(null);
+          } else if (canDeleteVertexOf(current.annotationId)) {
+            setArmedVertex({ annotationId: current.annotationId, index: current.index });
+          }
+          reset();
+          return;
+        }
+        setArmedVertex(null);
       }
       finishDrag(true);
     }
@@ -151,6 +190,7 @@ export function useSelectTool(zoom: number, svgRef: RefObject<SVGSVGElement | nu
 
   return {
     isDragging: drag !== null,
+    armedVertex,
     livePointsFor,
     startVertexDrag,
     insertPoint,
