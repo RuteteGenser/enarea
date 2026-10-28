@@ -46,18 +46,18 @@ export default function CalibrationOverlay({ fileId, zoom, width, height, calibr
     setCursor(toPdfPoint(e, dragStart));
   }
 
-  function handleMouseDown(e: ReactMouseEvent<SVGSVGElement>) {
+  // Two separate clicks: the first sets the start point, the second the end point.
+  function handleClick(e: ReactMouseEvent<SVGSVGElement>) {
     if (useViewportStore.getState().isSpaceDown) return;
-    setDragStart(toPdfPoint(e));
-  }
-
-  function handleMouseUp(e: ReactMouseEvent<SVGSVGElement>) {
-    if (useViewportStore.getState().isSpaceDown || !dragStart) return;
+    if (!dragStart) {
+      setDragStart(toPdfPoint(e));
+      return;
+    }
     const point = toPdfPoint(e, dragStart);
     if (distance(dragStart, point) >= MIN_DRAG_PDF_UNITS) {
       setPendingLine([dragStart, point]);
+      setDragStart(null);
     }
-    setDragStart(null);
   }
 
   useEffect(() => {
@@ -78,8 +78,7 @@ export default function CalibrationOverlay({ fileId, zoom, width, height, calibr
         height={height}
         viewBox={`0 0 ${width} ${height}`}
         onMouseMove={handleMouseMove}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
+        onClick={handleClick}
       >
         {dragStart && cursor && (
           <line
