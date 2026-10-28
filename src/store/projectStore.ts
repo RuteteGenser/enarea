@@ -1,19 +1,31 @@
 import { create } from 'zustand';
 import { projectsRepo } from '@/lib/db';
 import { createId } from '@/lib/id';
-import type { Project } from '@/types';
+import type { Project, ProjectInfo } from '@/types';
 
 type ProjectStore = {
   projects: Project[];
   loaded: boolean;
   loadProjects: () => Promise<void>;
-  createProject: (name: string) => Promise<Project>;
+  createProject: (info: ProjectInfo) => Promise<Project>;
+  updateProjectInfo: (id: string, info: ProjectInfo) => Promise<void>;
   renameProject: (id: string, name: string) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   updateNorthDirection: (id: string, degrees: number) => Promise<void>;
   updateLayerSelection: (id: string, layerNames: string[]) => Promise<void>;
   getProject: (id: string) => Project | undefined;
 };
+
+/** Trims text fields and turns blanks into undefined so cleared fields are really cleared. */
+function cleanInfo(info: ProjectInfo): ProjectInfo {
+  return {
+    name: info.name,
+    description: info.description?.trim() || undefined,
+    buildingCategory: info.buildingCategory,
+    buildYear: info.buildYear,
+    climateLocation: info.climateLocation?.trim() || undefined,
+  };
+}
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
   projects: [],
@@ -24,11 +36,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set({ projects, loaded: true });
   },
 
-  createProject: async (name: string) => {
+  createProject: async (info: ProjectInfo) => {
     const now = Date.now();
     const project: Project = {
       id: createId(),
-      name: name.trim() || 'Uten navn',
+      ...cleanInfo(info),
+      name: info.name.trim() || 'Uten navn',
       northDirection: 0,
       createdAt: now,
       updatedAt: now,
@@ -36,6 +49,19 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     await projectsRepo.put(project);
     set((state) => ({ projects: [project, ...state.projects] }));
     return project;
+  },
+
+  updateProjectInfo: async (id: string, info: ProjectInfo) => {
+    const project = get().projects.find((p) => p.id === id);
+    if (!project) return;
+    const updated: Project = {
+      ...project,
+      ...cleanInfo(info),
+      name: info.name.trim() || project.name,
+      updatedAt: Date.now(),
+    };
+    await projectsRepo.put(updated);
+    set((state) => ({ projects: state.projects.map((p) => (p.id === id ? updated : p)) }));
   },
 
   renameProject: async (id: string, name: string) => {

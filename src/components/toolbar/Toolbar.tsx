@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import ToolButton from '@/components/toolbar/ToolButton';
-import UnitToggle from '@/components/toolbar/UnitToggle';
 import ShortcutsHelp from '@/components/toolbar/ShortcutsHelp';
 import ScaleCalibrationDialog from '@/components/calibration/ScaleCalibrationDialog';
 import { Button } from '@/components/ui/button';
@@ -191,12 +190,6 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
 
         <div className="flex-1" />
 
-        {tool === 'calibrate' && (
-          <>
-            <UnitToggle />
-            <Separator orientation="vertical" className="mx-1 h-6" />
-          </>
-        )}
 
         <div className="flex items-center gap-0.5">
           <ToolButton icon={ZoomOut} label="Zoom ut" onClick={() => zoomBy(1 / 1.25)} />

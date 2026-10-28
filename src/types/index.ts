@@ -80,9 +80,49 @@ export type PdfFile = {
   createdAt: number;
 };
 
-export type Project = {
-  id: string;
+export type BuildingCategory =
+  | 'smahus'
+  | 'boligblokk'
+  | 'kontorbygg'
+  | 'skolebygg'
+  | 'barnehage'
+  | 'sykehus'
+  | 'sykehjem'
+  | 'hotell'
+  | 'idrettsbygg'
+  | 'forretningsbygg'
+  | 'kulturbygg'
+  | 'industri'
+  | 'annet';
+
+// Energy-labelling (Enova/TEK17) building categories.
+export const BUILDING_CATEGORY_LABELS: Record<BuildingCategory, string> = {
+  smahus: 'Småhus',
+  boligblokk: 'Boligblokk',
+  kontorbygg: 'Kontorbygg',
+  skolebygg: 'Skolebygg',
+  barnehage: 'Barnehage',
+  sykehus: 'Sykehus',
+  sykehjem: 'Sykehjem',
+  hotell: 'Hotell',
+  idrettsbygg: 'Idrettsbygg',
+  forretningsbygg: 'Forretningsbygg',
+  kulturbygg: 'Kulturbygg',
+  industri: 'Lett industri/verksted',
+  annet: 'Annet',
+};
+
+/** The user-entered "Prosjektinformasjon" fields. Everything but name is optional for older projects. */
+export type ProjectInfo = {
   name: string;
+  description?: string;
+  buildingCategory?: BuildingCategory;
+  buildYear?: number;
+  climateLocation?: string;
+};
+
+export type Project = ProjectInfo & {
+  id: string;
   northDirection: number;
   createdAt: number;
   updatedAt: number;
