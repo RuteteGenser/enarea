@@ -7,6 +7,7 @@ import { usePanZoom, type Pan } from '@/components/tools/usePanZoom';
 import AnnotationLayer from '@/components/viewer/AnnotationLayer';
 import ScaleBar from '@/components/viewer/ScaleBar';
 import CompassWidget from '@/components/viewer/CompassWidget';
+import { useSlowCursor } from '@/components/tools/useSlowCursor';
 import MagnifierLoupe from '@/components/viewer/MagnifierLoupe';
 import CalibrationOverlay from '@/components/calibration/CalibrationOverlay';
 import CalibrationAreaOverlay from '@/components/calibration/CalibrationAreaOverlay';
@@ -99,6 +100,8 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
       window.removeEventListener('keyup', onKey);
     };
   }, []);
+
+  useSlowCursor(containerRef);
 
   const renderAtZoom = useCallback(async (targetPage: PdfPageProxy, zoomValue: number, canvas: HTMLCanvasElement) => {
     renderTaskRef.current?.cancel();

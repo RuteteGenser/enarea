@@ -21,7 +21,7 @@ type CalibrationDialogProps = {
 
 export default function CalibrationDialog({ open, isRecalibration, onCancel, onConfirm }: CalibrationDialogProps) {
   const [value, setValue] = useState('');
-  const unit = useViewportStore((s) => s.unit);
+  const unit = useViewportStore((s) => s.calibrationUnit);
   const parsed = Number(value.replace(',', '.'));
   const valid = value.trim().length > 0 && Number.isFinite(parsed) && parsed > 0;
 

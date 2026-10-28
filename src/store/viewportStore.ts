@@ -9,6 +9,8 @@ type ViewportStore = {
   zoom: number;
   fitZoom: number;
   unit: Unit;
+  /** Unit for typing in the reference-line length only; the project units (`unit`) are unaffected. */
+  calibrationUnit: Unit;
   showScaleBar: boolean;
   showCompass: boolean;
   showAnnotations: boolean;
@@ -26,6 +28,7 @@ type ViewportStore = {
   setFitZoom: (fitZoom: number) => void;
   zoomBy: (factor: number, anchor?: { x: number; y: number }) => void;
   setUnit: (unit: Unit) => void;
+  setCalibrationUnit: (unit: Unit) => void;
   toggleScaleBar: () => void;
   toggleCompass: () => void;
   toggleAnnotationsVisible: () => void;
@@ -44,7 +47,8 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   tool: 'select',
   zoom: 1,
   fitZoom: 1,
-  unit: 'mm',
+  unit: 'm',
+  calibrationUnit: 'mm',
   showScaleBar: true,
   showCompass: true,
   showAnnotations: true,
@@ -68,6 +72,7 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
     set({ zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next)) });
   },
   setUnit: (unit) => set({ unit }),
+  setCalibrationUnit: (calibrationUnit) => set({ calibrationUnit }),
   toggleScaleBar: () => set((s) => ({ showScaleBar: !s.showScaleBar })),
   toggleCompass: () => set((s) => ({ showCompass: !s.showCompass })),
   toggleAnnotationsVisible: () => set((s) => ({ showAnnotations: !s.showAnnotations })),

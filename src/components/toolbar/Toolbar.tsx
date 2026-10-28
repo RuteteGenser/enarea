@@ -183,9 +183,12 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
 
         <div className="flex-1" />
 
-        <UnitToggle />
-
-        <Separator orientation="vertical" className="mx-1 h-6" />
+        {tool === 'calibrate' && (
+          <>
+            <UnitToggle />
+            <Separator orientation="vertical" className="mx-1 h-6" />
+          </>
+        )}
 
         <div className="flex items-center gap-0.5">
           <ToolButton icon={ZoomOut} label="Zoom ut" onClick={() => zoomBy(1 / 1.25)} />
