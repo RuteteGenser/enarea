@@ -20,13 +20,14 @@ type CalibrationDialogProps = {
 
 export default function CalibrationDialog({ open, isRecalibration, onCancel, onConfirm }: CalibrationDialogProps) {
   const [value, setValue] = useState('');
+  const [unit, setUnit] = useState<'mm' | 'm'>('mm');
   const parsed = Number(value.replace(',', '.'));
   const valid = value.trim().length > 0 && Number.isFinite(parsed) && parsed > 0;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!valid) return;
-    onConfirm(parsed);
+    onConfirm(unit === 'mm' ? parsed / 1000 : parsed);
     setValue('');
   }
 
@@ -51,15 +52,20 @@ export default function CalibrationDialog({ open, isRecalibration, onCancel, onC
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4 grid gap-2">
-            <Label htmlFor="real-length">Faktisk lengde (meter)</Label>
-            <Input
-              id="real-length"
-              autoFocus
-              inputMode="decimal"
-              placeholder="8.0"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-            />
+            <Label htmlFor="real-length">Faktisk lengde ({unit === 'mm' ? 'millimeter' : 'meter'})</Label>
+            <div className="flex gap-2">
+              <Input
+                id="real-length"
+                autoFocus
+                inputMode="decimal"
+                placeholder={unit === 'mm' ? '8000' : '8.0'}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+              />
+              <Button type="button" variant="outline" className="w-14" onClick={() => setUnit(unit === 'mm' ? 'm' : 'mm')}>
+                {unit}
+              </Button>
+            </div>
           </div>
           <DialogFooter className="mt-6">
             <Button type="button" variant="outline" onClick={onCancel}>
