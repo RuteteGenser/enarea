@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown, Eye, EyeOff, Lock, Search, Trash2, TriangleAlert, Unlock, Wind } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye, EyeOff, Lock, Search, Trash2, TriangleAlert, Unlock } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,20 +10,25 @@ import { useAnnotationStore } from '@/store/annotationStore';
 import { cn } from '@/lib/utils';
 import { formatArea, metersPerUnit } from '@/lib/calibration';
 import { annotationArea } from '@/lib/geometry';
+import { AREA_TYPES, findAreaType, peopleForArea } from '@/lib/areaTypes';
 import { displayName } from '@/lib/annotationLabel';
 import { applyRoomNameAndMatch } from '@/lib/roomTemplateMatch';
 import { distinctWallTypeNames } from '@/lib/wallTypesSummary';
 import { ANNOTATION_COLORS, VENTILATION_UNIT_LABELS } from '@/types';
 import type { Annotation, AnnotationColor, Calibration, Unit } from '@/types';
 
+const NO_AREA_TYPE = 'none';
+
 const COLOR_ORDER: AnnotationColor[] = ['red', 'blue', 'green', 'yellow', 'purple', 'black'];
 
-type ColumnKey = 'romnr' | 'rom' | 'area' | 'personer' | 'gulvdekke' | 'veggtype' | 'luftmengde';
+type ColumnKey = 'romnr' | 'rom' | 'romtype' | 'area' | 'arealtype' | 'personer' | 'gulvdekke' | 'veggtype' | 'luftmengde';
 
 const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: 'romnr', label: 'Nr' },
   { key: 'rom', label: 'Navn' },
+  { key: 'romtype', label: 'Romtype' },
   { key: 'area', label: 'Kvadratmeter' },
+  { key: 'arealtype', label: 'Arealtype' },
   { key: 'personer', label: 'Personer' },
   { key: 'gulvdekke', label: 'Type gulv/dekke' },
   { key: 'veggtype', label: 'Type vegg' },
@@ -47,6 +52,10 @@ function sortValue(annotation: Annotation, key: ColumnKey, mpu: number): string 
       return annotation.roomNumber?.toLowerCase() ?? '';
     case 'area':
       return annotationArea(annotation) * mpu * mpu;
+    case 'romtype':
+      return annotation.roomTemplate?.name.toLowerCase() ?? '';
+    case 'arealtype':
+      return findAreaType(annotation.areaType)?.label.toLowerCase() ?? '';
     case 'personer':
       return annotation.people ?? -1;
     case 'gulvdekke':
@@ -218,7 +227,19 @@ function RoomTableRow({ annotation, selected, unit, mpu, onSelect }: RoomTableRo
     setPeopleDraft(String(annotation.people ?? ''));
   }, [annotation.people]);
 
-  const area = formatArea(annotationArea(annotation) * mpu * mpu, unit);
+  const areaSquareMeters = annotationArea(annotation) * mpu * mpu;
+
+  function changeAreaType(id: string) {
+    const type = findAreaType(id);
+    if (!type) {
+      updateAnnotation(annotation.id, { areaType: undefined });
+      return;
+    }
+    // Suggest the number of people for this floor area; Personer can still be edited afterwards.
+    updateAnnotation(annotation.id, { areaType: id, people: peopleForArea(areaSquareMeters, type.m2PerPerson) });
+  }
+
+  const area = formatArea(areaSquareMeters, unit);
   const wallTypes = distinctWallTypeNames(annotation).join(', ');
 
   function startEdit(field: EditingField, initial: string) {
@@ -313,7 +334,47 @@ function RoomTableRow({ annotation, selected, unit, mpu, onSelect }: RoomTableRo
         )}
       </td>
 
+      <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
+        <RoomTemplatePicker
+          current={annotation.roomTemplate}
+          open={roomPickerOpen}
+          onOpenChange={setRoomPickerOpen}
+          onSelect={(next) => updateAnnotation(annotation.id, { roomTemplate: next ?? undefined })}
+        >
+          <button
+            type="button"
+            className="flex min-w-28 items-center gap-1 truncate text-left hover:underline"
+            title={
+              annotation.roomTemplate?.matchType === 'fuzzy'
+                ? 'Automatisk (usikker) match — klikk for å bekrefte eller endre'
+                : 'Klikk for å velge romtype'
+            }
+          >
+            {annotation.roomTemplate?.matchType === 'fuzzy' && <TriangleAlert className="size-3.5 shrink-0 text-amber-500" />}
+            <span className={annotation.roomTemplate ? 'text-foreground' : 'text-muted-foreground'}>
+              {annotation.roomTemplate?.name ?? '--'}
+            </span>
+          </button>
+        </RoomTemplatePicker>
+      </td>
+
       <td className="px-2 py-1.5 tabular-nums text-muted-foreground">{area}</td>
+
+      <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
+        <Select value={annotation.areaType ?? NO_AREA_TYPE} onValueChange={changeAreaType}>
+          <SelectTrigger className="h-6 min-w-32 px-1.5 py-0 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NO_AREA_TYPE}>--</SelectItem>
+            {AREA_TYPES.map((t) => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.label} ({String(t.m2PerPerson).replace('.', ',')} m²/pers.)
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </td>
 
       <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
         <Input
@@ -354,29 +415,10 @@ function RoomTableRow({ annotation, selected, unit, mpu, onSelect }: RoomTableRo
 
       <td className="px-2 py-1.5 truncate text-muted-foreground">{wallTypes || '—'}</td>
 
-      <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
-        <RoomTemplatePicker
-          current={annotation.roomTemplate}
-          open={roomPickerOpen}
-          onOpenChange={setRoomPickerOpen}
-          onSelect={(next) => updateAnnotation(annotation.id, { roomTemplate: next ?? undefined })}
-        >
-          <button
-            type="button"
-            className="flex items-center gap-1 truncate text-muted-foreground hover:underline"
-            title={
-              annotation.roomTemplate?.matchType === 'fuzzy'
-                ? 'Automatisk (usikker) match — klikk for å bekrefte eller endre'
-                : 'Klikk for å tilordne romtype (TEK17)'
-            }
-          >
-            {annotation.roomTemplate?.matchType === 'fuzzy' && <TriangleAlert className="size-3.5 shrink-0 text-amber-500" />}
-            {!annotation.roomTemplate && <Wind className="size-3.5 shrink-0" />}
-            {annotation.roomTemplate?.ventilationRate !== undefined
-              ? `${annotation.roomTemplate.ventilationRate} ${VENTILATION_UNIT_LABELS[annotation.roomTemplate.ventilationUnit ?? 'm3h_per_m2']}`
-              : (annotation.roomTemplate?.name ?? '—')}
-          </button>
-        </RoomTemplatePicker>
+      <td className="px-2 py-1.5 whitespace-nowrap text-muted-foreground">
+        {annotation.roomTemplate?.ventilationRate !== undefined
+          ? `${annotation.roomTemplate.ventilationRate} ${VENTILATION_UNIT_LABELS[annotation.roomTemplate.ventilationUnit ?? 'm3h_per_m2']}`
+          : '--'}
       </td>
 
       <td className="px-2 py-1.5">

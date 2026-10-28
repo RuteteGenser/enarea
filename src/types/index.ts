@@ -54,6 +54,8 @@ export type Annotation = {
   roomNumber?: string;
   // Number of people in the area (set with the Personer tool or in Målinger); omitted when 0.
   people?: number;
+  // Id of the chosen area type (src/lib/areaTypes.ts); picking one suggests `people` from the floor area.
+  areaType?: string;
   labelPos?: Point;
   color: AnnotationColor;
   locked: boolean;
@@ -158,12 +160,14 @@ export const BUILDING_COMPONENT_CATEGORY_LABELS: Record<BuildingComponentCategor
   dekke: 'Dekke',
 };
 
-export type VentilationUnit = 'm3h_per_m2' | 'm3h_per_person' | 'm3h_total';
+export type VentilationUnit = 'm3h_per_m2' | 'm3h_per_person' | 'm3h_total' | 'm3h_per_shower' | 'm3h_per_toilet';
 
 export const VENTILATION_UNIT_LABELS: Record<VentilationUnit, string> = {
   m3h_per_m2: 'm³/h per m²',
   m3h_per_person: 'm³/h per person',
   m3h_total: 'm³/h (totalt)',
+  m3h_per_shower: 'm³/h per dusj',
+  m3h_per_toilet: 'm³/h per toalettstol/urinal',
 };
 
 // A user-built library of room categories (e.g. "Møterom") with TEK17 ventilation

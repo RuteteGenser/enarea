@@ -7,7 +7,7 @@ export const TYPE_LABEL_NB: Record<Annotation['type'], string> = {
 };
 
 /** Fallback label for a non-line shape with no custom name and no assigned Bygningsdel type. */
-export const UNCATEGORIZED_SHAPE_LABEL = 'Ukategorisert gulv/dekke';
+export const UNCATEGORIZED_SHAPE_LABEL = '--';
 
 /**
  * Display fallback for lists/exports when the user hasn't given the annotation a custom name.
