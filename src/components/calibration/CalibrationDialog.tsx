@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import UnitToggle from '@/components/toolbar/UnitToggle';
 import { useViewportStore } from '@/store/viewportStore';
 import {
   Dialog,
@@ -54,14 +55,17 @@ export default function CalibrationDialog({ open, isRecalibration, onCancel, onC
           </DialogHeader>
           <div className="mt-4 grid gap-2">
             <Label htmlFor="real-length">Faktisk lengde ({unit})</Label>
-            <Input
-              id="real-length"
-              autoFocus
-              inputMode="decimal"
-              placeholder={unit === 'mm' ? '8000' : '8.0'}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                id="real-length"
+                autoFocus
+                inputMode="decimal"
+                placeholder={unit === 'mm' ? '8000' : '8.0'}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+              />
+              <UnitToggle />
+            </div>
           </div>
           <DialogFooter className="mt-6">
             <Button type="button" variant="outline" onClick={onCancel}>

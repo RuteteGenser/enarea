@@ -9,11 +9,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { useFilesStore } from '@/store/filesStore';
+import { BUILDING_CATEGORY_LABELS } from '@/types';
 import type { Project } from '@/types';
 
 type ProjectCardProps = {
   project: Project;
   onRename: () => void;
+  onEditInfo: () => void;
   onDelete: () => void;
 };
 
@@ -25,7 +27,7 @@ function nameSize(name: string) {
   return 'text-sm';
 }
 
-export default function ProjectCard({ project, onRename, onDelete }: ProjectCardProps) {
+export default function ProjectCard({ project, onRename, onEditInfo, onDelete }: ProjectCardProps) {
   const navigate = useNavigate();
   const loadFiles = useFilesStore((s) => s.loadFiles);
   const files = useFilesStore((s) => s.filesByProject[project.id]);
@@ -68,6 +70,9 @@ export default function ProjectCard({ project, onRename, onDelete }: ProjectCard
             <DropdownMenuItem onSelect={onRename}>
               <Pencil /> Endre navn
             </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onEditInfo}>
+              <FileText /> Rediger prosjektinfo
+            </DropdownMenuItem>
             <DropdownMenuItem variant="destructive" onSelect={onDelete}>
               <Trash2 /> Slett prosjekt
             </DropdownMenuItem>
@@ -79,6 +84,7 @@ export default function ProjectCard({ project, onRename, onDelete }: ProjectCard
           {project.name}
         </h3>
         <p className="mt-0.5 text-xs text-muted-foreground">
+          {project.buildingCategory ? `${BUILDING_CATEGORY_LABELS[project.buildingCategory]} · ` : ''}
           {files ? `${files.length} ${files.length === 1 ? 'fil' : 'filer'}` : '…'} · Sist endret {date}
         </p>
       </div>

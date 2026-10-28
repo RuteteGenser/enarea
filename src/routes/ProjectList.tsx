@@ -3,7 +3,7 @@ import { Plus, Ruler, Wind, Wrench } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import NewProjectDialog from '@/components/project/NewProjectDialog';
+import ProjectInfoDialog from '@/components/project/ProjectInfoDialog';
 import RenameDialog from '@/components/project/RenameDialog';
 import ProjectCard from '@/components/project/ProjectCard';
 import { useProjectStore } from '@/store/projectStore';
@@ -11,9 +11,10 @@ import { toast } from 'sonner';
 
 export default function ProjectList() {
   const navigate = useNavigate();
-  const { projects, loaded, loadProjects, createProject, renameProject, deleteProject } = useProjectStore();
+  const { projects, loaded, loadProjects, createProject, renameProject, updateProjectInfo, deleteProject } = useProjectStore();
   const [newOpen, setNewOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<string | null>(null);
+  const [infoTarget, setInfoTarget] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   useEffect(() => {
@@ -21,6 +22,7 @@ export default function ProjectList() {
   }, [loadProjects]);
 
   const renameProjectData = projects.find((p) => p.id === renameTarget);
+  const infoProjectData = projects.find((p) => p.id === infoTarget);
   const deleteProjectData = projects.find((p) => p.id === deleteTarget);
 
   return (
@@ -68,17 +70,31 @@ export default function ProjectList() {
               key={project.id}
               project={project}
               onRename={() => setRenameTarget(project.id)}
+              onEditInfo={() => setInfoTarget(project.id)}
               onDelete={() => setDeleteTarget(project.id)}
             />
           ))}
         </div>
       )}
 
-      <NewProjectDialog
+      <ProjectInfoDialog
         open={newOpen}
+        title="Nytt prosjekt"
+        submitLabel="Opprett prosjekt"
         onOpenChange={setNewOpen}
-        onCreate={(name) => {
-          void createProject(name);
+        onSubmit={(info) => {
+          void createProject(info);
+        }}
+      />
+
+      <ProjectInfoDialog
+        open={infoProjectData !== undefined}
+        title="Rediger prosjektinfo"
+        submitLabel="Lagre"
+        initial={infoProjectData}
+        onOpenChange={(open) => !open && setInfoTarget(null)}
+        onSubmit={(info) => {
+          if (infoProjectData) void updateProjectInfo(infoProjectData.id, info);
         }}
       />
 
