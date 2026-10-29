@@ -19,15 +19,13 @@ type AnnotationLayerProps = {
   calibration: Calibration;
   unit: Unit;
   openings?: OpeningItem[];
-  /** Compass setting of the project: degrees clockwise from "up" where north points. */
-  north?: number;
 };
 
 function toScreen(p: Point, zoom: number) {
   return { x: p.x * zoom, y: p.y * zoom };
 }
 
-export default function AnnotationLayer({ fileId, zoom, width, height, calibration, unit, openings, north }: AnnotationLayerProps) {
+export default function AnnotationLayer({ fileId, zoom, width, height, calibration, unit, openings }: AnnotationLayerProps) {
   const tool = useViewportStore((s) => s.tool);
   const isSpaceDown = useViewportStore((s) => s.isSpaceDown);
   const annotations = useAnnotationStore((s) => s.annotations);
@@ -108,7 +106,6 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
             calibration={calibration}
             unit={unit}
             selected={annotation.id === selectedId}
-            north={north}
             onSelect={isSelectTool && !isSpaceDown ? setSelected : undefined}
           />
         </g>

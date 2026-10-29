@@ -1,6 +1,5 @@
 import { formatArea, formatLength, metersPerUnit } from '@/lib/calibration';
 import { annotationArea, distance } from '@/lib/geometry';
-import { ORIENTATION_SHORT, wallOrientation } from '@/lib/wallOrientation';
 import { ANNOTATION_COLORS } from '@/types';
 import type { Annotation, Calibration, Point, Unit } from '@/types';
 
@@ -11,8 +10,6 @@ type ShapeRendererProps = {
   calibration: Calibration;
   unit: Unit;
   selected: boolean;
-  /** Compass setting of the project (degrees); outer walls show the direction they face. */
-  north?: number;
   onSelect?: (id: string) => void;
 };
 
@@ -23,7 +20,6 @@ export default function ShapeRenderer({
   calibration,
   unit,
   selected,
-  north = 0,
   onSelect,
 }: ShapeRendererProps) {
   if (!annotation.visible) return null;
@@ -124,8 +120,7 @@ export default function ShapeRenderer({
             if (distance(outward, labelPos) < distance(mid, labelPos)) {
               perp = { x: -perp.x, y: -perp.y };
             }
-            const orientation = wallOrientation({ points: geometryPoints, edges: annotation.edges }, i, north);
-            const wallLabelOffset = orientation ? 26 : 14;
+            const wallLabelOffset = 14;
             const wallLabelPos = { x: mid.x + perp.x * wallLabelOffset, y: mid.y + perp.y * wallLabelOffset };
             const wallLength = distance(geometryPoints[i], geometryPoints[(i + 1) % geometryPoints.length]) * mpu;
             const wallLengthText = formatLength(wallLength, unit);
@@ -134,14 +129,6 @@ export default function ShapeRenderer({
             return (
               <g key={i}>
                 <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#f5a623" strokeWidth={4} strokeLinecap="round" opacity={0.85} />
-                {orientation && (
-                  <g transform={`translate(${mid.x}, ${mid.y})`}>
-                    <circle r={10} className="fill-card stroke-amber-500" strokeWidth={1.5} />
-                    <text textAnchor="middle" dominantBaseline="central" fontSize={9} fontWeight={700} className="fill-amber-600 select-none">
-                      {ORIENTATION_SHORT[orientation]}
-                    </text>
-                  </g>
-                )}
                 <g transform={`translate(${wallLabelPos.x}, ${wallLabelPos.y})`}>
                   <rect
                     x={-wallLabelWidth / 2}
