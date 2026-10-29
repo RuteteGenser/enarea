@@ -1,6 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -28,10 +36,31 @@ export default function OpeningsDialog({ file }: OpeningsDialogProps) {
     if (!typesLoaded) void loadTypes();
   }, [typesLoaded, loadTypes]);
 
-  const items = file.openings ?? [];
+  // Edits are kept in a draft and only written on "Lagre og lukk".
+  const saved = file.openings ?? [];
+  const [draft, setDraft] = useState<OpeningItem[]>(saved);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  useEffect(() => {
+    if (open) setDraft(file.openings ?? []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when the dialog opens
+  }, [open]);
+
+  const items = draft;
+  const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
 
   function save(next: OpeningItem[]) {
-    void setOpenings(file.id, next);
+    setDraft(next);
+  }
+
+  function saveAndClose() {
+    void setOpenings(file.id, draft);
+    setOpen(false);
+  }
+
+  /** Closing with unsaved edits (X, Esc, click outside, Avbryt) asks first. */
+  function requestClose() {
+    if (dirty) setConfirmOpen(true);
+    else setOpen(false);
   }
 
   function add(kind: OpeningKind) {
@@ -43,7 +72,8 @@ export default function OpeningsDialog({ file }: OpeningsDialogProps) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <>
+    <Dialog open={open} onOpenChange={(next) => (next ? setOpen(true) : requestClose())}>
       <DialogContent className="max-h-[90svh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Vinduer og dører</DialogTitle>
@@ -86,8 +116,27 @@ export default function OpeningsDialog({ file }: OpeningsDialogProps) {
             <Plus /> Legg til dør
           </Button>
         </div>
+
+        <DialogFooter className="mt-4">
+          <Button type="button" variant="outline" onClick={requestClose}>
+            Avbryt
+          </Button>
+          <Button type="button" onClick={saveAndClose}>
+            Lagre og lukk
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <ConfirmDialog
+      open={confirmOpen}
+      title="Forkaste endringer?"
+      description="Du har endringer som ikke er lagret. Hvis du lukker nå, går de tapt."
+      confirmLabel="Forkast endringer"
+      onOpenChange={setConfirmOpen}
+      onConfirm={() => setOpen(false)}
+    />
+    </>
   );
 }
 
@@ -107,11 +156,15 @@ function OpeningRow({ item, typeOptions, onChange, onDelete }: OpeningRowProps) 
   const [name, setName] = useState(item.name);
   const [width, setWidth] = useState(item.widthMm ? String(item.widthMm) : '');
   const [height, setHeight] = useState(item.heightMm ? String(item.heightMm) : '');
+  const typing = useRef(false); // don't overwrite text while it is being typed (e.g. "1." while typing a decimal)
 
-  // Follow changes made elsewhere (undo, another row's save).
-  useEffect(() => setName(item.name), [item.name]);
-  useEffect(() => setWidth(item.widthMm ? String(item.widthMm) : ''), [item.widthMm]);
-  useEffect(() => setHeight(item.heightMm ? String(item.heightMm) : ''), [item.heightMm]);
+  // Follow changes made elsewhere (the draft being reset when the dialog opens).
+  useEffect(() => {
+    if (typing.current) return;
+    setName(item.name);
+    setWidth(item.widthMm ? String(item.widthMm) : '');
+    setHeight(item.heightMm ? String(item.heightMm) : '');
+  }, [item.name, item.widthMm, item.heightMm]);
 
   const area = openingArea({ widthMm: parseMm(width), heightMm: parseMm(height) });
 
@@ -119,8 +172,15 @@ function OpeningRow({ item, typeOptions, onChange, onDelete }: OpeningRowProps) 
     <div className="grid grid-cols-[7rem_6rem_6rem_5rem_1fr_2rem] items-center gap-2">
       <Input
         value={name}
-        onChange={(e) => setName(e.target.value)}
-        onBlur={() => name.trim() && name.trim() !== item.name && onChange({ name: name.trim() })}
+        onFocus={() => (typing.current = true)}
+        onChange={(e) => {
+          setName(e.target.value);
+          if (e.target.value.trim()) onChange({ name: e.target.value.trim() });
+        }}
+        onBlur={() => {
+          typing.current = false;
+          if (!name.trim()) setName(item.name);
+        }}
         className="h-8 px-2 text-sm"
         aria-label={`Navn ${OPENING_KIND_LABELS[item.kind]}`}
       />
@@ -128,8 +188,12 @@ function OpeningRow({ item, typeOptions, onChange, onDelete }: OpeningRowProps) 
         inputMode="decimal"
         placeholder="1200"
         value={width}
-        onChange={(e) => setWidth(e.target.value)}
-        onBlur={() => onChange({ widthMm: parseMm(width) })}
+        onFocus={() => (typing.current = true)}
+        onChange={(e) => {
+          setWidth(e.target.value);
+          onChange({ widthMm: parseMm(e.target.value) });
+        }}
+        onBlur={() => (typing.current = false)}
         className="h-8 px-2 text-sm"
         aria-label={`Bredde ${item.name}`}
       />
@@ -137,8 +201,12 @@ function OpeningRow({ item, typeOptions, onChange, onDelete }: OpeningRowProps) 
         inputMode="decimal"
         placeholder="1500"
         value={height}
-        onChange={(e) => setHeight(e.target.value)}
-        onBlur={() => onChange({ heightMm: parseMm(height) })}
+        onFocus={() => (typing.current = true)}
+        onChange={(e) => {
+          setHeight(e.target.value);
+          onChange({ heightMm: parseMm(e.target.value) });
+        }}
+        onBlur={() => (typing.current = false)}
         className="h-8 px-2 text-sm"
         aria-label={`Høyde ${item.name}`}
       />

@@ -29,14 +29,13 @@ type WallDeleteLayerProps = {
   armed: string | null;
   onHover: (key: string | null) => void;
   onArm: (key: string | null) => void;
-  onDelete: (annotationId: string, edgeIndex: number) => void;
 };
 
 /**
- * Outer walls in the Velg tool: hover highlights one, a click marks it and shows an ×, and clicking the ×
+ * Outer walls in the Velg tool: hover highlights one and a click marks it (red). The Delete key then
  * removes the wall marking (Ctrl+Z brings it back).
  */
-export function WallDeleteLayer({ annotations, zoom, hovered, armed, onHover, onArm, onDelete }: WallDeleteLayerProps) {
+export function WallDeleteLayer({ annotations, zoom, hovered, armed, onHover, onArm }: WallDeleteLayerProps) {
   return (
     <g>
       {annotations.map((annotation) => {
@@ -52,7 +51,6 @@ export function WallDeleteLayer({ annotations, zoom, hovered, armed, onHover, on
           const uy = (b.y - a.y) / len;
           const a2 = { x: a.x + ux * END_INSET_PX, y: a.y + uy * END_INSET_PX };
           const b2 = { x: b.x - ux * END_INSET_PX, y: b.y - uy * END_INSET_PX };
-          const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
           const key = `${annotation.id}:${i}`;
           const isHovered = hovered === key;
           const isArmed = armed === key;
@@ -85,22 +83,6 @@ export function WallDeleteLayer({ annotations, zoom, hovered, armed, onHover, on
                   opacity={0.85}
                   pointerEvents="none"
                 />
-              )}
-              {isArmed && (
-                <g
-                  data-wall-x
-                  transform={`translate(${mid.x}, ${mid.y})`}
-                  className="cursor-pointer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(annotation.id, i);
-                  }}
-                >
-                  <circle r={10} fill="white" stroke="#dc2626" strokeWidth={1.5} />
-                  <line x1={-4} y1={-4} x2={4} y2={4} stroke="#dc2626" strokeWidth={2.5} strokeLinecap="round" />
-                  <line x1={-4} y1={4} x2={4} y2={-4} stroke="#dc2626" strokeWidth={2.5} strokeLinecap="round" />
-                  <title>Slett yttervegg</title>
-                </g>
               )}
             </g>
           );
