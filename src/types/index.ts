@@ -31,10 +31,18 @@ export type Orientation = 'N' | 'S' | 'E' | 'W';
 // material-picker tool) are independent, tool-specific fields with no automatic reconciliation
 // between them today — e.g. `wallType: 'internal'` can coexist with a `buildingComponent` of
 // category 'yttervegg'. A future increment may need to unify them.
+// A window or door in a wall: a library type (vindu/ytterdor) plus the area (m²) of this opening.
+export type WallOpening = {
+  id: string;
+  component: BuildingComponentAssignment;
+  area: number;
+};
+
 export type EdgeMeta = {
   wallType?: WallType;
   orientation?: Orientation;
   buildingComponent?: BuildingComponentAssignment;
+  openings?: WallOpening[];
 };
 
 export type AnnotationType = 'rectangle' | 'polygon' | 'line';

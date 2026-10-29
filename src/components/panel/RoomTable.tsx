@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { formatArea, metersPerUnit } from '@/lib/calibration';
 import { annotationArea } from '@/lib/geometry';
 import { AREA_TYPES, findAreaType, peopleForArea } from '@/lib/areaTypes';
+import { formatOpeningArea, openingsSummary } from '@/lib/wallOpenings';
 import { displayName } from '@/lib/annotationLabel';
 import { applyRoomNameAndMatch } from '@/lib/roomTemplateMatch';
 import { distinctWallTypeNames } from '@/lib/wallTypesSummary';
@@ -21,7 +22,7 @@ const NO_AREA_TYPE = 'none';
 
 const COLOR_ORDER: AnnotationColor[] = ['red', 'blue', 'green', 'yellow', 'purple', 'black'];
 
-type ColumnKey = 'romnr' | 'rom' | 'romtype' | 'area' | 'arealtype' | 'personer' | 'gulvdekke' | 'veggtype' | 'luftmengde';
+type ColumnKey = 'romnr' | 'rom' | 'romtype' | 'area' | 'arealtype' | 'personer' | 'gulvdekke' | 'veggtype' | 'vinduer' | 'luftmengde';
 
 const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: 'romnr', label: 'Nr' },
@@ -32,6 +33,7 @@ const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: 'personer', label: 'Personer' },
   { key: 'gulvdekke', label: 'Type gulv/dekke' },
   { key: 'veggtype', label: 'Type vegg' },
+  { key: 'vinduer', label: 'Vindu/dør' },
   { key: 'luftmengde', label: 'Luftmengde' },
 ];
 
@@ -63,6 +65,8 @@ function sortValue(annotation: Annotation, key: ColumnKey, mpu: number): string 
 
     case 'veggtype':
       return distinctWallTypeNames(annotation).join(', ').toLowerCase();
+    case 'vinduer':
+      return openingsSummary(annotation).area || -1;
     case 'luftmengde':
       return annotation.roomTemplate?.ventilationRate ?? -1;
   }
@@ -241,6 +245,7 @@ function RoomTableRow({ annotation, selected, unit, mpu, onSelect }: RoomTableRo
 
   const area = formatArea(areaSquareMeters, unit);
   const wallTypes = distinctWallTypeNames(annotation).join(', ');
+  const openings = openingsSummary(annotation);
 
   function startEdit(field: EditingField, initial: string) {
     setDraft(initial);
@@ -414,6 +419,10 @@ function RoomTableRow({ annotation, selected, unit, mpu, onSelect }: RoomTableRo
       </td>
 
       <td className="px-2 py-1.5 truncate text-muted-foreground">{wallTypes || '—'}</td>
+
+      <td className="px-2 py-1.5 whitespace-nowrap tabular-nums text-muted-foreground">
+        {openings.count > 0 ? `${openings.count} · ${formatOpeningArea(openings.area)}` : '--'}
+      </td>
 
       <td className="px-2 py-1.5 whitespace-nowrap text-muted-foreground">
         {annotation.roomTemplate?.ventilationRate !== undefined

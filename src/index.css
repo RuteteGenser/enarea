@@ -24,8 +24,8 @@
   --radius: 0.5rem;
 
   --canvas: oklch(0.93 0.004 240);
-  --toolbar: oklch(1 0 0);
-  --panel: oklch(1 0 0);
+  --toolbar: oklch(0.955 0.03 20);
+  --panel: oklch(0.965 0.025 20);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -51,8 +51,8 @@
     --ring: oklch(0.68 0.13 254);
 
     --canvas: oklch(0.12 0.008 240);
-    --toolbar: oklch(0.2 0.012 240);
-    --panel: oklch(0.2 0.012 240);
+    --toolbar: oklch(0.26 0.04 20);
+    --panel: oklch(0.24 0.035 20);
   }
 }
 
