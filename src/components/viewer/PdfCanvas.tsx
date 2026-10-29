@@ -14,6 +14,7 @@ import CalibrationOverlay from '@/components/calibration/CalibrationOverlay';
 import CalibrationAreaOverlay from '@/components/calibration/CalibrationAreaOverlay';
 import RoomDetectionOverlay from '@/components/detection/RoomDetectionOverlay';
 import WallToolOverlay from '@/components/wall/WallToolOverlay';
+import WallAutoOverlay from '@/components/wall/WallAutoOverlay';
 import MaterialPickerOverlay from '@/components/material/MaterialPickerOverlay';
 import { useViewportStore } from '@/store/viewportStore';
 import { useAnnotationStore } from '@/store/annotationStore';
@@ -405,6 +406,9 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
                 height={pageHeight}
                 canvasRef={canvasRef}
               />
+            )}
+            {tool === 'wall-auto' && (
+              <WallAutoOverlay zoom={zoom} width={pageWidth} height={pageHeight} calibration={file.calibration} />
             )}
             {tool === 'wall' && <WallToolOverlay zoom={zoom} width={pageWidth} height={pageHeight} />}
             {tool === 'people' && <PeopleToolOverlay zoom={zoom} width={pageWidth} height={pageHeight} />}
