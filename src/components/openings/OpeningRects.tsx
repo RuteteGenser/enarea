@@ -31,13 +31,25 @@ export default function OpeningRects({ fileId, openings, zoom, calibration, mova
     const onDown = (e: MouseEvent) => {
       if (!(e.target as Element | null)?.closest?.('[data-opening]')) setSelectedId(null);
     };
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setSelectedId(null);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedId(null);
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && !(e.target instanceof HTMLInputElement)) {
+        // Delete removes the selected window/door (and must not also delete the selected area).
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        const current = useFilesStore.getState().getFile(fileId)?.openings ?? [];
+        void setOpenings(fileId, current.filter((o) => o.id !== selectedId));
+        setSelectedId(null);
+      }
+    };
     window.addEventListener('mousedown', onDown);
-    window.addEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
     return () => {
       window.removeEventListener('mousedown', onDown);
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', onKey, true);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reads the latest list from the store
   }, [selectedId]);
 
   const dragId = drag?.id;

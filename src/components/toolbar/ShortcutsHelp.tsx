@@ -18,7 +18,7 @@ const SHORTCUTS: [string, string][] = [
   ['Hold F', 'Forstørrelsesglass'],
   ['Ctrl + Z', 'Angre'],
   ['Ctrl + Shift + Z', 'Gjør om'],
-  ['Delete', 'Slett valgt (også markert yttervegg)'],
+  ['Delete', 'Slett valgt (også markert yttervegg, vindu/dør og person)'],
   ['Ctrl + C / Ctrl + V', 'Kopier / lim inn'],
   ['Esc', 'Avbryt tegning / tilbake til Panorer'],
 ];

@@ -24,6 +24,13 @@ export function withPersonRemoved(area: Annotation, markerId: string): Pick<Anno
   return { personMarkers: markers.length > 0 ? markers : undefined, people: people > 0 ? people : undefined };
 }
 
+/** Keeps at most `count` person icons (the earliest placed); undefined when none are left. */
+export function trimPersonMarkers(markers: PersonMarker[] | undefined, count: number): PersonMarker[] | undefined {
+  if (!markers) return undefined;
+  const kept = markers.slice(0, Math.max(0, count));
+  return kept.length > 0 ? kept : undefined;
+}
+
 export function movePersonMarkers(markers: PersonMarker[] | undefined, dx: number, dy: number, newId: () => string): PersonMarker[] | undefined {
   return markers?.map((m) => ({ id: newId(), x: m.x + dx, y: m.y + dy }));
 }
