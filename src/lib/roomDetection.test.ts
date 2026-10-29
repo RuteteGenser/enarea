@@ -32,6 +32,46 @@ function drawRectWalls(setPixel: (x: number, y: number, dark: boolean) => void, 
   }
 }
 
+describe('detectRoomPolygon with faint lines', () => {
+  /** A room whose door swing is separated from the rest only by thin, light grey lines (anti-aliased detail lines). */
+  function roomWithFaintDoorLine(grey: number) {
+    const width = 80;
+    const height = 60;
+    const { data, setPixel } = makeCanvasImage(width, height);
+    drawRectWalls(setPixel, 10, 10, 69, 49);
+    const faint = (x: number, y: number) => {
+      const i = (y * width + x) * 4;
+      data[i] = data[i + 1] = data[i + 2] = grey;
+    };
+    for (let y = 11; y <= 30; y++) faint(30, y); // vertical line right of the door
+    for (let x = 11; x <= 30; x++) faint(x, 30); // horizontal line below the door
+    return toImageData(width, height, data);
+  }
+
+  it('stays inside the door when the line separating it is thin and light (luminance ~215)', () => {
+    const result = detectRoomPolygon(roomWithFaintDoorLine(215), 20, 20, 1);
+    expect(result).not.toBeNull();
+    // the door interior is 19 x 19 px; the whole room would be 58 x 38 = 2204
+    expect(Math.abs(polygonArea(result!))).toBeLessThan(500);
+  });
+
+  it('also holds for a very faint line (luminance ~230)', () => {
+    const result = detectRoomPolygon(roomWithFaintDoorLine(230), 20, 20, 1);
+    expect(result).not.toBeNull();
+    expect(Math.abs(polygonArea(result!))).toBeLessThan(500);
+  });
+
+  it('light grey fills of a room (luminance 245) are still open space', () => {
+    const width = 50;
+    const height = 50;
+    const { data, setPixel } = makeCanvasImage(width, height);
+    drawRectWalls(setPixel, 10, 10, 39, 34);
+    for (let y = 11; y <= 33; y++) for (let x = 11; x <= 38; x++) data[(y * width + x) * 4] = data[(y * width + x) * 4 + 1] = data[(y * width + x) * 4 + 2] = 245;
+    const result = detectRoomPolygon(toImageData(width, height, data), 25, 22, 1);
+    expect(Math.abs(polygonArea(result!))).toBeCloseTo(28 * 23, 0);
+  });
+});
+
 describe('detectRoomPolygon', () => {
   it('traces the interior of an enclosed rectangular room', () => {
     const width = 50;

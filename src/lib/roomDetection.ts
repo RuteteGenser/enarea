@@ -1,6 +1,8 @@
 import type { Point } from '@/types';
 
-const WALL_LUMINANCE_THRESHOLD = 200;
+// Thin detail lines (door swings, furniture) are anti-aliased to light greys, so they must count as walls too;
+// light grey room fills (~245 and above) stay open space.
+const WALL_LUMINANCE_THRESHOLD = 238;
 const MAX_FILL_PIXELS = 4_000_000;
 const MIN_FILL_PIXELS = 100;
 const SIMPLIFY_EPSILON_PX = 2.5;

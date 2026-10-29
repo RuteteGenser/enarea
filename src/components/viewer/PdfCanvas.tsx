@@ -9,6 +9,7 @@ import ScaleBar from '@/components/viewer/ScaleBar';
 import CompassWidget from '@/components/viewer/CompassWidget';
 import OpeningPlaceOverlay from '@/components/openings/OpeningPlaceOverlay';
 import OpeningPlaceBar from '@/components/openings/OpeningPlaceBar';
+import { useSlowCursor } from '@/components/tools/useSlowCursor';
 import MeasureOverlay from '@/components/measure/MeasureOverlay';
 import RoomNameOverlay from '@/components/roomName/RoomNameOverlay';
 import PeopleToolOverlay from '@/components/people/PeopleToolOverlay';
@@ -100,6 +101,8 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
       }),
     [],
   );
+
+  useSlowCursor(containerRef);
 
   const renderAtZoom = useCallback(async (targetPage: PdfPageProxy, zoomValue: number, canvas: HTMLCanvasElement) => {
     renderTaskRef.current?.cancel();
@@ -319,6 +322,7 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
     <div className="relative flex-1 overflow-hidden">
       <div
         ref={containerRef}
+        data-pdf-container
         className={cn(
           'relative h-full overflow-hidden bg-canvas',
           isPanMode && (isPanningActive ? 'cursor-grabbing' : 'cursor-grab'),
