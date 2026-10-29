@@ -46,7 +46,7 @@ describe('buildExportTables', () => {
     const rooms = tables[1];
     expect(rooms.rows[0][rooms.headers.indexOf('Areal (m²)')]).toBe(200); // 100x200 units at 0.1 m/unit
     expect(rooms.rows[0][rooms.headers.indexOf('Personer')]).toBe(3);
-    expect(tables[2].rows).toHaveLength(4);
+    expect(tables[2].rows).toHaveLength(0); // no side is marked as an outer wall
     expect(tables[3].rows[0][6]).toBe('Vindu'); // building type name
     expect(tables[3].rows[0][5]).toBe(2.4); // area
   });
@@ -94,13 +94,13 @@ describe('windows and doors are counted separately', () => {
         { id: 'pd', openingId: 'd', annotationId: 'a', edgeIndex: 2, t: 0.8 },
       ],
     };
-    const [, rooms, walls] = buildExportTables(project, [{ file: f, annotations: [{ ...room, edges: [{}, {}, {}, {}] }] }]);
+    const [, rooms, walls] = buildExportTables(project, [{ file: f, annotations: [{ ...room, edges: [{}, {}, { wallType: 'external' }, {}] }] }]);
     const r = rooms.rows[0];
     expect(r[rooms.headers.indexOf('Vindu (antall)')]).toBe(1);
     expect(r[rooms.headers.indexOf('Vindu (m²)')]).toBe(1);
     expect(r[rooms.headers.indexOf('Dør (antall)')]).toBe(1);
     expect(r[rooms.headers.indexOf('Dør (m²)')]).toBeCloseTo(1.89);
-    const w = walls.rows[2]; // wall 3
+    const w = walls.rows[0]; // wall 3 is the only outer wall
     expect(w[walls.headers.indexOf('Vindu (antall)')]).toBe(1);
     expect(w[walls.headers.indexOf('Dør (antall)')]).toBe(1);
   });
@@ -112,8 +112,8 @@ describe('wall direction in degrees', () => {
     const north90 = { ...project, northDirection: 90 };
     const walls = buildExportTables(north90, [{ file: file(true), annotations: [outer] }])[2];
     const col = walls.headers.indexOf('Himmelretning (°)');
+    expect(walls.rows).toHaveLength(1); // only the outer wall is listed
     expect(walls.rows[0][col]).toBe(270); // top wall, compass turned 90° to the right
-    expect(walls.rows[1][col]).toBeNull(); // not an outer wall
   });
 });
 
@@ -128,12 +128,33 @@ describe('one type placed many times', () => {
         { id: 'p3', openingId: 'w', annotationId: 'a', edgeIndex: 2, t: 0.5 },
       ],
     };
-    const [, rooms, walls, sheet] = buildExportTables(project, [{ file: f, annotations: [{ ...room, edges: [{}, {}, {}, {}] }] }]);
+    const [, rooms, walls, sheet] = buildExportTables(project, [
+      { file: f, annotations: [{ ...room, edges: [{ wallType: 'external' }, {}, { wallType: 'external' }, {}] }] },
+    ]);
     expect(sheet.rows).toHaveLength(3);
     expect(sheet.rows.every((r) => r[1] === 'Vindu 1')).toBe(true);
     expect(rooms.rows[0][rooms.headers.indexOf('Vindu (antall)')]).toBe(3);
     expect(rooms.rows[0][rooms.headers.indexOf('Vindu (m²)')]).toBe(3);
     expect(walls.rows[0][walls.headers.indexOf('Vindu (antall)')]).toBe(2);
+  });
+});
+
+describe('Vegger sheet only has outer walls', () => {
+  it('leaves out internal walls and unmarked sides', () => {
+    const marked = { ...room, edges: [{ wallType: 'external' as const }, { wallType: 'internal' as const }, {}, { wallType: 'external' as const }] };
+    const walls = buildExportTables(project, [{ file: file(true), annotations: [marked] }])[2];
+    expect(walls.rows.map((r) => r[walls.headers.indexOf('Vegg nr')])).toEqual([1, 4]);
+    expect(walls.rows.every((r) => r[walls.headers.indexOf('Yttervegg/innervegg')] === 'Yttervegg')).toBe(true);
+  });
+
+  it('a room without any marked wall has no wall rows', () => {
+    const walls = buildExportTables(project, [{ file: file(true), annotations: [{ ...room, edges: [{}, {}, {}, {}] }] }])[2];
+    expect(walls.rows).toHaveLength(0);
+  });
+
+  it('keeps the wall numbers of the sides, so they match the drawing', () => {
+    const walls = buildExportTables(project, [{ file: file(true), annotations: [{ ...room, edges: [{}, {}, {}, { wallType: 'external' }] }] }])[2];
+    expect(walls.rows[0][walls.headers.indexOf('Vegg nr')]).toBe(4);
   });
 });
 

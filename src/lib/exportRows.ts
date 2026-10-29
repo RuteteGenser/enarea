@@ -66,7 +66,9 @@ export function buildExportTables(
       const template = annotation.roomTemplate;
       const roomItems = items.filter((it) => it.placement?.annotationId === annotation.id);
       const total = openingTotals(annotation.edges, roomItems);
-      const wallTypes = [...new Set((annotation.edges ?? []).map((e) => e.buildingComponent?.name).filter(Boolean))];
+      const wallTypes = [
+        ...new Set((annotation.edges ?? []).filter((e) => e.wallType === 'external').map((e) => e.buildingComponent?.name).filter(Boolean)),
+      ];
       const air = ventilationTotal(template?.ventilationRate, template?.ventilationUnit, area, annotation.people, template?.perPersonRate);
 
       rooms.push([
@@ -97,7 +99,9 @@ export function buildExportTables(
         const open = edge.openings ?? [];
         const placed = items.filter((it) => it.placement?.annotationId === annotation.id && it.placement.edgeIndex === i);
         const wall = openingTotals([edge], placed);
-        walls.push([
+        // Only sides marked as outer walls are walls in the export: internal walls and unmarked sides
+        // (e.g. where two zones meet) are left out. Windows/doors on them still appear in their own sheet.
+        if (edge.wallType === 'external') walls.push([
           file.name,
           annotation.roomNumber ?? null,
           name,
