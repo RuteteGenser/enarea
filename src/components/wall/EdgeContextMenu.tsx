@@ -6,14 +6,13 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
+import { ORIENTATION_NAMES, ORIENTATION_OPTIONS } from '@/lib/wallOrientation';
 import type { EdgeMeta, Orientation } from '@/types';
 
-const ORIENTATIONS: { value: Orientation; label: string }[] = [
-  { value: 'N', label: 'Nord' },
-  { value: 'S', label: 'Sør' },
-  { value: 'E', label: 'Øst' },
-  { value: 'W', label: 'Vest' },
-];
+const ORIENTATIONS: { value: Orientation; label: string }[] = ORIENTATION_OPTIONS.map((value) => ({
+  value,
+  label: ORIENTATION_NAMES[value],
+}));
 
 type EdgeContextMenuProps = {
   edge: EdgeMeta;
@@ -43,6 +42,9 @@ export default function EdgeContextMenu({ edge, onChange, children }: EdgeContex
           <>
             <ContextMenuSeparator />
             <ContextMenuLabel>Himmelretning</ContextMenuLabel>
+            <ContextMenuItem onSelect={() => onChange({ wallType: 'external', orientation: undefined })}>
+              Etter kompass {!edge.orientation && '✓'}
+            </ContextMenuItem>
             {ORIENTATIONS.map((o) => (
               <ContextMenuItem
                 key={o.value}

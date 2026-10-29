@@ -25,7 +25,7 @@ export const ANNOTATION_COLORS: Record<AnnotationColor, string> = {
 
 export type WallType = 'external' | 'internal';
 
-export type Orientation = 'N' | 'S' | 'E' | 'W';
+export type Orientation = 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW';
 
 // `wallType`/`orientation` (set by the "wall" tool) and `buildingComponent` (set by the
 // material-picker tool) are independent, tool-specific fields with no automatic reconciliation

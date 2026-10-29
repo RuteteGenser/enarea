@@ -35,6 +35,28 @@ export function openingsSummary(
   return { count, area };
 }
 
+export type KindTotals = { count: number; area: number };
+
+/** Windows and doors counted separately (material-picker openings by category, placed items by kind). */
+export function openingTotals(
+  edges: EdgeMeta[] | undefined,
+  items: OpeningItem[],
+): { vindu: KindTotals; dor: KindTotals } {
+  const totals = { vindu: { count: 0, area: 0 }, dor: { count: 0, area: 0 } };
+  for (const edge of edges ?? []) {
+    for (const o of edge.openings ?? []) {
+      const kind = o.component.category === 'vindu' ? 'vindu' : 'dor';
+      totals[kind].count += 1;
+      totals[kind].area += o.area;
+    }
+  }
+  for (const item of items) {
+    totals[item.kind].count += 1;
+    totals[item.kind].area += openingArea(item) ?? 0;
+  }
+  return totals;
+}
+
 export function formatOpeningArea(area: number): string {
   return `${area.toLocaleString('nb-NO', { maximumFractionDigits: 2 })} m²`;
 }
