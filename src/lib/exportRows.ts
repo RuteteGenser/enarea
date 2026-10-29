@@ -4,9 +4,10 @@ import { displayName } from '@/lib/annotationLabel';
 import { findAreaType } from '@/lib/areaTypes';
 import { joinPlacements, openingArea, OPENING_KIND_LABELS } from '@/lib/openings';
 import { openingTotals } from '@/lib/wallOpenings';
+import { ventilationTotal } from '@/lib/ventilation';
 import { BUILDING_CATEGORY_LABELS, BUILDING_COMPONENT_CATEGORY_LABELS, VENTILATION_UNIT_LABELS } from '@/types';
 import { wallBearing } from '@/lib/wallOrientation';
-import type { Annotation, BuildingComponentType, PdfFile, Project, VentilationUnit } from '@/types';
+import type { Annotation, BuildingComponentType, PdfFile, Project } from '@/types';
 
 export type ExportFileData = { file: PdfFile; annotations: Annotation[] };
 
@@ -17,33 +18,7 @@ export type ExportTable = { title: string; headers: string[]; rows: Cell[][] };
 
 const bearingCell = (degrees: number | undefined): Cell => (degrees === undefined ? null : degrees);
 
-/** Air volume in m³/h when it can be derived from the room's area/people (otherwise null). */
-export function ventilationTotal(
-  rate: number | undefined,
-  unit: VentilationUnit | undefined,
-  squareMeters: number | null,
-  people: number | undefined,
-  perPersonRate?: number,
-): number | null {
-  if (rate === undefined) return null;
-  let base: number | null;
-  switch (unit ?? 'm3h_per_m2') {
-    case 'm3h_per_m2':
-      base = squareMeters === null ? null : rate * squareMeters;
-      break;
-    case 'm3h_per_person':
-      base = people ? rate * people : null;
-      break;
-    case 'm3h_total':
-      base = rate;
-      break;
-    default:
-      return null; // per dusj / per toalettstol: the count isn't recorded
-  }
-  if (base === null) return null;
-  // Rooms in use: the air for the people (e.g. 26 m³/h each) comes on top of the area part.
-  return base + (perPersonRate && people ? perPersonRate * people : 0);
-}
+export { ventilationTotal };
 
 const round = (value: number, decimals = 2) => Math.round(value * 10 ** decimals) / 10 ** decimals;
 

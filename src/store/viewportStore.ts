@@ -53,7 +53,7 @@ type ViewportStore = {
 };
 
 export const useViewportStore = create<ViewportStore>((set, get) => ({
-  tool: 'pan', // the default tool: Panorer (move)
+  tool: 'select', // the default tool: Velg
   zoom: 1,
   fitZoom: 1,
   unit: 'm',
