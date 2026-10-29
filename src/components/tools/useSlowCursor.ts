@@ -1,13 +1,14 @@
 import { useEffect, type RefObject } from 'react';
+import { useViewportStore } from '@/store/viewportStore';
 
-/** Fraction of the real mouse speed the virtual cursor moves at while Ctrl is held. */
+/** Fraction of the real mouse speed the virtual cursor moves at while F is held. */
 const SPEED = 0.3;
-/** Ctrl must be held this long (with no other key) before the cursor locks, so Ctrl+Z etc. don't trigger it. */
+/** F must be held this long before the cursor locks, so a quick tap just shows the loupe. */
 const ENGAGE_DELAY_MS = 120;
 const CROSS_SIZE = 18;
 
 /**
- * Slows the cursor while Ctrl is held (the magnifier is showing) for precise placement.
+ * Slows the cursor while F is held (the magnifier is showing) for precise placement.
  * A page can't change the OS cursor speed, so this locks the pointer to the container,
  * draws a virtual crosshair that moves at a fraction of the real movement, and re-dispatches
  * the mouse events at the crosshair's position — tools and handlers just see normal events.
@@ -56,7 +57,7 @@ export function useSlowCursor(containerRef: RefObject<HTMLElement | null>) {
         button: source.button,
         buttons: source.buttons,
         detail: source.detail,
-        ctrlKey: true,
+        ctrlKey: source.ctrlKey,
         shiftKey: source.shiftKey,
         altKey: source.altKey,
         metaKey: source.metaKey,
@@ -109,27 +110,23 @@ export function useSlowCursor(containerRef: RefObject<HTMLElement | null>) {
       if (document.pointerLockElement === el) document.exitPointerLock();
     }
 
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Control') {
-        if (e.repeat || engageTimer !== null || locked) return;
+    // Follows the F key (held = magnifier on): lock shortly after pressing, release when let go.
+    const unsubscribe = useViewportStore.subscribe((state, prev) => {
+      if (state.isMagnifierKeyDown === prev.isMagnifierKeyDown) return;
+      if (state.isMagnifierKeyDown) {
+        if (engageTimer !== null || locked) return;
         engageTimer = window.setTimeout(() => {
           engageTimer = null;
           lock();
         }, ENGAGE_DELAY_MS);
-      } else if (engageTimer !== null) {
-        window.clearTimeout(engageTimer);
-        engageTimer = null;
+      } else {
+        release();
       }
-    }
-    function onKeyUp(e: KeyboardEvent) {
-      if (e.key === 'Control') release();
-    }
+    });
 
     el.addEventListener('mousemove', trackMouse);
     el.addEventListener('mouseleave', forgetMouse);
     document.addEventListener('pointerlockchange', onLockChange);
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
     window.addEventListener('blur', release);
     // Capture phase: runs before React's handlers so the real (frozen-position) events can be swapped for ours.
     window.addEventListener('mousemove', onMove, true);
@@ -142,8 +139,7 @@ export function useSlowCursor(containerRef: RefObject<HTMLElement | null>) {
       el.removeEventListener('mousemove', trackMouse);
       el.removeEventListener('mouseleave', forgetMouse);
       document.removeEventListener('pointerlockchange', onLockChange);
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
+      unsubscribe();
       window.removeEventListener('blur', release);
       window.removeEventListener('mousemove', onMove, true);
       redispatched.forEach((t) => window.removeEventListener(t, redispatch as EventListener, true));

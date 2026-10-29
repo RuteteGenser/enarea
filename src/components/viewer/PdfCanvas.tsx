@@ -10,6 +10,7 @@ import CompassWidget from '@/components/viewer/CompassWidget';
 import { useSlowCursor } from '@/components/tools/useSlowCursor';
 import OpeningPlaceOverlay from '@/components/openings/OpeningPlaceOverlay';
 import OpeningPlaceBar from '@/components/openings/OpeningPlaceBar';
+import MeasureOverlay from '@/components/measure/MeasureOverlay';
 import PeopleToolOverlay from '@/components/people/PeopleToolOverlay';
 import MagnifierLoupe from '@/components/viewer/MagnifierLoupe';
 import CalibrationOverlay from '@/components/calibration/CalibrationOverlay';
@@ -89,21 +90,16 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
     panRef,
   );
 
-  // Pressing/releasing Ctrl shows/hides the loupe right away at the last known cursor
+  // Pressing/releasing F shows/hides the loupe right away at the last known cursor
   // position, instead of waiting for the next mouse move.
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key !== 'Control') return;
-      const pos = e.type === 'keydown' ? lastMouseRef.current : null;
-      useViewportStore.getState().setMagnifierScreenPos(pos);
-    }
-    window.addEventListener('keydown', onKey);
-    window.addEventListener('keyup', onKey);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('keyup', onKey);
-    };
-  }, []);
+  useEffect(
+    () =>
+      useViewportStore.subscribe((state, prev) => {
+        if (state.isMagnifierKeyDown === prev.isMagnifierKeyDown) return;
+        state.setMagnifierScreenPos(state.isMagnifierKeyDown ? lastMouseRef.current : null);
+      }),
+    [],
+  );
 
   useSlowCursor(containerRef);
 
@@ -335,8 +331,10 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
         onMouseMove={(e) => {
           handleMouseMove(e);
           lastMouseRef.current = { x: e.clientX, y: e.clientY };
-          // Ctrl shows the loupe in every tool (draw/select set it themselves; this covers pan etc.).
-          useViewportStore.getState().setMagnifierScreenPos(e.ctrlKey ? lastMouseRef.current : null);
+          // Holding F shows the loupe in every tool (draw/select set it themselves; this covers pan etc.).
+          useViewportStore.getState().setMagnifierScreenPos(
+            useViewportStore.getState().isMagnifierKeyDown ? lastMouseRef.current : null,
+          );
         }}
         onMouseUp={handleMouseUp}
         onMouseLeave={() => {
@@ -416,6 +414,9 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
             {tool === 'wall' && <WallToolOverlay zoom={zoom} width={pageWidth} height={pageHeight} />}
             {tool === 'opening' && (
               <OpeningPlaceOverlay file={file} zoom={zoom} width={pageWidth} height={pageHeight} />
+            )}
+            {tool === 'measure' && (
+              <MeasureOverlay zoom={zoom} width={pageWidth} height={pageHeight} calibration={file.calibration} />
             )}
             {tool === 'people' && <PeopleToolOverlay zoom={zoom} width={pageWidth} height={pageHeight} />}
             {tool === 'material' && <MaterialPickerOverlay zoom={zoom} width={pageWidth} height={pageHeight} />}

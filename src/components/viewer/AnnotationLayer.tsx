@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { formatArea, formatLength, metersPerUnit } from '@/lib/calibration';
 import { distance, polygonArea } from '@/lib/geometry';
 import ShapeRenderer from '@/components/viewer/ShapeRenderer';
@@ -36,6 +36,23 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
   const svgRef = useRef<SVGSVGElement>(null);
   const [hoveredRoomId, setHoveredRoomId] = useState<string | null>(null);
   const [hoveredWall, setHoveredWall] = useState<string | null>(null);
+  const [armedWall, setArmedWall] = useState<string | null>(null);
+
+  // A marked wall is un-marked by clicking anywhere else (the × stops propagation of its own click) or Esc.
+  useEffect(() => {
+    if (!armedWall) return;
+    const disarm = (e: Event) => {
+      if (e instanceof KeyboardEvent && e.key !== 'Escape') return;
+      if (e instanceof MouseEvent && (e.target as Element | null)?.closest?.('[data-wall-x]')) return;
+      setArmedWall(null);
+    };
+    window.addEventListener('mousedown', disarm);
+    window.addEventListener('keydown', disarm);
+    return () => {
+      window.removeEventListener('mousedown', disarm);
+      window.removeEventListener('keydown', disarm);
+    };
+  }, [armedWall]);
   const { points, cursor, snapped, dragPreviewPoints, handlers } = useDrawTool(tool, fileId, zoom);
   const { livePointsFor, startVertexDrag, insertPoint, armedVertex } = useSelectTool(zoom, svgRef);
 
@@ -134,10 +151,13 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
           annotations={annotations}
           zoom={zoom}
           hovered={hoveredWall}
+          armed={armedWall}
           onHover={setHoveredWall}
+          onArm={setArmedWall}
           onDelete={(annotationId, edgeIndex) => {
             setEdgeMeta(annotationId, edgeIndex, { wallType: undefined, orientation: undefined, buildingComponent: undefined });
             setHoveredWall(null);
+            setArmedWall(null);
           }}
         />
       )}

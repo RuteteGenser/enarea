@@ -17,6 +17,8 @@ type ViewportStore = {
   panelOpen: boolean;
   isSpaceDown: boolean;
   isShiftDown: boolean;
+  /** True while the F key is held: shows the magnifier loupe (and slows the cursor). */
+  isMagnifierKeyDown: boolean;
   openingsDialogOpen: boolean;
   wallsDialogOpen: boolean;
   placingOpeningId: string | null;
@@ -38,6 +40,7 @@ type ViewportStore = {
   togglePanel: () => void;
   setSpaceDown: (down: boolean) => void;
   setShiftDown: (down: boolean) => void;
+  setMagnifierKeyDown: (down: boolean) => void;
   setOpeningsDialogOpen: (open: boolean) => void;
   setWallsDialogOpen: (open: boolean) => void;
   setPlacingOpeningId: (id: string | null) => void;
@@ -50,7 +53,7 @@ type ViewportStore = {
 };
 
 export const useViewportStore = create<ViewportStore>((set, get) => ({
-  tool: 'select',
+  tool: 'pan', // the default tool: Panorer (move)
   zoom: 1,
   fitZoom: 1,
   unit: 'm',
@@ -61,6 +64,7 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   panelOpen: true,
   isSpaceDown: false,
   isShiftDown: false,
+  isMagnifierKeyDown: false,
   openingsDialogOpen: false,
   wallsDialogOpen: false,
   placingOpeningId: null,
@@ -88,6 +92,7 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
   setSpaceDown: (down) => set({ isSpaceDown: down }),
   setShiftDown: (down) => set({ isShiftDown: down }),
+  setMagnifierKeyDown: (down) => set({ isMagnifierKeyDown: down }),
   setOpeningsDialogOpen: (open) => set({ openingsDialogOpen: open }),
   setWallsDialogOpen: (open) => set({ wallsDialogOpen: open }),
   setPlacingOpeningId: (id) => set({ placingOpeningId: id }),

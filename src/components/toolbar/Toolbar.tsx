@@ -6,6 +6,7 @@ import {
   Hexagon,
   Wand2,
   Sparkles,
+  RulerDimensionLine,
   DoorOpen,
   ListPlus,
   MousePointerClick,
@@ -53,7 +54,7 @@ type ToolbarProps = {
 };
 
 const DRAW_TOOLS: { id: ToolId; icon: typeof Slash; label: string; shortcut: string }[] = [
-  { id: 'line', icon: Slash, label: 'Linje', shortcut: 'L' },
+  { id: 'measure', icon: RulerDimensionLine, label: 'Mål avstand (midlertidig)', shortcut: 'L' },
   { id: 'rectangle', icon: Square, label: 'Rektangel', shortcut: 'R' },
   { id: 'polygon', icon: Hexagon, label: 'Polygon', shortcut: 'P' },
 ];
@@ -106,18 +107,18 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
     <div className="on-chrome h-12 shrink-0 overflow-x-auto overflow-y-hidden border-b border-border bg-toolbar no-scrollbar">
       <div className="flex h-12 w-max min-w-full items-center gap-1 px-2">
         <ToolButton
-          icon={MousePointer2}
-          label="Velg"
-          shortcut="V"
-          active={tool === 'select'}
-          onClick={() => setTool('select')}
-        />
-        <ToolButton
           icon={Hand}
           label="Panorer"
           shortcut="H"
           active={tool === 'pan'}
           onClick={() => setTool('pan')}
+        />
+        <ToolButton
+          icon={MousePointer2}
+          label="Velg"
+          shortcut="V"
+          active={tool === 'select'}
+          onClick={() => setTool('select')}
         />
 
         <Separator orientation="vertical" className="mx-1 h-6" />

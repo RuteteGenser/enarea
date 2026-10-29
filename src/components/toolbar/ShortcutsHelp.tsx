@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 
 const SHORTCUTS: [string, string][] = [
   ['V', 'Velg-verktøy'],
-  ['L', 'Linje'],
+  ['L', 'Mål avstand (midlertidig)'],
   ['R', 'Rektangel'],
   ['P', 'Polygon'],
   ['D', 'Gjenkjenn rom'],
@@ -15,11 +15,12 @@ const SHORTCUTS: [string, string][] = [
   ['Shift + dra', 'Lås til vannrett/loddrett/diagonal'],
   ['Shift + klikk hjørne', 'Slett hjørnepunkt'],
   ['Scroll', 'Zoom'],
+  ['Hold F', 'Forstørrelsesglass'],
   ['Ctrl + Z', 'Angre'],
   ['Ctrl + Shift + Z', 'Gjør om'],
   ['Delete', 'Slett valgt'],
   ['Ctrl + C / Ctrl + V', 'Kopier / lim inn'],
-  ['Esc', 'Avbryt tegning / velg bort'],
+  ['Esc', 'Avbryt tegning / tilbake til Panorer'],
 ];
 
 export default function ShortcutsHelp() {

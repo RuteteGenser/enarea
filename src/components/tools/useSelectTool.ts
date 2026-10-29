@@ -94,7 +94,7 @@ export function useSelectTool(zoom: number, svgRef: RefObject<SVGSVGElement | nu
       if (!current) return;
       useViewportStore
         .getState()
-        .setMagnifierScreenPos(e.ctrlKey ? { x: e.clientX, y: e.clientY } : null);
+        .setMagnifierScreenPos(useViewportStore.getState().isMagnifierKeyDown ? { x: e.clientX, y: e.clientY } : null);
       const cursorPdf = clientToPdf(e.clientX, e.clientY);
       const originalVertex = current.originalPoints[current.index];
 

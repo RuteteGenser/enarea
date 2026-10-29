@@ -1,5 +1,5 @@
 import { distance } from '@/lib/geometry';
-import type { Annotation, BuildingComponentType, OpeningItem, OpeningKind, Point } from '@/types';
+import type { Annotation, BuildingComponentType, OpeningItem, OpeningKind, OpeningPlacement, Point } from '@/types';
 
 export const OPENING_KIND_LABELS: Record<OpeningKind, string> = { vindu: 'Vindu', dor: 'Dør' };
 
@@ -86,4 +86,36 @@ export function placedOpeningRect(item: OpeningItem, annotations: Annotation[], 
   if (!room || !a || !b) return null;
   const width = ((item.widthMm ?? DEFAULT_OPENING_WIDTH_MM) / 1000) / metersPerUnit;
   return openingRect(a, b, place.t, width, OPENING_DEPTH_METERS / metersPerUnit);
+}
+
+/** The windows/doors to choose from when placing: the originals, not the copies made while placing them. */
+export function placementTemplates(items: OpeningItem[]): OpeningItem[] {
+  return items.filter((i) => !i.templateId || !items.some((o) => o.id === i.templateId));
+}
+
+/**
+ * Places the chosen window/door at `placement`. The first click uses the item itself; every further
+ * click makes a new copy (same kind, size and type, next running number) so the tool stays on one
+ * type until another is picked.
+ */
+export function placeOpening(
+  items: OpeningItem[],
+  templateId: string,
+  placement: OpeningPlacement,
+  newId: string,
+): OpeningItem[] {
+  const template = items.find((i) => i.id === templateId);
+  if (!template) return items;
+  if (!template.placement) return items.map((i) => (i.id === templateId ? { ...i, placement } : i));
+  const copy: OpeningItem = {
+    id: newId,
+    kind: template.kind,
+    name: nextOpeningName(items, template.kind),
+    widthMm: template.widthMm,
+    heightMm: template.heightMm,
+    typeId: template.typeId,
+    templateId: template.templateId ?? template.id,
+    placement,
+  };
+  return [...items, copy];
 }
