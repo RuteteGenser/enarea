@@ -61,6 +61,7 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
   const showScaleBar = useViewportStore((s) => s.showScaleBar);
   const showCompass = useViewportStore((s) => s.showCompass);
   const unit = useViewportStore((s) => s.unit);
+  const northDirection = useProjectStore((s) => s.getProject(file.projectId)?.northDirection ?? 0);
   const pdfLayers = useViewportStore((s) => s.pdfLayers);
   const setPdfLayers = useViewportStore((s) => s.setPdfLayers);
   const layersVisible = useViewportStore((s) => s.layersVisible);
@@ -381,6 +382,7 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
                 calibration={file.calibration}
                 unit={unit}
                 openings={file.openings}
+                north={northDirection}
               />
             )}
             {tool === 'calibrate' && (

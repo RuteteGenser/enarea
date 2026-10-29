@@ -8,16 +8,13 @@ import { displayName } from '@/lib/annotationLabel';
 import { distance } from '@/lib/geometry';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useBuildingComponentTypeStore } from '@/store/buildingComponentTypeStore';
+import { useProjectStore } from '@/store/projectStore';
 import { useViewportStore } from '@/store/viewportStore';
+import { ORIENTATION_NAMES, ORIENTATION_OPTIONS, compassPoint, outwardBearing } from '@/lib/wallOrientation';
 import type { BuildingComponentAssignment, BuildingComponentType, Orientation, PdfFile } from '@/types';
 
 const NONE = 'none';
-const ORIENTATIONS: { value: Orientation; label: string }[] = [
-  { value: 'N', label: 'Nord' },
-  { value: 'E', label: 'Øst' },
-  { value: 'S', label: 'Sør' },
-  { value: 'W', label: 'Vest' },
-];
+const AUTO = 'auto';
 
 function toAssignment(type: BuildingComponentType): BuildingComponentAssignment {
   return { typeId: type.id, category: type.category, name: type.name, uValue: type.uValue, wallThickness: type.wallThickness };
@@ -37,6 +34,7 @@ export default function WallsDialog({ file }: { file: PdfFile }) {
     if (!typesLoaded) void loadTypes();
   }, [typesLoaded, loadTypes]);
 
+  const north = useProjectStore((s) => s.getProject(file.projectId)?.northDirection ?? 0);
   const mpu = metersPerUnit(file.calibration);
   const wallTypes = types.filter((t) => t.category === 'yttervegg');
 
@@ -85,17 +83,19 @@ export default function WallsDialog({ file }: { file: PdfFile }) {
                   {length.toLocaleString('nb-NO', { maximumFractionDigits: 2 })} m
                 </span>
                 <Select
-                  value={edge.orientation ?? NONE}
-                  onValueChange={(v) => setEdgeMeta(annotation.id, index, { orientation: v === NONE ? undefined : (v as Orientation) })}
+                  value={edge.orientation ?? AUTO}
+                  onValueChange={(v) => setEdgeMeta(annotation.id, index, { orientation: v === AUTO ? undefined : (v as Orientation) })}
                 >
                   <SelectTrigger className="h-8 text-sm" aria-label="Himmelretning">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>--</SelectItem>
-                    {ORIENTATIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
+                    <SelectItem value={AUTO}>
+                      Kompass: {ORIENTATION_NAMES[compassPoint(outwardBearing(annotation.points, index, north))]}
+                    </SelectItem>
+                    {ORIENTATION_OPTIONS.map((o) => (
+                      <SelectItem key={o} value={o}>
+                        {ORIENTATION_NAMES[o]} (manuell)
                       </SelectItem>
                     ))}
                   </SelectContent>

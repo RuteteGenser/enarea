@@ -5,7 +5,8 @@ import { findAreaType } from '@/lib/areaTypes';
 import { openingArea, OPENING_KIND_LABELS } from '@/lib/openings';
 import { openingTotals } from '@/lib/wallOpenings';
 import { BUILDING_CATEGORY_LABELS, BUILDING_COMPONENT_CATEGORY_LABELS, VENTILATION_UNIT_LABELS } from '@/types';
-import type { Annotation, BuildingComponentType, OpeningItem, PdfFile, Project, VentilationUnit } from '@/types';
+import { ORIENTATION_NAMES, wallOrientation } from '@/lib/wallOrientation';
+import type { Annotation, BuildingComponentType, Orientation, OpeningItem, PdfFile, Project, VentilationUnit } from '@/types';
 
 export type ExportFileData = { file: PdfFile; annotations: Annotation[] };
 
@@ -14,7 +15,7 @@ export type Cell = string | number | null;
 
 export type ExportTable = { title: string; headers: string[]; rows: Cell[][] };
 
-const ORIENTATION_LABELS = { N: 'Nord', S: 'Sør', E: 'Øst', W: 'Vest' } as const;
+const orientationName = (o: Orientation | undefined): Cell => (o ? ORIENTATION_NAMES[o] : null);
 
 /** Air volume in m³/h when it can be derived from the room's area/people (otherwise null). */
 export function ventilationTotal(
@@ -123,7 +124,7 @@ export function buildExportTables(
           edge.buildingComponent?.uValue ?? null,
           edge.buildingComponent?.wallThickness ?? null,
           edge.wallType === 'external' ? 'Yttervegg' : edge.wallType === 'internal' ? 'Innervegg' : null,
-          edge.orientation ? ORIENTATION_LABELS[edge.orientation] : null,
+          orientationName(wallOrientation(annotation, i, project.northDirection)),
           wall.vindu.count || null,
           wall.vindu.count ? round(wall.vindu.area) : null,
           wall.dor.count || null,
@@ -143,7 +144,7 @@ export function buildExportTables(
             annotation.roomNumber ?? null,
             name,
             i + 1,
-            edge.orientation ? ORIENTATION_LABELS[edge.orientation] : null,
+            orientationName(wallOrientation(annotation, i, project.northDirection)),
           ]);
         }
       });
@@ -154,7 +155,6 @@ export function buildExportTables(
     for (const item of file.openings ?? []) {
       const type = types.find((t) => t.id === item.typeId);
       const room = item.placement ? annotations.find((a) => a.id === item.placement?.annotationId) : undefined;
-      const edge = room && item.placement ? room.edges?.[item.placement.edgeIndex] : undefined;
       const area = openingArea(item);
       openings.push([
         file.name,
@@ -168,7 +168,7 @@ export function buildExportTables(
         room?.roomNumber ?? null,
         room ? displayName(room) : null,
         item.placement ? item.placement.edgeIndex + 1 : null,
-        edge?.orientation ? ORIENTATION_LABELS[edge.orientation] : null,
+        room && item.placement ? orientationName(wallOrientation(room, item.placement.edgeIndex, project.northDirection)) : null,
       ]);
     }
   }
