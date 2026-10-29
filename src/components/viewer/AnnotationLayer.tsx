@@ -3,6 +3,7 @@ import { formatArea, formatLength, metersPerUnit } from '@/lib/calibration';
 import { distance, polygonArea } from '@/lib/geometry';
 import ShapeRenderer from '@/components/viewer/ShapeRenderer';
 import SelectionHandles from '@/components/viewer/SelectionHandles';
+import PersonMarkers from '@/components/people/PersonMarkers';
 import OpeningRects from '@/components/openings/OpeningRects';
 import { HoverOutline, WallDeleteLayer } from '@/components/viewer/SelectHover';
 import { useDrawTool } from '@/components/tools/useDrawTool';
@@ -175,6 +176,8 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
           movable={isSelectTool && !isSpaceDown}
         />
       )}
+
+      <PersonMarkers annotations={annotations} zoom={zoom} interactive={isSelectTool && !isSpaceDown} />
 
       {previewShape}
 

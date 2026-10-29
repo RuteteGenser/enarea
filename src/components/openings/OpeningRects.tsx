@@ -23,6 +23,22 @@ export default function OpeningRects({ fileId, openings, zoom, calibration, mova
   const mpu = metersPerUnit(calibration);
   const [drag, setDrag] = useState<{ id: string; t: number; svg: SVGSVGElement } | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  // First click selects a window/door; only a selected one can then be dragged along its wall.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const onDown = (e: MouseEvent) => {
+      if (!(e.target as Element | null)?.closest?.('[data-opening]')) setSelectedId(null);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setSelectedId(null);
+    window.addEventListener('mousedown', onDown);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', onDown);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [selectedId]);
 
   const dragId = drag?.id;
   useEffect(() => {
@@ -81,17 +97,23 @@ export default function OpeningRects({ fileId, openings, zoom, calibration, mova
         const rect = placedOpeningRect(live, annotations, mpu);
         if (!rect) return null;
         const color = KIND_COLORS[item.kind];
-        const active = movable && (hoveredId === item.id || drag?.id === item.id);
+        const selected = movable && selectedId === item.id;
+        const active = movable && (hoveredId === item.id || drag?.id === item.id || selected);
         return (
           <g
             key={item.id}
             pointerEvents={movable ? 'all' : 'none'}
-            className={movable ? (drag ? 'cursor-grabbing' : 'cursor-grab') : undefined}
+            data-opening
+            className={movable ? (drag ? 'cursor-grabbing' : selected ? 'cursor-grab' : 'cursor-pointer') : undefined}
             onMouseEnter={() => movable && setHoveredId(item.id)}
             onMouseLeave={() => setHoveredId((id) => (id === item.id ? null : id))}
             onMouseDown={(e) => {
               if (!movable || e.button !== 0) return;
               e.stopPropagation();
+              if (selectedId !== item.id) {
+                setSelectedId(item.id); // first click only selects
+                return;
+              }
               const svg = (e.currentTarget as SVGGElement).ownerSVGElement;
               if (svg) setDrag({ id: item.id, t: item.placement?.t ?? 0.5, svg });
             }}
@@ -103,6 +125,7 @@ export default function OpeningRects({ fileId, openings, zoom, calibration, mova
               fillOpacity={active ? 0.55 : 0.35}
               stroke={color}
               strokeWidth={active ? 3 : 2}
+              strokeDasharray={selected ? '5 3' : undefined}
               strokeLinejoin="round"
             />
             <text
