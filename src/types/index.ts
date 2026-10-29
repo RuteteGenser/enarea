@@ -45,6 +45,8 @@ export type EdgeMeta = {
   openings?: WallOpening[];
 };
 
+export type PersonMarker = { id: string; x: number; y: number };
+
 export type AnnotationType = 'rectangle' | 'polygon' | 'line';
 
 export type Annotation = {
@@ -62,6 +64,8 @@ export type Annotation = {
   roomNumber?: string;
   // Number of people in the area (set with the Personer tool or in Målinger); omitted when 0.
   people?: number;
+  // Person icons placed inside this area with the Personer tool; each one is counted in `people`.
+  personMarkers?: PersonMarker[];
   // Id of the chosen area type (src/lib/areaTypes.ts); picking one suggests `people` from the floor area.
   areaType?: string;
   labelPos?: Point;

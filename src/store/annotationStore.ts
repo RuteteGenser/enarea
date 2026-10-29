@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { annotationsRepo } from '@/lib/db';
 import { createId } from '@/lib/id';
 import { areaTypeForCategory } from '@/lib/areaTypes';
+import { movePersonMarkers } from '@/lib/personMarkers';
 import { useFilesStore } from '@/store/filesStore';
 import { useProjectStore } from '@/store/projectStore';
 import type { Annotation, EdgeMeta } from '@/types';
@@ -117,6 +118,7 @@ export const useAnnotationStore = create<AnnotationStore>((set, get) => ({
       name: clipboard.name ? `${clipboard.name} kopi` : undefined,
       points: clipboard.points.map((p) => ({ x: p.x + offset, y: p.y + offset })),
       regions: clipboard.regions?.map((region) => region.map((p) => ({ x: p.x + offset, y: p.y + offset }))),
+      personMarkers: movePersonMarkers(clipboard.personMarkers, offset, offset, createId),
       locked: false,
       createdAt: Date.now(),
       updatedAt: Date.now(),
