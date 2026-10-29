@@ -73,7 +73,30 @@ describe('Vindu/Dør items', () => {
     expect(named[0][10]).toBe(2); // wall number
     expect(named[1].slice(1, 3)).toEqual(['Dør 2', 'Dør']);
     const rooms = buildExportTables(project, [{ file: f, annotations: [room] }], types)[1];
-    expect(rooms.rows[0][rooms.headers.indexOf('Vindu/dør (antall)')]).toBe(2); // 1 material-picker opening + 1 placed item
+    expect(rooms.rows[0][rooms.headers.indexOf('Vindu (antall)')]).toBe(2); // 1 material-picker window + placed Vindu 1
+    expect(rooms.rows[0][rooms.headers.indexOf('Vindu (m²)')]).toBeCloseTo(4.2); // 2.4 + 1.8
+    expect(rooms.rows[0][rooms.headers.indexOf('Dør (antall)')]).toBeNull(); // Dør 2 isn't placed
+  });
+});
+
+describe('windows and doors are counted separately', () => {
+  it('splits count and area per kind in Rom and Vegger', () => {
+    const f = {
+      ...file(true),
+      openings: [
+        { id: 'w', kind: 'vindu' as const, name: 'Vindu 1', widthMm: 1000, heightMm: 1000, placement: { annotationId: 'a', edgeIndex: 2, t: 0.5 } },
+        { id: 'd', kind: 'dor' as const, name: 'Dør 2', widthMm: 900, heightMm: 2100, placement: { annotationId: 'a', edgeIndex: 2, t: 0.8 } },
+      ],
+    };
+    const [, rooms, walls] = buildExportTables(project, [{ file: f, annotations: [{ ...room, edges: [{}, {}, {}, {}] }] }]);
+    const r = rooms.rows[0];
+    expect(r[rooms.headers.indexOf('Vindu (antall)')]).toBe(1);
+    expect(r[rooms.headers.indexOf('Vindu (m²)')]).toBe(1);
+    expect(r[rooms.headers.indexOf('Dør (antall)')]).toBe(1);
+    expect(r[rooms.headers.indexOf('Dør (m²)')]).toBeCloseTo(1.89);
+    const w = walls.rows[2]; // wall 3
+    expect(w[walls.headers.indexOf('Vindu (antall)')]).toBe(1);
+    expect(w[walls.headers.indexOf('Dør (antall)')]).toBe(1);
   });
 });
 

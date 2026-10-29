@@ -3,7 +3,7 @@ import { metersPerUnit } from '@/lib/calibration';
 import { displayName } from '@/lib/annotationLabel';
 import { findAreaType } from '@/lib/areaTypes';
 import { openingArea, OPENING_KIND_LABELS } from '@/lib/openings';
-import { openingsSummary, totalOpeningArea } from '@/lib/wallOpenings';
+import { openingTotals } from '@/lib/wallOpenings';
 import { BUILDING_CATEGORY_LABELS, BUILDING_COMPONENT_CATEGORY_LABELS, VENTILATION_UNIT_LABELS } from '@/types';
 import type { Annotation, BuildingComponentType, OpeningItem, PdfFile, Project, VentilationUnit } from '@/types';
 
@@ -80,7 +80,8 @@ export function buildExportTables(
       if (area !== null) totalArea += area;
       totalPeople += annotation.people ?? 0;
       const template = annotation.roomTemplate;
-      const summary = openingsSummary(annotation, items);
+      const roomItems = items.filter((it) => it.placement?.annotationId === annotation.id);
+      const total = openingTotals(annotation.edges, roomItems);
       const wallTypes = [...new Set((annotation.edges ?? []).map((e) => e.buildingComponent?.name).filter(Boolean))];
       const air = ventilationTotal(template?.ventilationRate, template?.ventilationUnit, area, annotation.people);
 
@@ -95,8 +96,10 @@ export function buildExportTables(
         annotation.buildingComponent?.name ?? null,
         annotation.buildingComponent?.uValue ?? null,
         wallTypes.join(', ') || null,
-        summary.count || null,
-        summary.count ? round(summary.area) : null,
+        total.vindu.count || null,
+        total.vindu.count ? round(total.vindu.area) : null,
+        total.dor.count || null,
+        total.dor.count ? round(total.dor.area) : null,
         template?.ventilationRate ?? null,
         template?.ventilationRate !== undefined
           ? VENTILATION_UNIT_LABELS[template.ventilationUnit ?? 'm3h_per_m2']
@@ -109,8 +112,7 @@ export function buildExportTables(
         const b = annotation.points[(i + 1) % annotation.points.length];
         const open = edge.openings ?? [];
         const placed = items.filter((it) => it.placement?.annotationId === annotation.id && it.placement.edgeIndex === i);
-        const openCount = open.length + placed.length;
-        const openArea = totalOpeningArea(edge) + placed.reduce((sum, it) => sum + (openingArea(it) ?? 0), 0);
+        const wall = openingTotals([edge], placed);
         walls.push([
           file.name,
           annotation.roomNumber ?? null,
@@ -122,8 +124,10 @@ export function buildExportTables(
           edge.buildingComponent?.wallThickness ?? null,
           edge.wallType === 'external' ? 'Yttervegg' : edge.wallType === 'internal' ? 'Innervegg' : null,
           edge.orientation ? ORIENTATION_LABELS[edge.orientation] : null,
-          openCount || null,
-          openCount ? round(openArea) : null,
+          wall.vindu.count || null,
+          wall.vindu.count ? round(wall.vindu.area) : null,
+          wall.dor.count || null,
+          wall.dor.count ? round(wall.dor.area) : null,
         ]);
 
         for (const opening of open) {
@@ -197,8 +201,10 @@ export function buildExportTables(
         'Gulv/dekke',
         'U-verdi gulv/dekke (W/m²K)',
         'Veggtyper',
-        'Vindu/dør (antall)',
-        'Vindu/dør (m²)',
+        'Vindu (antall)',
+        'Vindu (m²)',
+        'Dør (antall)',
+        'Dør (m²)',
         'Luftmengde (verdi)',
         'Luftmengde (enhet)',
         'Beregnet luftmengde (m³/h)',
@@ -218,8 +224,10 @@ export function buildExportTables(
         'Tykkelse (mm)',
         'Yttervegg/innervegg',
         'Himmelretning',
-        'Vindu/dør (antall)',
-        'Vindu/dør (m²)',
+        'Vindu (antall)',
+        'Vindu (m²)',
+        'Dør (antall)',
+        'Dør (m²)',
       ],
       rows: walls,
     },
