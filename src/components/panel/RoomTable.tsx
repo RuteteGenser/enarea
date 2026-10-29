@@ -165,11 +165,11 @@ export default function RoomTable({ annotations, selectedId, unit, calibration, 
             <thead>
               <tr className="border-b border-border">
                 {COLUMNS.map((col) => (
-                  <th key={col.key} className="whitespace-nowrap px-2 py-1.5 text-left">
+                  <th key={col.key} className="whitespace-nowrap px-2 py-1 text-left">
                     <button
                       type="button"
                       onClick={() => toggleSort(col.key)}
-                      className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground"
+                      className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground"
                     >
                       {col.label}
                       {sortKey === col.key ? (

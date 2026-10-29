@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, ChevronDown, Loader2, Upload } from 'lucide-react';
+import { ArrowLeft, Loader2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import FileTabs from '@/components/project/FileTabs';
 import ExportDialog from '@/components/export/ExportDialog';
 import Toolbar from '@/components/toolbar/Toolbar';
 import PdfCanvas from '@/components/viewer/PdfCanvas';
-import MeasurementPanel from '@/components/panel/MeasurementPanel';
+import MeasurementPanel, { MeasurementHeader } from '@/components/panel/MeasurementPanel';
 import { useProjectStore } from '@/store/projectStore';
 import { useFilesStore } from '@/store/filesStore';
 import { useAnnotationStore } from '@/store/annotationStore';
@@ -19,7 +19,7 @@ export default function Workspace() {
   const navigate = useNavigate();
 
   const { projects, loaded, loadProjects } = useProjectStore();
-  const { filesByProject, filesLoaded: filesLoadedByProject, loadFiles, activeFileId, setActiveFile, getFile } =
+  const { filesByProject, filesLoaded: filesLoadedByProject, loadFiles, activeFileId, setActiveFile } =
     useFilesStore();
   const loadAnnotationsForFile = useAnnotationStore((s) => s.loadForFile);
   const panelOpen = useViewportStore((s) => s.panelOpen);
@@ -31,7 +31,9 @@ export default function Workspace() {
   const project = projects.find((p) => p.id === projectId);
   const files = projectId ? (filesByProject[projectId] ?? []) : [];
   const filesLoaded = projectId ? !!filesLoadedByProject[projectId] : false;
-  const activeFile = activeFileId ? getFile(activeFileId) : undefined;
+  // Only a file of *this* project can be active: the active id is global and would otherwise keep
+  // showing the last PDF from another project when opening a new one.
+  const activeFile = activeFileId ? files.find((f) => f.id === activeFileId) : undefined;
   const [exportOpen, setExportOpen] = useState(false);
   const [initialPdfReady, setInitialPdfReady] = useState(false);
 
@@ -54,8 +56,12 @@ export default function Workspace() {
   }, [projectId, resetLayersVisible]);
 
   useEffect(() => {
-    if (!activeFileId && files.length > 0) setActiveFile(files[0].id);
-  }, [activeFileId, files, setActiveFile]);
+    if (!filesLoaded) return;
+    const belongsHere = activeFileId !== null && files.some((f) => f.id === activeFileId);
+    if (belongsHere) return;
+    const next = files[0]?.id ?? null;
+    if (next !== activeFileId) setActiveFile(next);
+  }, [filesLoaded, activeFileId, files, setActiveFile]);
 
   useEffect(() => {
     if (activeFileId) void loadAnnotationsForFile(activeFileId);
@@ -115,20 +121,12 @@ export default function Workspace() {
 
         {activeFile && (
           <>
-            <button
-              type="button"
-              onClick={togglePanel}
-              title={panelOpen ? 'Skjul målinger' : 'Vis målinger'}
-              aria-expanded={panelOpen}
-              className="on-chrome flex h-5 shrink-0 items-center justify-center border-t border-border bg-panel text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <ChevronDown className={`size-4 transition-transform duration-300 ease-in-out ${panelOpen ? '' : 'rotate-180'}`} />
-            </button>
+            <MeasurementHeader calibration={activeFile.calibration} open={panelOpen} onToggle={togglePanel} />
             <div
-              className={`on-chrome shrink-0 overflow-hidden bg-panel transition-[height] duration-300 ease-in-out motion-reduce:transition-none ${panelOpen ? 'h-44' : 'h-0'}`}
+              className={`on-chrome shrink-0 overflow-hidden bg-panel transition-[height] duration-300 ease-in-out motion-reduce:transition-none ${panelOpen ? 'h-40' : 'h-0'}`}
               aria-hidden={!panelOpen}
             >
-              <div className="h-44">
+              <div className="h-40">
                 <MeasurementPanel calibration={activeFile.calibration} />
               </div>
             </div>

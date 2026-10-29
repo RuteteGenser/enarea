@@ -1,4 +1,4 @@
-import { Ruler } from 'lucide-react';
+import { ChevronDown, Ruler } from 'lucide-react';
 import MeasurementRow from '@/components/panel/MeasurementRow';
 import RoomTable from '@/components/panel/RoomTable';
 import { useAnnotationStore } from '@/store/annotationStore';
@@ -10,6 +10,44 @@ import type { Calibration } from '@/types';
 type MeasurementPanelProps = {
   calibration: Calibration;
 };
+
+/**
+ * Always-visible title row of the panel: collapse arrow, "Målinger (n)" and the total area on one line.
+ * The body (`MeasurementPanel`) is what collapses below it.
+ */
+export function MeasurementHeader({
+  calibration,
+  open,
+  onToggle,
+}: MeasurementPanelProps & { open: boolean; onToggle: () => void }) {
+  const annotations = useAnnotationStore((s) => s.annotations);
+  const unit = useViewportStore((s) => s.unit);
+  const mpu = metersPerUnit(calibration);
+  const totalArea = annotations
+    .filter((a) => a.type !== 'line')
+    .reduce((sum, a) => sum + annotationArea(a) * mpu * mpu, 0);
+
+  return (
+    <div className="on-chrome flex shrink-0 items-center gap-1 border-t border-border bg-panel px-2">
+      <button
+        type="button"
+        onClick={onToggle}
+        title={open ? 'Skjul målinger' : 'Vis målinger'}
+        aria-expanded={open}
+        className="flex items-center gap-1 py-0.5 text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ChevronDown className={`size-3.5 transition-transform duration-300 ease-in-out ${open ? '' : 'rotate-180'}`} />
+        <h2 className="text-[10px] font-semibold uppercase tracking-wide">
+          Målinger {annotations.length > 0 && `(${annotations.length})`}
+        </h2>
+      </button>
+      <div className="flex-1" />
+      {totalArea > 0 && (
+        <span className="text-[10px] font-medium text-foreground">Totalt {formatArea(totalArea, unit)}</span>
+      )}
+    </div>
+  );
+}
 
 export default function MeasurementPanel({ calibration }: MeasurementPanelProps) {
   const annotations = useAnnotationStore((s) => s.annotations);
@@ -27,22 +65,13 @@ export default function MeasurementPanel({ calibration }: MeasurementPanelProps)
     requestJump(id);
   }
 
-  const mpu = metersPerUnit(calibration);
   const roomAnnotations = annotations.filter((a) => a.type !== 'line');
   const lineAnnotations = annotations.filter((a) => a.type === 'line');
-  const totalArea = roomAnnotations.reduce((sum, a) => sum + annotationArea(a) * mpu * mpu, 0);
 
   const hasAnyContent = annotations.length > 0;
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Målinger {annotations.length > 0 && `(${annotations.length})`}
-        </h2>
-        {totalArea > 0 && <span className="text-xs font-medium text-foreground">Totalt {formatArea(totalArea, unit)}</span>}
-      </div>
-
       {!hasAnyContent ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-1.5 text-center text-sm text-muted-foreground">
           <Ruler className="size-5" />
