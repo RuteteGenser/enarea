@@ -171,6 +171,8 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
           label="Gjenkjenn romnavn"
           shortcut="N"
           active={tool === 'room-name'}
+          disabled={!calibrated}
+          disabledReason="Kalibrer PDF-en først"
           onClick={() => setTool('room-name')}
         />
 
@@ -212,6 +214,7 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
                 <Button
                   variant="ghost"
                   size="icon"
+                  disabled={!calibrated}
                   className={cn(tool === 'opening' && 'bg-primary/10 text-primary hover:bg-primary/15')}
                   aria-pressed={tool === 'opening'}
                 >
@@ -219,7 +222,7 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
                 </Button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
-            <TooltipContent>Vinduer og dører</TooltipContent>
+            <TooltipContent>{calibrated ? 'Vinduer og dører' : 'Kalibrer PDF-en først'}</TooltipContent>
           </Tooltip>
           <DropdownMenuContent align="start">
             <DropdownMenuItem
@@ -238,6 +241,8 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
           label="Materialvelger"
           shortcut="M"
           active={tool === 'material'}
+          disabled={!calibrated}
+          disabledReason="Kalibrer PDF-en først"
           onClick={() => setTool('material')}
         />
         <ToolButton
@@ -245,6 +250,8 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
           label="Personer"
           shortcut="O"
           active={tool === 'people'}
+          disabled={!calibrated}
+          disabledReason="Kalibrer PDF-en først"
           onClick={() => setTool('people')}
         />
 
