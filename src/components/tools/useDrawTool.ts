@@ -35,7 +35,7 @@ export function useDrawTool(tool: ToolId, fileId: string, zoom: number) {
   const [cursor, setCursor] = useState<Point | null>(null);
   const [snapped, setSnapped] = useState<Point | null>(null);
   const [dragStart, setDragStart] = useState<Point | null>(null);
-  // Line only: a plain click (no drag) sets the first point; the next click sets the last.
+  // Line and rectangle: a plain click (no drag) sets the first point; the next click sets the last.
   const clickPendingRef = useRef(false);
 
   useDrawingInProgress(points.length > 0 || dragStart !== null);
@@ -104,7 +104,7 @@ export function useDrawTool(tool: ToolId, fileId: string, zoom: number) {
     // Holding space always means "pan" — leave dragStart unset so the container drags the view instead.
     // Middle button pans too, so it must not start a drag either.
     if ((tool !== 'rectangle' && tool !== 'line') || useViewportStore.getState().isSpaceDown || e.button === 1) return;
-    if (tool === 'line' && clickPendingRef.current) return;
+    if (clickPendingRef.current) return;
     const p = resolvePoint(e);
     setDragStart(p);
   }
@@ -118,7 +118,7 @@ export function useDrawTool(tool: ToolId, fileId: string, zoom: number) {
       } else {
         commit('line', [dragStart, p]);
       }
-    } else if (tool === 'line') {
+    } else {
       // Released without dragging: keep the start point and wait for the second click.
       clickPendingRef.current = true;
       return;
