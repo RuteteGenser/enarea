@@ -17,6 +17,9 @@ type ViewportStore = {
   panelOpen: boolean;
   isSpaceDown: boolean;
   isShiftDown: boolean;
+  openingsDialogOpen: boolean;
+  wallsDialogOpen: boolean;
+  placingOpeningId: string | null;
   drawingInProgress: boolean;
   magnifierScreenPos: { x: number; y: number } | null;
   pendingJumpId: string | null;
@@ -35,6 +38,9 @@ type ViewportStore = {
   togglePanel: () => void;
   setSpaceDown: (down: boolean) => void;
   setShiftDown: (down: boolean) => void;
+  setOpeningsDialogOpen: (open: boolean) => void;
+  setWallsDialogOpen: (open: boolean) => void;
+  setPlacingOpeningId: (id: string | null) => void;
   setDrawingInProgress: (active: boolean) => void;
   setMagnifierScreenPos: (pos: { x: number; y: number } | null) => void;
   requestJump: (id: string | null) => void;
@@ -55,6 +61,9 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   panelOpen: true,
   isSpaceDown: false,
   isShiftDown: false,
+  openingsDialogOpen: false,
+  wallsDialogOpen: false,
+  placingOpeningId: null,
   drawingInProgress: false,
   magnifierScreenPos: null,
   pendingJumpId: null,
@@ -79,6 +88,9 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),
   setSpaceDown: (down) => set({ isSpaceDown: down }),
   setShiftDown: (down) => set({ isShiftDown: down }),
+  setOpeningsDialogOpen: (open) => set({ openingsDialogOpen: open }),
+  setWallsDialogOpen: (open) => set({ wallsDialogOpen: open }),
+  setPlacingOpeningId: (id) => set({ placingOpeningId: id }),
   setDrawingInProgress: (active) => set({ drawingInProgress: active }),
   setMagnifierScreenPos: (pos) => set({ magnifierScreenPos: pos }),
   requestJump: (id) => set({ pendingJumpId: id }),

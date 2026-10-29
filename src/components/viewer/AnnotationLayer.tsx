@@ -1,13 +1,15 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { formatArea, formatLength, metersPerUnit } from '@/lib/calibration';
 import { distance, polygonArea } from '@/lib/geometry';
 import ShapeRenderer from '@/components/viewer/ShapeRenderer';
 import SelectionHandles from '@/components/viewer/SelectionHandles';
+import OpeningRects from '@/components/openings/OpeningRects';
+import { HoverOutline, WallDeleteLayer } from '@/components/viewer/SelectHover';
 import { useDrawTool } from '@/components/tools/useDrawTool';
 import { useSelectTool } from '@/components/tools/useSelectTool';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useViewportStore } from '@/store/viewportStore';
-import type { Calibration, Point, Unit } from '@/types';
+import type { Calibration, OpeningItem, Point, Unit } from '@/types';
 
 type AnnotationLayerProps = {
   fileId: string;
@@ -16,13 +18,14 @@ type AnnotationLayerProps = {
   height: number;
   calibration: Calibration;
   unit: Unit;
+  openings?: OpeningItem[];
 };
 
 function toScreen(p: Point, zoom: number) {
   return { x: p.x * zoom, y: p.y * zoom };
 }
 
-export default function AnnotationLayer({ fileId, zoom, width, height, calibration, unit }: AnnotationLayerProps) {
+export default function AnnotationLayer({ fileId, zoom, width, height, calibration, unit, openings }: AnnotationLayerProps) {
   const tool = useViewportStore((s) => s.tool);
   const isSpaceDown = useViewportStore((s) => s.isSpaceDown);
   const annotations = useAnnotationStore((s) => s.annotations);
@@ -31,6 +34,8 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
   const setEdgeMeta = useAnnotationStore((s) => s.setEdgeMeta);
 
   const svgRef = useRef<SVGSVGElement>(null);
+  const [hoveredRoomId, setHoveredRoomId] = useState<string | null>(null);
+  const [hoveredWall, setHoveredWall] = useState<string | null>(null);
   const { points, cursor, snapped, dragPreviewPoints, handlers } = useDrawTool(tool, fileId, zoom);
   const { livePointsFor, startVertexDrag, insertPoint, armedVertex } = useSelectTool(zoom, svgRef);
 
@@ -89,17 +94,28 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
       onDoubleClick={handlers.onDoubleClick}
     >
       {annotations.map((annotation) => (
-        <ShapeRenderer
+        <g
           key={annotation.id}
-          annotation={annotation}
-          points={livePointsFor(annotation.id) ?? undefined}
-          zoom={zoom}
-          calibration={calibration}
-          unit={unit}
-          selected={annotation.id === selectedId}
-          onSelect={isSelectTool && !isSpaceDown ? setSelected : undefined}
-        />
+          onMouseEnter={() => isSelectTool && setHoveredRoomId(annotation.id)}
+          onMouseLeave={() => setHoveredRoomId((id) => (id === annotation.id ? null : id))}
+        >
+          <ShapeRenderer
+            annotation={annotation}
+            points={livePointsFor(annotation.id) ?? undefined}
+            zoom={zoom}
+            calibration={calibration}
+            unit={unit}
+            selected={annotation.id === selectedId}
+            onSelect={isSelectTool && !isSpaceDown ? setSelected : undefined}
+          />
+        </g>
       ))}
+
+      {isSelectTool && !isSpaceDown && hoveredRoomId && hoveredRoomId !== selectedId && (
+        <HoverOutline annotation={annotations.find((a) => a.id === hoveredRoomId)} zoom={zoom} />
+      )}
+
+      {openings && openings.length > 0 && <OpeningRects openings={openings} zoom={zoom} calibration={calibration} />}
 
       {isSelectTool && selectedAnnotation && (
         <SelectionHandles
@@ -110,6 +126,19 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
           onVertexMouseDown={(index, e) => startVertexDrag(selectedAnnotation, index, e)}
           onInsertPoint={(edgeIndex, point) => insertPoint(selectedAnnotation, edgeIndex, point)}
           onEdgeMetaChange={(edgeIndex, meta) => setEdgeMeta(selectedAnnotation.id, edgeIndex, meta)}
+        />
+      )}
+
+      {isSelectTool && !isSpaceDown && (
+        <WallDeleteLayer
+          annotations={annotations}
+          zoom={zoom}
+          hovered={hoveredWall}
+          onHover={setHoveredWall}
+          onDelete={(annotationId, edgeIndex) => {
+            setEdgeMeta(annotationId, edgeIndex, { wallType: undefined, orientation: undefined, buildingComponent: undefined });
+            setHoveredWall(null);
+          }}
         />
       )}
 

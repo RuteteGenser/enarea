@@ -46,13 +46,34 @@ describe('buildExportTables', () => {
     expect(rooms.rows[0][rooms.headers.indexOf('Areal (m²)')]).toBe(200); // 100x200 units at 0.1 m/unit
     expect(rooms.rows[0][rooms.headers.indexOf('Personer')]).toBe(3);
     expect(tables[2].rows).toHaveLength(4);
-    expect(tables[3].rows[0][5]).toBe('Vindu');
-    expect(tables[3].rows[0][7]).toBe(2.4);
+    expect(tables[3].rows[0][6]).toBe('Vindu'); // building type name
+    expect(tables[3].rows[0][5]).toBe(2.4); // area
   });
 
   it('leaves measures empty for uncalibrated files', () => {
     const rooms = buildExportTables(project, [{ file: file(false), annotations: [room] }])[1];
     expect(rooms.rows[0][rooms.headers.indexOf('Areal (m²)')]).toBeNull();
+  });
+});
+
+describe('Vindu/Dør items', () => {
+  it('lists placed and unplaced items with size, area, type and room', () => {
+    const f = {
+      ...file(true),
+      openings: [
+        { id: 'o1', kind: 'vindu' as const, name: 'Vindu 1', widthMm: 1200, heightMm: 1500, typeId: 't', placement: { annotationId: 'a', edgeIndex: 1, t: 0.5 } },
+        { id: 'o2', kind: 'dor' as const, name: 'Dør 2' },
+      ],
+    };
+    const types = [{ id: 't', category: 'vindu' as const, name: 'Vindu 3-lags', uValue: 0.8, createdAt: 1, updatedAt: 1 }];
+    const sheet = buildExportTables(project, [{ file: f, annotations: [room] }], types)[3];
+    const named = sheet.rows.filter((r) => r[1] !== null);
+    expect(named).toHaveLength(2);
+    expect(named[0].slice(1, 8)).toEqual(['Vindu 1', 'Vindu', 1200, 1500, 1.8, 'Vindu 3-lags', 0.8]);
+    expect(named[0][10]).toBe(2); // wall number
+    expect(named[1].slice(1, 3)).toEqual(['Dør 2', 'Dør']);
+    const rooms = buildExportTables(project, [{ file: f, annotations: [room] }], types)[1];
+    expect(rooms.rows[0][rooms.headers.indexOf('Vindu/dør (antall)')]).toBe(2); // 1 material-picker opening + 1 placed item
   });
 });
 

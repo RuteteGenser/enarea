@@ -1,18 +1,22 @@
 import { buildExportTables, type ExportFileData } from '@/lib/exportRows';
-import type { Project } from '@/types';
+import type { BuildingComponentType, Project } from '@/types';
 
 const HEADER_FILL = 'FF1F3A5F';
 const MAX_COLUMN_WIDTH = 48;
 
 /** Builds an .xlsx workbook (one styled sheet per table, titles in the frozen top row) and returns it as a Blob. */
-export async function exportProjectExcel(project: Project, filesData: ExportFileData[]): Promise<Blob> {
+export async function exportProjectExcel(
+  project: Project,
+  filesData: ExportFileData[],
+  types: BuildingComponentType[] = [],
+): Promise<Blob> {
   // Loaded on demand: the library is large and only needed when exporting.
   const ExcelJS = (await import('exceljs')).default;
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Enarea';
   workbook.created = new Date();
 
-  for (const table of buildExportTables(project, filesData)) {
+  for (const table of buildExportTables(project, filesData, types)) {
     const sheet = workbook.addWorksheet(table.title);
     sheet.addRow(table.headers);
     for (const row of table.rows) sheet.addRow(row);

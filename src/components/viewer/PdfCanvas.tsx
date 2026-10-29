@@ -8,6 +8,8 @@ import AnnotationLayer from '@/components/viewer/AnnotationLayer';
 import ScaleBar from '@/components/viewer/ScaleBar';
 import CompassWidget from '@/components/viewer/CompassWidget';
 import { useSlowCursor } from '@/components/tools/useSlowCursor';
+import OpeningPlaceOverlay from '@/components/openings/OpeningPlaceOverlay';
+import OpeningPlaceBar from '@/components/openings/OpeningPlaceBar';
 import PeopleToolOverlay from '@/components/people/PeopleToolOverlay';
 import MagnifierLoupe from '@/components/viewer/MagnifierLoupe';
 import CalibrationOverlay from '@/components/calibration/CalibrationOverlay';
@@ -378,6 +380,7 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
                 height={pageHeight}
                 calibration={file.calibration}
                 unit={unit}
+                openings={file.openings}
               />
             )}
             {tool === 'calibrate' && (
@@ -411,6 +414,9 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
               <WallAutoOverlay zoom={zoom} width={pageWidth} height={pageHeight} calibration={file.calibration} />
             )}
             {tool === 'wall' && <WallToolOverlay zoom={zoom} width={pageWidth} height={pageHeight} />}
+            {tool === 'opening' && (
+              <OpeningPlaceOverlay file={file} zoom={zoom} width={pageWidth} height={pageHeight} />
+            )}
             {tool === 'people' && <PeopleToolOverlay zoom={zoom} width={pageWidth} height={pageHeight} />}
             {tool === 'material' && <MaterialPickerOverlay zoom={zoom} width={pageWidth} height={pageHeight} />}
           </div>
@@ -423,6 +429,7 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
           {showScaleBar && <ScaleBar zoom={zoom} calibration={file.calibration} />}
         </div>
       )}
+      {status === 'ready' && tool === 'opening' && <OpeningPlaceBar file={file} />}
       {status === 'ready' && <MagnifierLoupe canvasRef={canvasRef} />}
     </div>
   );
