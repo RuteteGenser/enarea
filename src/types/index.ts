@@ -2,7 +2,7 @@ export type Point = { x: number; y: number };
 
 export type PdfLayer = { id: string; name: string; visible: boolean };
 
-export type ToolId = 'select' | 'line' | 'rectangle' | 'polygon' | 'calibrate' | 'calibrate-area' | 'pan' | 'detect' | 'wall' | 'wall-auto' | 'material' | 'people';
+export type ToolId = 'select' | 'line' | 'rectangle' | 'polygon' | 'calibrate' | 'calibrate-area' | 'pan' | 'detect' | 'wall' | 'wall-auto' | 'opening' | 'material' | 'people';
 
 export type Unit = 'm' | 'mm';
 
@@ -80,6 +80,23 @@ export type Calibration = {
   realMeters: number;
 } | null;
 
+export type OpeningKind = 'vindu' | 'dor';
+
+// Where an opening sits: on one side (edge) of a room, `t` along that side from 0 (start) to 1 (end).
+export type OpeningPlacement = { annotationId: string; edgeIndex: number; t: number };
+
+// A window or door of the plan, e.g. "Vindu 1" or "Dør 3". Size is in mm; the type comes from the
+// building-component table (categories vindu / ytterdør) and is looked up live by id.
+export type OpeningItem = {
+  id: string;
+  kind: OpeningKind;
+  name: string;
+  widthMm?: number;
+  heightMm?: number;
+  typeId?: string;
+  placement?: OpeningPlacement;
+};
+
 export type PdfFile = {
   id: string;
   projectId: string;
@@ -87,6 +104,7 @@ export type PdfFile = {
   order: number;
   pdfBlob: Blob;
   calibration: Calibration;
+  openings?: OpeningItem[];
   createdAt: number;
 };
 

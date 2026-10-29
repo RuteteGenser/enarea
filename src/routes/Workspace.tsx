@@ -6,6 +6,8 @@ import FileTabs from '@/components/project/FileTabs';
 import ExportDialog from '@/components/export/ExportDialog';
 import Toolbar from '@/components/toolbar/Toolbar';
 import PdfCanvas from '@/components/viewer/PdfCanvas';
+import OpeningsDialog from '@/components/openings/OpeningsDialog';
+import WallsDialog from '@/components/wall/WallsDialog';
 import MeasurementPanel, { MeasurementHeader } from '@/components/panel/MeasurementPanel';
 import { useProjectStore } from '@/store/projectStore';
 import { useFilesStore } from '@/store/filesStore';
@@ -108,6 +110,8 @@ export default function Workspace() {
       )}
 
       {activeFile && <Toolbar file={activeFile} onExport={() => setExportOpen(true)} />}
+      {activeFile && <OpeningsDialog file={activeFile} />}
+      {activeFile && <WallsDialog file={activeFile} />}
 
       <div className="flex flex-1 flex-col overflow-hidden">
         {activeFile ? (
@@ -127,7 +131,7 @@ export default function Workspace() {
               aria-hidden={!panelOpen}
             >
               <div className="h-40">
-                <MeasurementPanel calibration={activeFile.calibration} />
+                <MeasurementPanel calibration={activeFile.calibration} openings={activeFile.openings} />
               </div>
             </div>
           </>

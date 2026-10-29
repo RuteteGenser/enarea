@@ -9,7 +9,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { annotationsRepo } from '@/lib/db';
+import { annotationsRepo, buildingComponentTypesRepo } from '@/lib/db';
 import { exportProjectPdf } from '@/lib/pdfExport';
 import { exportProjectExcel } from '@/lib/excelExport';
 import { useViewportStore } from '@/store/viewportStore';
@@ -48,7 +48,7 @@ export default function ExportDialog({ open, project, files, onOpenChange }: Exp
         download(await exportProjectPdf(project, filesData, unit), 'pdf');
         toast.success('Rapport eksportert');
       } else {
-        download(await exportProjectExcel(project, filesData), 'xlsx');
+        download(await exportProjectExcel(project, filesData, await buildingComponentTypesRepo.list()), 'xlsx');
         toast.success('Excel-fil eksportert');
       }
       onOpenChange(false);

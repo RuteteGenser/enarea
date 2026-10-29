@@ -6,6 +6,9 @@ import {
   Hexagon,
   Wand2,
   Sparkles,
+  DoorOpen,
+  ListPlus,
+  MousePointerClick,
   BrickWall,
   Palette,
   Users,
@@ -62,6 +65,8 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
   const fitZoom = useViewportStore((s) => s.fitZoom);
   const zoomBy = useViewportStore((s) => s.zoomBy);
   const setZoom = useViewportStore((s) => s.setZoom);
+  const setOpeningsDialogOpen = useViewportStore((s) => s.setOpeningsDialogOpen);
+  const setWallsDialogOpen = useViewportStore((s) => s.setWallsDialogOpen);
   const showAnnotations = useViewportStore((s) => s.showAnnotations);
   const toggleAnnotationsVisible = useViewportStore((s) => s.toggleAnnotationsVisible);
   const showScaleBar = useViewportStore((s) => s.showScaleBar);
@@ -162,6 +167,37 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setTool('wall')}>
               <BrickWall /> Individuell markering
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setWallsDialogOpen(true)}>
+              <ListPlus /> Vegginfo…
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(tool === 'opening' && 'bg-primary/10 text-primary hover:bg-primary/15')}
+                  aria-pressed={tool === 'opening'}
+                >
+                  <DoorOpen />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>Vinduer og dører</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem
+              disabled={!calibrated}
+              onSelect={() => setTool('opening')}
+            >
+              <MousePointerClick /> Plasser vindu/dør på vegg
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setOpeningsDialogOpen(true)}>
+              <ListPlus /> Mål og typer…
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

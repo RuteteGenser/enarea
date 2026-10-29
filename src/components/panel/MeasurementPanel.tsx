@@ -1,14 +1,16 @@
 import { ChevronDown, Ruler } from 'lucide-react';
 import MeasurementRow from '@/components/panel/MeasurementRow';
 import RoomTable from '@/components/panel/RoomTable';
+import OpeningsTable from '@/components/panel/OpeningsTable';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useViewportStore } from '@/store/viewportStore';
 import { formatArea, metersPerUnit } from '@/lib/calibration';
 import { annotationArea } from '@/lib/geometry';
-import type { Calibration } from '@/types';
+import type { Calibration, OpeningItem } from '@/types';
 
 type MeasurementPanelProps = {
   calibration: Calibration;
+  openings?: OpeningItem[];
 };
 
 /**
@@ -49,7 +51,7 @@ export function MeasurementHeader({
   );
 }
 
-export default function MeasurementPanel({ calibration }: MeasurementPanelProps) {
+export default function MeasurementPanel({ calibration, openings = [] }: MeasurementPanelProps) {
   const annotations = useAnnotationStore((s) => s.annotations);
   const selectedId = useAnnotationStore((s) => s.selectedId);
   const setSelected = useAnnotationStore((s) => s.setSelected);
@@ -68,7 +70,7 @@ export default function MeasurementPanel({ calibration }: MeasurementPanelProps)
   const roomAnnotations = annotations.filter((a) => a.type !== 'line');
   const lineAnnotations = annotations.filter((a) => a.type === 'line');
 
-  const hasAnyContent = annotations.length > 0;
+  const hasAnyContent = annotations.length > 0 || openings.length > 0;
 
   return (
     <div className="flex h-full flex-col">
@@ -84,6 +86,7 @@ export default function MeasurementPanel({ calibration }: MeasurementPanelProps)
             selectedId={selectedId}
             unit={unit}
             calibration={calibration}
+            openings={openings}
             onSelectAndJump={selectAndJump}
           />
 
@@ -109,6 +112,8 @@ export default function MeasurementPanel({ calibration }: MeasurementPanelProps)
               </div>
             </div>
           )}
+
+          {openings.length > 0 && <OpeningsTable openings={openings} />}
         </div>
       )}
     </div>

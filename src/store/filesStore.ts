@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { filesRepo } from '@/lib/db';
 import { createId } from '@/lib/id';
-import type { Calibration, PdfFile } from '@/types';
+import type { Calibration, OpeningItem, PdfFile } from '@/types';
 
 type FilesStore = {
   filesByProject: Record<string, PdfFile[]>;
@@ -12,6 +12,7 @@ type FilesStore = {
   renameFile: (fileId: string, name: string) => Promise<void>;
   deleteFile: (fileId: string) => Promise<void>;
   setCalibration: (fileId: string, calibration: Calibration) => Promise<void>;
+  setOpenings: (fileId: string, openings: OpeningItem[]) => Promise<void>;
   setActiveFile: (fileId: string | null) => void;
   getFile: (fileId: string) => PdfFile | undefined;
 };
@@ -71,6 +72,19 @@ export const useFilesStore = create<FilesStore>((set, get) => ({
         [file.projectId]: state.filesByProject[file.projectId].filter((f) => f.id !== fileId),
       },
       activeFileId: state.activeFileId === fileId ? null : state.activeFileId,
+    }));
+  },
+
+  setOpenings: async (fileId: string, openings: OpeningItem[]) => {
+    const file = get().getFile(fileId);
+    if (!file) return;
+    const updated: PdfFile = { ...file, openings };
+    await filesRepo.put(updated);
+    set((state) => ({
+      filesByProject: {
+        ...state.filesByProject,
+        [file.projectId]: state.filesByProject[file.projectId].map((f) => (f.id === fileId ? updated : f)),
+      },
     }));
   },
 

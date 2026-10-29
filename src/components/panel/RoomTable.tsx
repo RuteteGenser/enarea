@@ -18,7 +18,7 @@ import { displayName } from '@/lib/annotationLabel';
 import { applyRoomNameAndMatch } from '@/lib/roomTemplateMatch';
 import { distinctWallTypeNames } from '@/lib/wallTypesSummary';
 import { ANNOTATION_COLORS, VENTILATION_UNIT_LABELS } from '@/types';
-import type { Annotation, AnnotationColor, Calibration, Unit } from '@/types';
+import type { Annotation, AnnotationColor, Calibration, OpeningItem, Unit } from '@/types';
 
 const NO_AREA_TYPE = 'none';
 
@@ -48,7 +48,7 @@ const MISSING_FILTERS: { value: MissingFilter; label: string }[] = [
   { value: 'luftmengde', label: 'Mangler luftmengde' },
 ];
 
-function sortValue(annotation: Annotation, key: ColumnKey, mpu: number): string | number {
+function sortValue(annotation: Annotation, key: ColumnKey, mpu: number, openingItems: OpeningItem[]): string | number {
   switch (key) {
     case 'rom':
       return displayName(annotation).toLowerCase();
@@ -68,7 +68,7 @@ function sortValue(annotation: Annotation, key: ColumnKey, mpu: number): string 
     case 'veggtype':
       return distinctWallTypeNames(annotation).join(', ').toLowerCase();
     case 'vinduer':
-      return openingsSummary(annotation).area || -1;
+      return openingsSummary(annotation, openingItems).area || -1;
     case 'luftmengde':
       return annotation.roomTemplate?.ventilationRate ?? -1;
   }
@@ -87,9 +87,17 @@ type RoomTableProps = {
   unit: Unit;
   calibration: Calibration;
   onSelectAndJump: (id: string) => void;
+  openings?: OpeningItem[];
 };
 
-export default function RoomTable({ annotations, selectedId, unit, calibration, onSelectAndJump }: RoomTableProps) {
+export default function RoomTable({
+  annotations,
+  selectedId,
+  unit,
+  calibration,
+  onSelectAndJump,
+  openings = [],
+}: RoomTableProps) {
   const [search, setSearch] = useState('');
   const [missingFilter, setMissingFilter] = useState<MissingFilter>('alle');
   const [sortKey, setSortKey] = useState<ColumnKey | null>(null);
@@ -118,8 +126,8 @@ export default function RoomTable({ annotations, selectedId, unit, calibration, 
 
     if (sortKey) {
       filtered = [...filtered].sort((a, b) => {
-        const va = sortValue(a, sortKey, mpu);
-        const vb = sortValue(b, sortKey, mpu);
+        const va = sortValue(a, sortKey, mpu, openings);
+        const vb = sortValue(b, sortKey, mpu, openings);
         const aEmpty = va === '' || va === -1;
         const bEmpty = vb === '' || vb === -1;
         if (aEmpty !== bEmpty) return aEmpty ? 1 : -1;
@@ -129,7 +137,7 @@ export default function RoomTable({ annotations, selectedId, unit, calibration, 
     }
 
     return filtered;
-  }, [annotations, search, missingFilter, sortKey, sortDir, mpu]);
+  }, [annotations, search, missingFilter, sortKey, sortDir, mpu, openings]);
 
   return (
     <div className="flex flex-col">
@@ -195,6 +203,7 @@ export default function RoomTable({ annotations, selectedId, unit, calibration, 
                   selected={annotation.id === selectedId}
                   unit={unit}
                   mpu={mpu}
+                  openingItems={openings}
                   onSelect={() => onSelectAndJump(annotation.id)}
                 />
               ))}
@@ -211,12 +220,13 @@ type RoomTableRowProps = {
   selected: boolean;
   unit: Unit;
   mpu: number;
+  openingItems: OpeningItem[];
   onSelect: () => void;
 };
 
 type EditingField = 'rom' | 'romnr' | null;
 
-function RoomTableRow({ annotation, selected, unit, mpu, onSelect }: RoomTableRowProps) {
+function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect }: RoomTableRowProps) {
   const updateAnnotation = useAnnotationStore((s) => s.updateAnnotation);
   const deleteAnnotation = useAnnotationStore((s) => s.deleteAnnotation);
   const toggleLock = useAnnotationStore((s) => s.toggleLock);
@@ -253,7 +263,7 @@ function RoomTableRow({ annotation, selected, unit, mpu, onSelect }: RoomTableRo
 
   const area = formatArea(areaSquareMeters, unit);
   const wallTypes = distinctWallTypeNames(annotation).join(', ');
-  const openings = openingsSummary(annotation);
+  const openings = openingsSummary(annotation, openingItems);
 
   function startEdit(field: EditingField, initial: string) {
     setDraft(initial);
