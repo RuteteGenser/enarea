@@ -15,6 +15,7 @@ const SHORTCUTS: [string, string][] = [
   ['Shift + dra', 'Lås til vannrett/loddrett/diagonal'],
   ['Shift + klikk hjørne', 'Slett hjørnepunkt'],
   ['Scroll', 'Zoom'],
+  ['Hold F', 'Forstørrelsesglass'],
   ['Ctrl + Z', 'Angre'],
   ['Ctrl + Shift + Z', 'Gjør om'],
   ['Delete', 'Slett valgt'],

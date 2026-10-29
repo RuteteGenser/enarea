@@ -55,6 +55,12 @@ export function useKeyboardShortcuts(enabled: boolean) {
 
       const mod = e.ctrlKey || e.metaKey;
 
+      // Hold F for the magnifier loupe.
+      if (e.key.toLowerCase() === 'f' && !mod && !e.altKey) {
+        useViewportStore.getState().setMagnifierKeyDown(true);
+        return;
+      }
+
       if (mod && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         if (e.shiftKey) {
@@ -108,6 +114,9 @@ export function useKeyboardShortcuts(enabled: boolean) {
       if (e.key === 'Shift') {
         useViewportStore.getState().setShiftDown(false);
       }
+      if (e.key.toLowerCase() === 'f') {
+        useViewportStore.getState().setMagnifierKeyDown(false);
+      }
     }
 
     function handleBlur() {
@@ -115,6 +124,7 @@ export function useKeyboardShortcuts(enabled: boolean) {
       // which means no keyup ever fires — reset so tools don't get stuck constrained/panning.
       useViewportStore.getState().setSpaceDown(false);
       useViewportStore.getState().setShiftDown(false);
+      useViewportStore.getState().setMagnifierKeyDown(false);
     }
 
     window.addEventListener('keydown', handleKeyDownCapture, true);
