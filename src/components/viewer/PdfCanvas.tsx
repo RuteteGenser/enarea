@@ -376,6 +376,7 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
                 calibration={file.calibration}
                 unit={unit}
                 openings={file.openings}
+                placedOpenings={file.placedOpenings}
               />
             )}
             {tool === 'calibrate' && (

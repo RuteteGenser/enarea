@@ -89,8 +89,9 @@ export type OpeningKind = 'vindu' | 'dor';
 // Where an opening sits: on one side (edge) of a room, `t` along that side from 0 (start) to 1 (end).
 export type OpeningPlacement = { annotationId: string; edgeIndex: number; t: number };
 
-// A window or door of the plan, e.g. "Vindu 1" or "Dør 3". Size is in mm; the type comes from the
-// building-component table (categories vindu / ytterdør) and is looked up live by id.
+// A window or door TYPE of the plan, e.g. "Vindu 1" or "Dør 3". Size is in mm; the building type comes
+// from the building-component table (categories vindu / ytterdør) and is looked up live by id. The same
+// type can be placed many times (see PlacedOpening).
 export type OpeningItem = {
   id: string;
   kind: OpeningKind;
@@ -98,10 +99,13 @@ export type OpeningItem = {
   widthMm?: number;
   heightMm?: number;
   typeId?: string;
+  // Legacy (older saves stored one placement on the item itself); migrated into PlacedOpening on load.
   placement?: OpeningPlacement;
-  // Set on copies made by placing the same window/door again; points at the one that was picked as the template.
   templateId?: string;
 };
+
+// One placed copy of an opening type on a wall.
+export type PlacedOpening = { id: string; openingId: string } & OpeningPlacement;
 
 export type PdfFile = {
   id: string;
@@ -111,6 +115,7 @@ export type PdfFile = {
   pdfBlob: Blob;
   calibration: Calibration;
   openings?: OpeningItem[];
+  placedOpenings?: PlacedOpening[];
   createdAt: number;
 };
 

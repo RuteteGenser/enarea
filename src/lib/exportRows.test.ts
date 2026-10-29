@@ -61,9 +61,10 @@ describe('Vindu/Dør items', () => {
     const f = {
       ...file(true),
       openings: [
-        { id: 'o1', kind: 'vindu' as const, name: 'Vindu 1', widthMm: 1200, heightMm: 1500, typeId: 't', placement: { annotationId: 'a', edgeIndex: 1, t: 0.5 } },
+        { id: 'o1', kind: 'vindu' as const, name: 'Vindu 1', widthMm: 1200, heightMm: 1500, typeId: 't' },
         { id: 'o2', kind: 'dor' as const, name: 'Dør 2' },
       ],
+      placedOpenings: [{ id: 'p1', openingId: 'o1', annotationId: 'a', edgeIndex: 1, t: 0.5 }],
     };
     const types = [{ id: 't', category: 'vindu' as const, name: 'Vindu 3-lags', uValue: 0.8, createdAt: 1, updatedAt: 1 }];
     const sheet = buildExportTables(project, [{ file: f, annotations: [room] }], types)[3];
@@ -84,8 +85,12 @@ describe('windows and doors are counted separately', () => {
     const f = {
       ...file(true),
       openings: [
-        { id: 'w', kind: 'vindu' as const, name: 'Vindu 1', widthMm: 1000, heightMm: 1000, placement: { annotationId: 'a', edgeIndex: 2, t: 0.5 } },
-        { id: 'd', kind: 'dor' as const, name: 'Dør 2', widthMm: 900, heightMm: 2100, placement: { annotationId: 'a', edgeIndex: 2, t: 0.8 } },
+        { id: 'w', kind: 'vindu' as const, name: 'Vindu 1', widthMm: 1000, heightMm: 1000 },
+        { id: 'd', kind: 'dor' as const, name: 'Dør 2', widthMm: 900, heightMm: 2100 },
+      ],
+      placedOpenings: [
+        { id: 'pw', openingId: 'w', annotationId: 'a', edgeIndex: 2, t: 0.5 },
+        { id: 'pd', openingId: 'd', annotationId: 'a', edgeIndex: 2, t: 0.8 },
       ],
     };
     const [, rooms, walls] = buildExportTables(project, [{ file: f, annotations: [{ ...room, edges: [{}, {}, {}, {}] }] }]);
@@ -108,6 +113,26 @@ describe('wall direction in degrees', () => {
     const col = walls.headers.indexOf('Himmelretning (°)');
     expect(walls.rows[0][col]).toBe(270); // top wall, compass turned 90° to the right
     expect(walls.rows[1][col]).toBeNull(); // not an outer wall
+  });
+});
+
+describe('one type placed many times', () => {
+  it('counts every placed copy and writes one row per copy', () => {
+    const f = {
+      ...file(true),
+      openings: [{ id: 'w', kind: 'vindu' as const, name: 'Vindu 1', widthMm: 1000, heightMm: 1000 }],
+      placedOpenings: [
+        { id: 'p1', openingId: 'w', annotationId: 'a', edgeIndex: 0, t: 0.2 },
+        { id: 'p2', openingId: 'w', annotationId: 'a', edgeIndex: 0, t: 0.5 },
+        { id: 'p3', openingId: 'w', annotationId: 'a', edgeIndex: 2, t: 0.5 },
+      ],
+    };
+    const [, rooms, walls, sheet] = buildExportTables(project, [{ file: f, annotations: [{ ...room, edges: [{}, {}, {}, {}] }] }]);
+    expect(sheet.rows).toHaveLength(3);
+    expect(sheet.rows.every((r) => r[1] === 'Vindu 1')).toBe(true);
+    expect(rooms.rows[0][rooms.headers.indexOf('Vindu (antall)')]).toBe(3);
+    expect(rooms.rows[0][rooms.headers.indexOf('Vindu (m²)')]).toBe(3);
+    expect(walls.rows[0][walls.headers.indexOf('Vindu (antall)')]).toBe(2);
   });
 });
 

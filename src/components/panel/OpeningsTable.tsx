@@ -6,10 +6,10 @@ import { openingArea } from '@/lib/openings';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useBuildingComponentTypeStore } from '@/store/buildingComponentTypeStore';
 import { useViewportStore } from '@/store/viewportStore';
-import type { OpeningItem } from '@/types';
+import type { OpeningItem, PlacedOpening } from '@/types';
 
 /** The file's windows and doors in Målinger: Vindu 1, Vindu 2, Dør 3 … with size, type and where they sit. */
-export default function OpeningsTable({ openings }: { openings: OpeningItem[] }) {
+export default function OpeningsTable({ openings, placed }: { openings: OpeningItem[]; placed: PlacedOpening[] }) {
   const annotations = useAnnotationStore((s) => s.annotations);
   const types = useBuildingComponentTypeStore((s) => s.types);
   const typesLoaded = useBuildingComponentTypeStore((s) => s.loaded);
@@ -33,7 +33,7 @@ export default function OpeningsTable({ openings }: { openings: OpeningItem[] })
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="border-b border-border">
-            {['Navn', 'Bredde × høyde (mm)', 'Areal', 'Type', 'U-verdi', 'Plassering'].map((title) => (
+            {['Navn', 'Bredde × høyde (mm)', 'Areal', 'Type', 'U-verdi', 'Antall plassert', 'Samlet areal', 'Plassering'].map((title) => (
               <th key={title} className="whitespace-nowrap px-2 py-1 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {title}
               </th>
@@ -44,7 +44,14 @@ export default function OpeningsTable({ openings }: { openings: OpeningItem[] })
           {openings.map((item) => {
             const type = types.find((t) => t.id === item.typeId);
             const area = openingArea(item);
-            const room = item.placement ? annotations.find((a) => a.id === item.placement?.annotationId) : undefined;
+            const mine = placed.filter((p) => p.openingId === item.id);
+            const places = mine
+              .map((p) => {
+                const room = annotations.find((a) => a.id === p.annotationId);
+                return room ? `${displayName(room)} v${p.edgeIndex + 1}` : null;
+              })
+              .filter(Boolean)
+              .join(', ');
             return (
               <tr key={item.id} className="border-b border-border/50">
                 <td className="px-2 py-1 text-foreground">{item.name}</td>
@@ -58,9 +65,13 @@ export default function OpeningsTable({ openings }: { openings: OpeningItem[] })
                 <td className="px-2 py-1 tabular-nums text-muted-foreground">
                   {type?.uValue !== undefined ? `${type.uValue} W/m²K` : '--'}
                 </td>
-                <td className="px-2 py-1 text-muted-foreground">
-                  {room && item.placement ? `${displayName(room)}, vegg ${item.placement.edgeIndex + 1}` : 'Ikke plassert'}
+                <td className="px-2 py-1 tabular-nums text-foreground">{mine.length}</td>
+                <td className="px-2 py-1 tabular-nums text-muted-foreground">
+                  {area === undefined || mine.length === 0
+                    ? '--'
+                    : `${(area * mine.length).toLocaleString('nb-NO', { maximumFractionDigits: 2 })} m²`}
                 </td>
+                <td className="px-2 py-1 text-muted-foreground">{places || 'Ikke plassert'}</td>
               </tr>
             );
           })}

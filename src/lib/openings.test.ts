@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nearestEdge, nextOpeningName, openingArea, openingRect, placeOpening, placementTemplates } from '@/lib/openings';
+import { joinPlacements, nearestEdge, nextOpeningName, normalizeOpenings, openingArea, openingRect } from '@/lib/openings';
 import type { Annotation, OpeningItem } from '@/types';
 
 const item = (name: string): OpeningItem => ({ id: name, kind: 'vindu', name });
@@ -70,35 +70,43 @@ describe('nearestEdge', () => {
   });
 });
 
-describe('placeOpening', () => {
-  const place = (t: number) => ({ annotationId: 'r', edgeIndex: 0, t });
-  const base: OpeningItem = { id: 'w1', kind: 'vindu', name: 'Vindu 1', widthMm: 1200, heightMm: 1500, typeId: 'ty' };
+describe('joinPlacements', () => {
+  const type: OpeningItem = { id: 'w1', kind: 'vindu', name: 'Vindu 1', widthMm: 1200, heightMm: 1500, typeId: 'ty' };
+  const p = (id: string, t: number) => ({ id, openingId: 'w1', annotationId: 'r', edgeIndex: 0, t });
 
-  it('first click places the item itself', () => {
-    const next = placeOpening([base], 'w1', place(0.2), 'new');
-    expect(next).toHaveLength(1);
-    expect(next[0].placement?.t).toBe(0.2);
+  it('makes one entry per placed copy of the same type', () => {
+    const joined = joinPlacements([type], [p('a', 0.2), p('b', 0.5), p('c', 0.8)]);
+    expect(joined).toHaveLength(3);
+    expect(joined.map((j) => j.id)).toEqual(['a', 'b', 'c']);
+    for (const j of joined) expect(j).toMatchObject({ name: 'Vindu 1', widthMm: 1200, typeId: 'ty', openingId: 'w1' });
+    expect(joined[2].placement.t).toBe(0.8);
   });
 
-  it('further clicks add copies of the same type with the next running number', () => {
-    let items = placeOpening([base], 'w1', place(0.2), 'c1');
-    items = placeOpening(items, 'w1', place(0.5), 'c2');
-    items = placeOpening(items, 'w1', place(0.8), 'c3'); // 3 clicks: the item itself, then two copies
-    expect(items.map((i) => i.name)).toEqual(['Vindu 1', 'Vindu 2', 'Vindu 3']);
-    expect(items[1]).toMatchObject({ widthMm: 1200, heightMm: 1500, typeId: 'ty', templateId: 'w1' });
-    expect(items[2].placement?.t).toBe(0.8);
+  it('skips placements whose type is gone', () => {
+    expect(joinPlacements([], [p('a', 0.2)])).toEqual([]);
+  });
+});
+
+describe('normalizeOpenings (older saves)', () => {
+  it('turns a type that carried a placement into a type plus a placement', () => {
+    const old: OpeningItem = { id: 'w1', kind: 'vindu', name: 'Vindu 1', placement: { annotationId: 'r', edgeIndex: 2, t: 0.4 } };
+    const { openings, placedOpenings } = normalizeOpenings([old], undefined);
+    expect(openings).toEqual([{ id: 'w1', kind: 'vindu', name: 'Vindu 1' }]);
+    expect(placedOpenings).toEqual([{ id: 'w1', openingId: 'w1', annotationId: 'r', edgeIndex: 2, t: 0.4 }]);
   });
 
-  it('keeps the numbering shared with doors', () => {
-    const door: OpeningItem = { id: 'd1', kind: 'dor', name: 'Dør 2', widthMm: 900, heightMm: 2100 };
-    const items = placeOpening([base, door], 'd1', place(0.1), 'x');
-    const again = placeOpening(items, 'd1', place(0.3), 'y');
-    expect(again[again.length - 1].name).toBe('Dør 3');
+  it('folds the copies made by the earlier "place again" behaviour back into their type', () => {
+    const original: OpeningItem = { id: 'w1', kind: 'vindu', name: 'Vindu 1', widthMm: 1200, placement: { annotationId: 'r', edgeIndex: 0, t: 0.2 } };
+    const copy: OpeningItem = { id: 'c1', kind: 'vindu', name: 'Vindu 2', widthMm: 1200, templateId: 'w1', placement: { annotationId: 'r', edgeIndex: 0, t: 0.6 } };
+    const { openings, placedOpenings } = normalizeOpenings([original, copy], []);
+    expect(openings.map((o) => o.id)).toEqual(['w1']);
+    expect(placedOpenings.map((p) => [p.id, p.openingId])).toEqual([['w1', 'w1'], ['c1', 'w1']]);
   });
 
-  it('only lists originals as placement choices', () => {
-    let items = placeOpening([base], 'w1', place(0.2), 'c1');
-    items = placeOpening(items, 'w1', place(0.5), 'c2');
-    expect(placementTemplates(items).map((i) => i.id)).toEqual(['w1']);
+  it('is idempotent and leaves unplaced types alone', () => {
+    const type: OpeningItem = { id: 'd1', kind: 'dor', name: 'Dør 2' };
+    const once = normalizeOpenings([type], []);
+    expect(normalizeOpenings(once.openings, once.placedOpenings)).toEqual(once);
+    expect(once.placedOpenings).toEqual([]);
   });
 });

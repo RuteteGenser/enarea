@@ -2,11 +2,11 @@ import { annotationArea, distance } from '@/lib/geometry';
 import { metersPerUnit } from '@/lib/calibration';
 import { displayName } from '@/lib/annotationLabel';
 import { findAreaType } from '@/lib/areaTypes';
-import { openingArea, OPENING_KIND_LABELS } from '@/lib/openings';
+import { joinPlacements, openingArea, OPENING_KIND_LABELS } from '@/lib/openings';
 import { openingTotals } from '@/lib/wallOpenings';
 import { BUILDING_CATEGORY_LABELS, BUILDING_COMPONENT_CATEGORY_LABELS, VENTILATION_UNIT_LABELS } from '@/types';
 import { wallBearing } from '@/lib/wallOrientation';
-import type { Annotation, BuildingComponentType, OpeningItem, PdfFile, Project, VentilationUnit } from '@/types';
+import type { Annotation, BuildingComponentType, PdfFile, Project, VentilationUnit } from '@/types';
 
 export type ExportFileData = { file: PdfFile; annotations: Annotation[] };
 
@@ -54,7 +54,7 @@ const round = (value: number, decimals = 2) => Math.round(value * 10 ** decimals
 export function buildExportTables(
   project: Project,
   filesData: ExportFileData[],
-  types: BuildingComponentType[] = [],
+  buildingTypes: BuildingComponentType[] = [],
 ): ExportTable[] {
   const rooms: Cell[][] = [];
   const walls: Cell[][] = [];
@@ -70,7 +70,7 @@ export function buildExportTables(
     const calibrated = file.calibration !== null;
     if (!calibrated) uncalibrated++;
     const mpu = metersPerUnit(file.calibration);
-    const items: OpeningItem[] = file.openings ?? [];
+    const items = joinPlacements(file.openings ?? [], file.placedOpenings ?? []);
 
     for (const annotation of annotations) {
       const name = displayName(annotation);
@@ -160,24 +160,29 @@ export function buildExportTables(
   }
 
   for (const { file, annotations } of filesData) {
-    for (const item of file.openings ?? []) {
-      const type = types.find((t) => t.id === item.typeId);
-      const room = item.placement ? annotations.find((a) => a.id === item.placement?.annotationId) : undefined;
-      const area = openingArea(item);
-      openings.push([
-        file.name,
-        item.name,
-        OPENING_KIND_LABELS[item.kind],
-        item.widthMm ?? null,
-        item.heightMm ?? null,
-        area === undefined ? null : round(area),
-        type?.name ?? null,
-        type?.uValue ?? null,
-        room?.roomNumber ?? null,
-        room ? displayName(room) : null,
-        item.placement ? item.placement.edgeIndex + 1 : null,
-        room && item.placement ? bearingCell(wallBearing(room, item.placement.edgeIndex, project.northDirection)) : null,
-      ]);
+    const placedCopies = joinPlacements(file.openings ?? [], file.placedOpenings ?? []);
+    for (const type of file.openings ?? []) {
+      const typeRow = buildingTypes.find((t) => t.id === type.typeId);
+      const area = openingArea(type);
+      const placements = placedCopies.filter((it) => it.openingId === type.id);
+      // One row per placed copy; a type that isn't placed yet still gets a row.
+      for (const item of placements.length > 0 ? placements : [null]) {
+        const room = item ? annotations.find((a) => a.id === item.placement.annotationId) : undefined;
+        openings.push([
+          file.name,
+          type.name,
+          OPENING_KIND_LABELS[type.kind],
+          type.widthMm ?? null,
+          type.heightMm ?? null,
+          area === undefined ? null : round(area),
+          typeRow?.name ?? null,
+          typeRow?.uValue ?? null,
+          room?.roomNumber ?? null,
+          room ? displayName(room) : null,
+          item ? item.placement.edgeIndex + 1 : null,
+          room && item ? bearingCell(wallBearing(room, item.placement.edgeIndex, project.northDirection)) : null,
+        ]);
+      }
     }
   }
 
