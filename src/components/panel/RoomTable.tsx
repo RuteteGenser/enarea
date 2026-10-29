@@ -12,6 +12,9 @@ import { useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { formatArea, metersPerUnit } from '@/lib/calibration';
 import { annotationArea } from '@/lib/geometry';
+import { createId } from '@/lib/id';
+import { ventilationBreakdown, ventilationTotal } from '@/lib/ventilation';
+import { markersForPeople } from '@/lib/personMarkers';
 import { AREA_TYPES, areaTypeForCategory, findAreaType, peopleForArea } from '@/lib/areaTypes';
 import { formatOpeningArea, openingsSummary } from '@/lib/wallOpenings';
 import { displayName } from '@/lib/annotationLabel';
@@ -21,6 +24,9 @@ import { ANNOTATION_COLORS, VENTILATION_UNIT_LABELS } from '@/types';
 import type { Annotation, AnnotationColor, Calibration, OpeningItem, Unit } from '@/types';
 
 const NO_AREA_TYPE = 'none';
+
+/** Distance between person icons put in the middle of a room, in meters. */
+const PERSON_SPACING_METERS = 0.7;
 
 const COLOR_ORDER: AnnotationColor[] = ['red', 'blue', 'green', 'yellow', 'purple', 'black'];
 
@@ -69,8 +75,12 @@ function sortValue(annotation: Annotation, key: ColumnKey, mpu: number, openingI
       return distinctWallTypeNames(annotation).join(', ').toLowerCase();
     case 'vinduer':
       return openingsSummary(annotation, openingItems).area || -1;
-    case 'luftmengde':
-      return annotation.roomTemplate?.ventilationRate ?? -1;
+    case 'luftmengde': {
+      const t = annotation.roomTemplate;
+      if (!t) return -1;
+      const total = ventilationTotal(t.ventilationRate, t.ventilationUnit, annotationArea(annotation) * mpu * mpu, annotation.people, t.perPersonRate);
+      return total ?? t.ventilationRate ?? -1;
+    }
   }
 }
 
@@ -250,6 +260,15 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
   );
   const areaSquareMeters = annotationArea(annotation) * mpu * mpu;
 
+  /** Person icons matching a people count: added in the middle of the room, or removed from the end. */
+  function markersFor(count: number | undefined) {
+    return markersForPeople(annotation, count ?? 0, PERSON_SPACING_METERS / mpu, createId);
+  }
+
+  function setPeople(count: number | undefined) {
+    updateAnnotation(annotation.id, { people: count, personMarkers: markersFor(count) });
+  }
+
   function changeAreaType(id: string) {
     const type = findAreaType(id);
     if (!type) {
@@ -258,10 +277,20 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
       return;
     }
     // Suggest the number of people for this floor area; Personer can still be edited afterwards.
-    updateAnnotation(annotation.id, { areaType: id, people: peopleForArea(areaSquareMeters, type.m2PerPerson) });
+    const people = peopleForArea(areaSquareMeters, type.m2PerPerson);
+    updateAnnotation(annotation.id, { areaType: id, people, personMarkers: markersFor(people) });
   }
 
   const area = formatArea(areaSquareMeters, unit);
+
+  // Luftmengde = the room type's rate on the floor area, plus the air for the people in the room.
+  const template = annotation.roomTemplate;
+  const air = template
+    ? ventilationTotal(template.ventilationRate, template.ventilationUnit, areaSquareMeters, annotation.people, template.perPersonRate)
+    : null;
+  const airBreakdown = template
+    ? ventilationBreakdown(template.ventilationRate, template.ventilationUnit, areaSquareMeters, annotation.people, template.perPersonRate)
+    : null;
   const wallTypes = distinctWallTypeNames(annotation).join(', ');
   const openings = openingsSummary(annotation, openingItems);
 
@@ -286,7 +315,7 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
     const parsed = Math.max(0, Math.round(Number(peopleDraft)));
     const next = Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
     setPeopleDraft(String(next ?? ''));
-    if (next !== annotation.people) updateAnnotation(annotation.id, { people: next });
+    if (next !== annotation.people) setPeople(next);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>, commit: () => void, revertTo: string) {
@@ -442,10 +471,15 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
         {openings.count > 0 ? `${openings.count} · ${formatOpeningArea(openings.area)}` : '--'}
       </td>
 
-      <td className="px-2 py-1.5 whitespace-nowrap text-muted-foreground">
-        {annotation.roomTemplate?.ventilationRate !== undefined
-          ? `${annotation.roomTemplate.ventilationRate} ${VENTILATION_UNIT_LABELS[annotation.roomTemplate.ventilationUnit ?? 'm3h_per_m2']}${annotation.roomTemplate.perPersonRate ? ` + ${annotation.roomTemplate.perPersonRate} m³/h per person` : ''}`
-          : '--'}
+      <td
+        className="px-2 py-1.5 whitespace-nowrap tabular-nums text-muted-foreground"
+        title={airBreakdown ?? undefined}
+      >
+        {air !== null
+          ? `${air.toLocaleString('nb-NO', { maximumFractionDigits: 1 })} m³/h`
+          : annotation.roomTemplate?.ventilationRate !== undefined
+            ? `${annotation.roomTemplate.ventilationRate} ${VENTILATION_UNIT_LABELS[annotation.roomTemplate.ventilationUnit ?? 'm3h_per_m2']}`
+            : '--'}
       </td>
 
       <td className="px-2 py-1.5">

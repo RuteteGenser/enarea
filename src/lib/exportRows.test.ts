@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildExportTables, ventilationTotal } from '@/lib/exportRows';
+import { ventilationBreakdown } from '@/lib/ventilation';
 import type { Annotation, PdfFile, Project } from '@/types';
 
 const project: Project = { id: 'p', name: 'Testbygg', northDirection: 0, createdAt: 1, updatedAt: 1 };
@@ -148,5 +149,14 @@ describe('ventilationTotal', () => {
     expect(ventilationTotal(2.5, 'm3h_per_m2', 40, 3, 26)).toBe(2.5 * 40 + 26 * 3); // 178
     expect(ventilationTotal(0.7, 'm3h_per_m2', 40, 3)).toBeCloseTo(28); // not in use: area only
     expect(ventilationTotal(2.5, 'm3h_per_m2', 40, undefined, 26)).toBe(100); // no people entered
+  });
+});
+
+describe('ventilationBreakdown', () => {
+  it('spells out area part plus people part', () => {
+    expect(ventilationBreakdown(2.5, 'm3h_per_m2', 40, 3, 26)).toBe('2,5 m³/h × 40 m² + 26 m³/h × 3 personer');
+    expect(ventilationBreakdown(0.7, 'm3h_per_m2', 40, 3)).toBe('0,7 m³/h × 40 m²');
+    expect(ventilationBreakdown(2.5, 'm3h_per_m2', 10, 1, 26)).toBe('2,5 m³/h × 10 m² + 26 m³/h × 1 person');
+    expect(ventilationBreakdown(undefined, undefined, 10, 1)).toBeNull();
   });
 });

@@ -107,18 +107,18 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
     <div className="on-chrome h-12 shrink-0 overflow-x-auto overflow-y-hidden border-b border-border bg-toolbar no-scrollbar">
       <div className="flex h-12 w-max min-w-full items-center gap-1 px-2">
         <ToolButton
-          icon={Hand}
-          label="Panorer"
-          shortcut="H"
-          active={tool === 'pan'}
-          onClick={() => setTool('pan')}
-        />
-        <ToolButton
           icon={MousePointer2}
           label="Velg"
           shortcut="V"
           active={tool === 'select'}
           onClick={() => setTool('select')}
+        />
+        <ToolButton
+          icon={Hand}
+          label="Panorer"
+          shortcut="H"
+          active={tool === 'pan'}
+          onClick={() => setTool('pan')}
         />
 
         <DropdownMenu>
