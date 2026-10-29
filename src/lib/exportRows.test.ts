@@ -118,4 +118,10 @@ describe('ventilationTotal', () => {
     expect(ventilationTotal(54, 'm3h_per_shower', 20, 4)).toBeNull();
     expect(ventilationTotal(undefined, undefined, 20, 4)).toBeNull();
   });
+
+  it('adds 26 m³/h per person on top of the area part for rooms in use', () => {
+    expect(ventilationTotal(2.5, 'm3h_per_m2', 40, 3, 26)).toBe(2.5 * 40 + 26 * 3); // 178
+    expect(ventilationTotal(0.7, 'm3h_per_m2', 40, 3)).toBeCloseTo(28); // not in use: area only
+    expect(ventilationTotal(2.5, 'm3h_per_m2', 40, undefined, 26)).toBe(100); // no people entered
+  });
 });

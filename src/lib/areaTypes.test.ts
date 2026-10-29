@@ -15,11 +15,13 @@ describe('peopleForArea', () => {
 });
 
 describe('standard lists', () => {
-  it('has the six area types and room types', () => {
+  it('has the six area types and the in-use / not-in-use room types', () => {
     expect(AREA_TYPES).toHaveLength(6);
     expect(findAreaType('kontor')?.m2PerPerson).toBe(15);
-    expect(DEFAULT_ROOM_TEMPLATES).toHaveLength(6);
-    expect(DEFAULT_ROOM_TEMPLATES.find((t) => t.name === 'Kjellerrom')?.rate).toBe(2.5);
+    expect(DEFAULT_ROOM_TEMPLATES.map((t) => [t.name, t.rate, t.perPerson])).toEqual([
+      ['Rom i bruk', 2.5, 26],
+      ['Rom ikke i bruk', 0.7, undefined],
+    ]);
   });
 });
 

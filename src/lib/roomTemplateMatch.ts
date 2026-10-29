@@ -49,6 +49,7 @@ export function toRoomTemplateAssignment(template: RoomTemplate, matchType: Room
     name: template.name,
     ventilationRate: template.ventilationRate,
     ventilationUnit: template.ventilationUnit,
+    perPersonRate: template.perPersonRate,
     note: template.note,
     matchType,
   };
