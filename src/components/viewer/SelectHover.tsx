@@ -33,7 +33,7 @@ type WallDeleteLayerProps = {
 
 /**
  * Outer walls in the Velg tool: hover highlights one and a click marks it (red). The Delete key then
- * removes the wall marking (Ctrl+Z brings it back).
+ * removes the wall marking (Ctrl+Z brings it back). A selected wall is blue, not red.
  */
 export function WallDeleteLayer({ annotations, zoom, hovered, armed, onHover, onArm }: WallDeleteLayerProps) {
   return (
@@ -77,7 +77,7 @@ export function WallDeleteLayer({ annotations, zoom, hovered, armed, onHover, on
                   y1={a.y}
                   x2={b.x}
                   y2={b.y}
-                  stroke={isArmed ? '#dc2626' : '#f5a623'}
+                  stroke={isArmed ? '#0091ff' : '#f5a623'}
                   strokeWidth={5}
                   strokeLinecap="round"
                   opacity={0.85}
