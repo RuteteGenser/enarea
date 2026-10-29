@@ -7,6 +7,7 @@ import { useViewportStore } from '@/store/viewportStore';
 import { formatArea, metersPerUnit } from '@/lib/calibration';
 import { annotationArea } from '@/lib/geometry';
 import { joinPlacements } from '@/lib/openings';
+import { APP_VERSION } from '@/version';
 import type { Calibration, OpeningItem, PlacedOpening } from '@/types';
 
 type MeasurementPanelProps = {
@@ -118,6 +119,10 @@ export default function MeasurementPanel({ calibration, openings = [], placedOpe
           {openings.length > 0 && <OpeningsTable openings={openings} placed={placedOpenings} />}
         </div>
       )}
+
+      <div className="shrink-0 px-2 text-right text-[9px] leading-none text-muted-foreground/80" title="Versjon">
+        v{APP_VERSION}
+      </div>
     </div>
   );
 }
