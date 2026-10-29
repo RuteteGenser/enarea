@@ -96,7 +96,7 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
   const calibrated = !!file?.calibration;
 
   return (
-    <div className="h-12 shrink-0 overflow-x-auto overflow-y-hidden border-b border-border bg-toolbar no-scrollbar">
+    <div className="on-chrome h-12 shrink-0 overflow-x-auto overflow-y-hidden border-b border-border bg-toolbar no-scrollbar">
       <div className="flex h-12 w-max min-w-full items-center gap-1 px-2">
         <ToolButton
           icon={MousePointer2}
