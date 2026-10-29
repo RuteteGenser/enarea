@@ -1,6 +1,14 @@
 import { useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { metersPerUnit } from '@/lib/calibration';
-import { DEFAULT_OPENING_WIDTH_MM, nearestEdge, OPENING_DEPTH_METERS, openingRect } from '@/lib/openings';
+import { createId } from '@/lib/id';
+import {
+  DEFAULT_OPENING_WIDTH_MM,
+  nearestEdge,
+  OPENING_DEPTH_METERS,
+  openingRect,
+  placementTemplates,
+  placeOpening,
+} from '@/lib/openings';
 import { cn } from '@/lib/utils';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useFilesStore } from '@/store/filesStore';
@@ -22,7 +30,8 @@ export default function OpeningPlaceOverlay({ file, zoom, width, height }: Openi
   const [cursor, setCursor] = useState<Point | null>(null);
 
   const items = file.openings ?? [];
-  const item = items.find((i) => i.id === placingId) ?? items.find((i) => !i.placement) ?? items[0];
+  const templates = placementTemplates(items);
+  const item = items.find((i) => i.id === placingId) ?? templates.find((i) => !i.placement) ?? templates[0];
   const mpu = metersPerUnit(file.calibration);
   const rooms = annotations.filter((a) => a.type !== 'line' && a.visible);
   const widthUnits = ((item?.widthMm ?? DEFAULT_OPENING_WIDTH_MM) / 1000) / mpu;
@@ -45,13 +54,10 @@ export default function OpeningPlaceOverlay({ file, zoom, width, height }: Openi
     if (isSpaceDown || e.button !== 0 || !item) return;
     const target = nearestEdge(toPdf(e), rooms, SNAP_SCREEN_PX / zoom, widthUnits);
     if (!target) return;
-    const next = items.map((i) =>
-      i.id === item.id ? { ...i, placement: { annotationId: target.annotationId, edgeIndex: target.edgeIndex, t: target.t } } : i,
-    );
-    void setOpenings(file.id, next);
-    // Continue with the next window/door that isn't placed yet.
-    const following = next.find((i) => !i.placement);
-    setPlacingId(following?.id ?? item.id);
+    // Stays on this window/door type: each click places another one until a different type is chosen.
+    const placement = { annotationId: target.annotationId, edgeIndex: target.edgeIndex, t: target.t };
+    void setOpenings(file.id, placeOpening(items, item.id, placement, createId()));
+    setPlacingId(item.id);
   }
 
   return (

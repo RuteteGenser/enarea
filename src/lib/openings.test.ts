@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nearestEdge, nextOpeningName, openingArea, openingRect } from '@/lib/openings';
+import { nearestEdge, nextOpeningName, openingArea, openingRect, placeOpening, placementTemplates } from '@/lib/openings';
 import type { Annotation, OpeningItem } from '@/types';
 
 const item = (name: string): OpeningItem => ({ id: name, kind: 'vindu', name });
@@ -67,5 +67,38 @@ describe('nearestEdge', () => {
 
   it('returns null when nothing is close', () => {
     expect(nearestEdge({ x: 50, y: 50 }, [room], 10, 20)).toBeNull();
+  });
+});
+
+describe('placeOpening', () => {
+  const place = (t: number) => ({ annotationId: 'r', edgeIndex: 0, t });
+  const base: OpeningItem = { id: 'w1', kind: 'vindu', name: 'Vindu 1', widthMm: 1200, heightMm: 1500, typeId: 'ty' };
+
+  it('first click places the item itself', () => {
+    const next = placeOpening([base], 'w1', place(0.2), 'new');
+    expect(next).toHaveLength(1);
+    expect(next[0].placement?.t).toBe(0.2);
+  });
+
+  it('further clicks add copies of the same type with the next running number', () => {
+    let items = placeOpening([base], 'w1', place(0.2), 'c1');
+    items = placeOpening(items, 'w1', place(0.5), 'c2');
+    items = placeOpening(items, 'w1', place(0.8), 'c3'); // 3 clicks: the item itself, then two copies
+    expect(items.map((i) => i.name)).toEqual(['Vindu 1', 'Vindu 2', 'Vindu 3']);
+    expect(items[1]).toMatchObject({ widthMm: 1200, heightMm: 1500, typeId: 'ty', templateId: 'w1' });
+    expect(items[2].placement?.t).toBe(0.8);
+  });
+
+  it('keeps the numbering shared with doors', () => {
+    const door: OpeningItem = { id: 'd1', kind: 'dor', name: 'Dør 2', widthMm: 900, heightMm: 2100 };
+    const items = placeOpening([base, door], 'd1', place(0.1), 'x');
+    const again = placeOpening(items, 'd1', place(0.3), 'y');
+    expect(again[again.length - 1].name).toBe('Dør 3');
+  });
+
+  it('only lists originals as placement choices', () => {
+    let items = placeOpening([base], 'w1', place(0.2), 'c1');
+    items = placeOpening(items, 'w1', place(0.5), 'c2');
+    expect(placementTemplates(items).map((i) => i.id)).toEqual(['w1']);
   });
 });

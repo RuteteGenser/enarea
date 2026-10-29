@@ -10,6 +10,7 @@ import CompassWidget from '@/components/viewer/CompassWidget';
 import { useSlowCursor } from '@/components/tools/useSlowCursor';
 import OpeningPlaceOverlay from '@/components/openings/OpeningPlaceOverlay';
 import OpeningPlaceBar from '@/components/openings/OpeningPlaceBar';
+import MeasureOverlay from '@/components/measure/MeasureOverlay';
 import PeopleToolOverlay from '@/components/people/PeopleToolOverlay';
 import MagnifierLoupe from '@/components/viewer/MagnifierLoupe';
 import CalibrationOverlay from '@/components/calibration/CalibrationOverlay';
@@ -416,6 +417,9 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
             {tool === 'wall' && <WallToolOverlay zoom={zoom} width={pageWidth} height={pageHeight} />}
             {tool === 'opening' && (
               <OpeningPlaceOverlay file={file} zoom={zoom} width={pageWidth} height={pageHeight} />
+            )}
+            {tool === 'measure' && (
+              <MeasureOverlay zoom={zoom} width={pageWidth} height={pageHeight} calibration={file.calibration} />
             )}
             {tool === 'people' && <PeopleToolOverlay zoom={zoom} width={pageWidth} height={pageHeight} />}
             {tool === 'material' && <MaterialPickerOverlay zoom={zoom} width={pageWidth} height={pageHeight} />}

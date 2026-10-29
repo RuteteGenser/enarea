@@ -6,6 +6,7 @@ import {
   Hexagon,
   Wand2,
   Sparkles,
+  RulerDimensionLine,
   DoorOpen,
   ListPlus,
   MousePointerClick,
@@ -53,7 +54,7 @@ type ToolbarProps = {
 };
 
 const DRAW_TOOLS: { id: ToolId; icon: typeof Slash; label: string; shortcut: string }[] = [
-  { id: 'line', icon: Slash, label: 'Linje', shortcut: 'L' },
+  { id: 'measure', icon: RulerDimensionLine, label: 'Mål avstand (midlertidig)', shortcut: 'L' },
   { id: 'rectangle', icon: Square, label: 'Rektangel', shortcut: 'R' },
   { id: 'polygon', icon: Hexagon, label: 'Polygon', shortcut: 'P' },
 ];

@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 
 const SHORTCUTS: [string, string][] = [
   ['V', 'Velg-verktøy'],
-  ['L', 'Linje'],
+  ['L', 'Mål avstand (midlertidig)'],
   ['R', 'Rektangel'],
   ['P', 'Polygon'],
   ['D', 'Gjenkjenn rom'],

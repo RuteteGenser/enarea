@@ -2,7 +2,7 @@ export type Point = { x: number; y: number };
 
 export type PdfLayer = { id: string; name: string; visible: boolean };
 
-export type ToolId = 'select' | 'line' | 'rectangle' | 'polygon' | 'calibrate' | 'calibrate-area' | 'pan' | 'detect' | 'wall' | 'wall-auto' | 'opening' | 'material' | 'people';
+export type ToolId = 'select' | 'line' | 'rectangle' | 'polygon' | 'calibrate' | 'calibrate-area' | 'pan' | 'detect' | 'wall' | 'wall-auto' | 'opening' | 'measure' | 'material' | 'people';
 
 export type Unit = 'm' | 'mm';
 
@@ -95,6 +95,8 @@ export type OpeningItem = {
   heightMm?: number;
   typeId?: string;
   placement?: OpeningPlacement;
+  // Set on copies made by placing the same window/door again; points at the one that was picked as the template.
+  templateId?: string;
 };
 
 export type PdfFile = {
