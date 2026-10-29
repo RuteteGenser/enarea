@@ -7,7 +7,6 @@ import { usePanZoom, type Pan } from '@/components/tools/usePanZoom';
 import AnnotationLayer from '@/components/viewer/AnnotationLayer';
 import ScaleBar from '@/components/viewer/ScaleBar';
 import CompassWidget from '@/components/viewer/CompassWidget';
-import { useSlowCursor } from '@/components/tools/useSlowCursor';
 import OpeningPlaceOverlay from '@/components/openings/OpeningPlaceOverlay';
 import OpeningPlaceBar from '@/components/openings/OpeningPlaceBar';
 import MeasureOverlay from '@/components/measure/MeasureOverlay';
@@ -100,8 +99,6 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
       }),
     [],
   );
-
-  useSlowCursor(containerRef);
 
   const renderAtZoom = useCallback(async (targetPage: PdfPageProxy, zoomValue: number, canvas: HTMLCanvasElement) => {
     renderTaskRef.current?.cancel();
