@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useViewportStore } from '@/store/viewportStore';
 import { useAnnotationStore } from '@/store/annotationStore';
+import { useFilesStore } from '@/store/filesStore';
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -28,6 +29,8 @@ const TOOL_KEYS: Record<string, 'select' | 'room-name' | 'measure' | 'rectangle'
   m: 'material',
   o: 'people',
 };
+
+const TOOLS_NEEDING_CALIBRATION = new Set<string>(['measure', 'rectangle', 'polygon', 'detect', 'room-name', 'wall', 'material', 'people']);
 
 export function useKeyboardShortcuts(enabled: boolean) {
   useEffect(() => {
@@ -103,6 +106,12 @@ export function useKeyboardShortcuts(enabled: boolean) {
 
       const toolKey = TOOL_KEYS[e.key.toLowerCase()];
       if (toolKey && !mod) {
+        // These tools need a calibrated drawing, like their greyed-out toolbar buttons.
+        if (TOOLS_NEEDING_CALIBRATION.has(toolKey)) {
+          const { activeFileId, getFile } = useFilesStore.getState();
+          const file = activeFileId ? getFile(activeFileId) : undefined;
+          if (!file?.calibration) return;
+        }
         useViewportStore.getState().setTool(toolKey);
       }
     }
