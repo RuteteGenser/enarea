@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import BuildingComponentPicker from '@/components/material/BuildingComponentPicker';
 import { annotationArea } from '@/lib/geometry';
+import { createId } from '@/lib/id';
 import { cn } from '@/lib/utils';
+import { formatOpeningArea, totalOpeningArea } from '@/lib/wallOpenings';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useBuildingComponentTypeStore } from '@/store/buildingComponentTypeStore';
 import { useViewportStore } from '@/store/viewportStore';
@@ -44,6 +46,9 @@ export default function MaterialPickerOverlay({ zoom, width, height }: MaterialP
     if (!loaded) void loadTypes();
   }, [loaded, loadTypes]);
 
+  // Invisible point where the user clicked: the popup opens next to the mouse, not centred on the object.
+  const clickAnchor = clickPos ? <circle cx={clickPos.x * zoom} cy={clickPos.y * zoom} r={1} fill="none" pointerEvents="none" /> : undefined;
+
   const eligible = annotations.filter((a) => a.type !== 'line' && a.visible && !a.locked);
   const sortedByAreaDesc: Annotation[] = [...eligible].sort((a, b) => annotationArea(b) - annotationArea(a));
 
@@ -80,6 +85,7 @@ export default function MaterialPickerOverlay({ zoom, width, height }: MaterialP
               current={annotation.buildingComponent}
               open={isOpen(areaTarget)}
               onOpenChange={(open) => setOpenTarget(open ? areaTarget : null)}
+              anchor={isOpen(areaTarget) ? clickAnchor : undefined}
               onSelect={(assignment) =>
                 updateAnnotation(annotation.id, {
                   buildingComponent: assignment ?? undefined,
@@ -102,6 +108,20 @@ export default function MaterialPickerOverlay({ zoom, width, height }: MaterialP
                 ))}
               </g>
             </BuildingComponentPicker>
+
+            {(hoveredKey === areaHoverKey || isOpen(areaTarget)) &&
+              rings.map((ring, ringIndex) => (
+                <polygon
+                  key={`hover-${ringIndex}`}
+                  points={ring.map((p) => toScreen(p, zoom)).map((p) => `${p.x},${p.y}`).join(' ')}
+                  fill="#0091ff"
+                  fillOpacity={0.12}
+                  stroke="#0091ff"
+                  strokeWidth={3}
+                  strokeLinejoin="round"
+                  pointerEvents="none"
+                />
+              ))}
 
             {hoveredKey === areaHoverKey && (
               <g transform={`translate(${centroid.x}, ${centroid.y})`} pointerEvents="none">
@@ -132,7 +152,18 @@ export default function MaterialPickerOverlay({ zoom, width, height }: MaterialP
                 current={edge.buildingComponent}
                 open={isOpen(edgeTarget)}
                 onOpenChange={(open) => setOpenTarget(open ? edgeTarget : null)}
+                anchor={isOpen(edgeTarget) ? clickAnchor : undefined}
                 onSelect={(assignment) => setEdgeMeta(annotation.id, i, { buildingComponent: assignment ?? undefined })}
+                openingCategories={['vindu', 'ytterdor']}
+                openings={edge.openings}
+                onSelectOpening={(component, area) =>
+                  setEdgeMeta(annotation.id, i, {
+                    openings: [...(edge.openings ?? []), { id: createId(), component, area }],
+                  })
+                }
+                onRemoveOpening={(id) =>
+                  setEdgeMeta(annotation.id, i, { openings: (edge.openings ?? []).filter((o) => o.id !== id) })
+                }
               >
                 <line
                   x1={a.x}
@@ -142,17 +173,45 @@ export default function MaterialPickerOverlay({ zoom, width, height }: MaterialP
                   stroke="transparent"
                   strokeWidth={14}
                   pointerEvents={isSpaceDown ? 'none' : 'all'}
+                  onClick={(e) => setClickPos(resolveClickPoint(e))}
                   onMouseEnter={() => setHoveredKey(edgeHoverKey)}
                   onMouseLeave={() => setHoveredKey((k) => (k === edgeHoverKey ? null : k))}
                 />
               </BuildingComponentPicker>
 
+              {(hoveredKey === edgeHoverKey || isOpen(edgeTarget)) && (
+                <line
+                  x1={a.x}
+                  y1={a.y}
+                  x2={b.x}
+                  y2={b.y}
+                  stroke="#0091ff"
+                  strokeWidth={5}
+                  strokeLinecap="round"
+                  opacity={0.85}
+                  pointerEvents="none"
+                />
+              )}
+
               {hoveredKey === edgeHoverKey && (
                 <g transform={`translate(${mid.x}, ${mid.y})`} pointerEvents="none">
-                  <rect x={-50} y={-19} width={100} height={18} rx={4} className="fill-card/90 stroke-amber-500" strokeWidth={1} />
-                  <text textAnchor="middle" dominantBaseline="central" fontSize={10} className="fill-amber-700 select-none">
+                  <rect
+                    x={-60}
+                    y={edge.openings?.length ? -31 : -19}
+                    width={120}
+                    height={edge.openings?.length ? 30 : 18}
+                    rx={4}
+                    className="fill-card/90 stroke-amber-500"
+                    strokeWidth={1}
+                  />
+                  <text textAnchor="middle" dominantBaseline="central" fontSize={10} y={edge.openings?.length ? -16 : -10} className="fill-amber-700 select-none">
                     {edge.buildingComponent?.name ?? 'Ingen type'}
                   </text>
+                  {!!edge.openings?.length && (
+                    <text textAnchor="middle" dominantBaseline="central" fontSize={10} y={-4} className="fill-muted-foreground select-none">
+                      {`${edge.openings.length} vindu/dør · ${formatOpeningArea(totalOpeningArea(edge))}`}
+                    </text>
+                  )}
                 </g>
               )}
             </g>

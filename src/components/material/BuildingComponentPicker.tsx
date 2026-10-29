@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Check, Plus, X } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { formatOpeningArea, parseArea } from '@/lib/wallOpenings';
 import { useBuildingComponentTypeStore } from '@/store/buildingComponentTypeStore';
 import { BUILDING_COMPONENT_CATEGORY_LABELS } from '@/types';
-import type { BuildingComponentAssignment, BuildingComponentCategory, BuildingComponentType } from '@/types';
+import type { BuildingComponentAssignment, BuildingComponentCategory, BuildingComponentType, WallOpening } from '@/types';
 
 type BuildingComponentPickerProps = {
   categories: BuildingComponentCategory[];
@@ -14,6 +15,17 @@ type BuildingComponentPickerProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (assignment: BuildingComponentAssignment | null) => void;
+  /**
+   * Categories (e.g. vindu, ytterdør) that are added to a wall as an opening with its own area
+   * instead of replacing `current`. Picking one asks for the area (m²) and calls `onSelectOpening`.
+   */
+  openingCategories?: BuildingComponentCategory[];
+  onSelectOpening?: (assignment: BuildingComponentAssignment, area: number) => void;
+  /** Openings already on the wall; listed first, each removable. */
+  openings?: WallOpening[];
+  onRemoveOpening?: (id: string) => void;
+  /** Element the popup is positioned against instead of the trigger (e.g. a point at the mouse click). */
+  anchor?: React.ReactElement;
   children: React.ReactNode;
 };
 
@@ -33,13 +45,26 @@ export default function BuildingComponentPicker({
   open,
   onOpenChange,
   onSelect,
+  openingCategories = [],
+  onSelectOpening,
+  openings = [],
+  onRemoveOpening,
+  anchor,
   children,
 }: BuildingComponentPickerProps) {
   const types = useBuildingComponentTypeStore((s) => s.types);
   const createType = useBuildingComponentTypeStore((s) => s.createType);
 
+  const allCategories = [...categories, ...openingCategories.filter((c) => !categories.includes(c))];
+  const isOpeningCategory = (category: BuildingComponentCategory) =>
+    onSelectOpening !== undefined && openingCategories.includes(category);
+
   const [adding, setAdding] = useState(false);
-  const [addCategory, setAddCategory] = useState<BuildingComponentCategory>(categories[0]);
+  const [addCategory, setAddCategory] = useState<BuildingComponentCategory>(allCategories[0]);
+  // A window/door type that was picked and is waiting for its area (m²).
+  const [pendingOpening, setPendingOpening] = useState<BuildingComponentAssignment | null>(null);
+  const [areaText, setAreaText] = useState('');
+  const parsedArea = parseArea(areaText);
   const [name, setName] = useState('');
   const [uValue, setUValue] = useState('');
   const [wallThickness, setWallThickness] = useState('');
@@ -57,8 +82,10 @@ export default function BuildingComponentPicker({
     setName('');
     setUValue('');
     setWallThickness('');
-    setAddCategory(categories[0]);
+    setAddCategory(allCategories[0]);
     setAdding(false);
+    setPendingOpening(null);
+    setAreaText('');
   }
 
   function handleOpenChange(next: boolean) {
@@ -69,23 +96,83 @@ export default function BuildingComponentPicker({
   async function handleCreate() {
     if (!canSubmit) return;
     const created = await createType(addCategory, name.trim(), parsedUValue, isYttervegg ? parsedThickness : undefined);
+    if (isOpeningCategory(created.category)) {
+      // New window/door type: still needs its area before it is placed on the wall.
+      setName('');
+      setUValue('');
+      setWallThickness('');
+      setAdding(false);
+      setPendingOpening(toAssignment(created));
+      return;
+    }
     onSelect(toAssignment(created));
+    resetForm();
+    onOpenChange(false);
+  }
+
+  function handleAddOpening() {
+    if (!pendingOpening || parsedArea === undefined || !onSelectOpening) return;
+    onSelectOpening(pendingOpening, parsedArea);
     resetForm();
     onOpenChange(false);
   }
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
+      {anchor && <PopoverAnchor asChild>{anchor}</PopoverAnchor>}
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent className="w-64 p-2">
-        {!adding ? (
+        {pendingOpening ? (
+          <div className="grid gap-2">
+            <div className="text-sm font-medium">{pendingOpening.name}</div>
+            <Input
+              autoFocus
+              inputMode="decimal"
+              placeholder="Areal, m²"
+              value={areaText}
+              onChange={(e) => setAreaText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddOpening()}
+              className="h-8 text-sm"
+              aria-label="Areal i kvadratmeter"
+            />
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" className="flex-1" onClick={() => setPendingOpening(null)}>
+                Tilbake
+              </Button>
+              <Button size="sm" className="flex-1" disabled={parsedArea === undefined} onClick={handleAddOpening}>
+                Legg til
+              </Button>
+            </div>
+          </div>
+        ) : !adding ? (
           <>
             <div className="max-h-64 overflow-y-auto">
-              {categories.map((category) => {
+              {openings.length > 0 && (
+                <div className="mb-2">
+                  <div className="px-1 py-1 text-xs font-semibold text-muted-foreground">På denne veggen</div>
+                  {openings.map((opening) => (
+                    <div key={opening.id} className="flex items-center justify-between rounded-md px-2 py-1 text-sm">
+                      <span className="truncate">{opening.component.name}</span>
+                      <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                        {formatOpeningArea(opening.area)}
+                        <button
+                          type="button"
+                          onClick={() => onRemoveOpening?.(opening.id)}
+                          className="rounded p-0.5 hover:bg-secondary hover:text-destructive"
+                          title="Fjern"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {allCategories.map((category) => {
                 const categoryTypes = types.filter((t) => t.category === category);
                 return (
                   <div key={category} className="mb-2">
-                    {categories.length > 1 && (
+                    {allCategories.length > 1 && (
                       <div className="px-1 py-1 text-xs font-semibold text-muted-foreground">
                         {BUILDING_COMPONENT_CATEGORY_LABELS[category]}
                       </div>
@@ -98,6 +185,10 @@ export default function BuildingComponentPicker({
                         key={type.id}
                         type="button"
                         onClick={() => {
+                          if (isOpeningCategory(type.category)) {
+                            setPendingOpening(toAssignment(type));
+                            return;
+                          }
                           onSelect(toAssignment(type));
                           onOpenChange(false);
                         }}
@@ -133,7 +224,7 @@ export default function BuildingComponentPicker({
               size="sm"
               className="mt-1 w-full justify-start"
               onClick={() => {
-                setAddCategory(categories[0]);
+                setAddCategory(allCategories[0]);
                 setAdding(true);
               }}
             >
@@ -142,9 +233,9 @@ export default function BuildingComponentPicker({
           </>
         ) : (
           <div className="grid gap-2">
-            {categories.length > 1 && (
-              <div className="flex gap-1">
-                {categories.map((category) => (
+            {allCategories.length > 1 && (
+              <div className="flex flex-wrap gap-1">
+                {allCategories.map((category) => (
                   <button
                     key={category}
                     type="button"
