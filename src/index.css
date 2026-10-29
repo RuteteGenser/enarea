@@ -51,8 +51,8 @@
     --ring: oklch(0.68 0.13 254);
 
     --canvas: oklch(0.12 0.008 240);
-  --toolbar: oklch(0.26 0.04 20);
-  --panel: oklch(0.24 0.035 20);
+    --toolbar: oklch(0.26 0.04 20);
+    --panel: oklch(0.24 0.035 20);
   }
 }
 
