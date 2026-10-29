@@ -20,7 +20,7 @@ const SHORTCUTS: [string, string][] = [
   ['Ctrl + Shift + Z', 'Gjør om'],
   ['Delete', 'Slett valgt'],
   ['Ctrl + C / Ctrl + V', 'Kopier / lim inn'],
-  ['Esc', 'Avbryt tegning / velg bort'],
+  ['Esc', 'Avbryt tegning / tilbake til Panorer'],
 ];
 
 export default function ShortcutsHelp() {

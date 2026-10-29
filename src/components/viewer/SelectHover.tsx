@@ -26,12 +26,17 @@ type WallDeleteLayerProps = {
   annotations: Annotation[];
   zoom: number;
   hovered: string | null;
+  armed: string | null;
   onHover: (key: string | null) => void;
+  onArm: (key: string | null) => void;
   onDelete: (annotationId: string, edgeIndex: number) => void;
 };
 
-/** Marked outer walls: hover highlights one in red with an ×, click removes the wall marking (Ctrl+Z brings it back). */
-export function WallDeleteLayer({ annotations, zoom, hovered, onHover, onDelete }: WallDeleteLayerProps) {
+/**
+ * Outer walls in the Velg tool: hover highlights one, a click marks it and shows an ×, and clicking the ×
+ * removes the wall marking (Ctrl+Z brings it back).
+ */
+export function WallDeleteLayer({ annotations, zoom, hovered, armed, onHover, onArm, onDelete }: WallDeleteLayerProps) {
   return (
     <g>
       {annotations.map((annotation) => {
@@ -50,6 +55,7 @@ export function WallDeleteLayer({ annotations, zoom, hovered, onHover, onDelete 
           const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
           const key = `${annotation.id}:${i}`;
           const isHovered = hovered === key;
+          const isArmed = armed === key;
           return (
             <g key={key}>
               <line
@@ -64,17 +70,36 @@ export function WallDeleteLayer({ annotations, zoom, hovered, onHover, onDelete 
                 onMouseLeave={() => onHover(null)}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onDelete(annotation.id, i);
+                  onArm(key);
                 }}
               />
-              {isHovered && (
-                <g pointerEvents="none">
-                  <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#dc2626" strokeWidth={5} strokeLinecap="round" opacity={0.85} />
-                  <g transform={`translate(${mid.x}, ${mid.y})`}>
-                    <circle r={9} fill="white" stroke="#dc2626" strokeWidth={1.5} />
-                    <line x1={-3.5} y1={-3.5} x2={3.5} y2={3.5} stroke="#dc2626" strokeWidth={2} strokeLinecap="round" />
-                    <line x1={-3.5} y1={3.5} x2={3.5} y2={-3.5} stroke="#dc2626" strokeWidth={2} strokeLinecap="round" />
-                  </g>
+              {(isHovered || isArmed) && (
+                <line
+                  x1={a.x}
+                  y1={a.y}
+                  x2={b.x}
+                  y2={b.y}
+                  stroke={isArmed ? '#dc2626' : '#f5a623'}
+                  strokeWidth={5}
+                  strokeLinecap="round"
+                  opacity={0.85}
+                  pointerEvents="none"
+                />
+              )}
+              {isArmed && (
+                <g
+                  data-wall-x
+                  transform={`translate(${mid.x}, ${mid.y})`}
+                  className="cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(annotation.id, i);
+                  }}
+                >
+                  <circle r={10} fill="white" stroke="#dc2626" strokeWidth={1.5} />
+                  <line x1={-4} y1={-4} x2={4} y2={4} stroke="#dc2626" strokeWidth={2.5} strokeLinecap="round" />
+                  <line x1={-4} y1={4} x2={4} y2={-4} stroke="#dc2626" strokeWidth={2.5} strokeLinecap="round" />
+                  <title>Slett yttervegg</title>
                 </g>
               )}
             </g>

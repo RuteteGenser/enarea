@@ -96,7 +96,7 @@ export function useKeyboardShortcuts(enabled: boolean) {
         // the next one deselects and returns to the default tool.
         if (escapeCancelledDrawing) return;
         useAnnotationStore.getState().setSelected(null);
-        useViewportStore.getState().setTool('select');
+        useViewportStore.getState().setTool('pan'); // back to the default tool (Panorer)
         return;
       }
 
