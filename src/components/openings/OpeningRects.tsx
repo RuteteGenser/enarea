@@ -137,29 +137,14 @@ export default function OpeningRects({ fileId, openings, placed, zoom, calibrati
             }}
             onClick={(e) => movable && e.stopPropagation()}
           >
-            {selected && (
-              <polygon
-                points={rect.corners.map((p) => `${p.x * zoom},${p.y * zoom}`).join(' ')}
-                fill="none"
-                stroke="white"
-                strokeWidth={7}
-                strokeLinejoin="round"
-                pointerEvents="none"
-              />
-            )}
             <polygon
               points={rect.corners.map((p) => `${p.x * zoom},${p.y * zoom}`).join(' ')}
               fill={color}
-              fillOpacity={selected ? 0.7 : active ? 0.55 : 0.35}
-              stroke={selected ? '#111827' : color}
-              strokeWidth={selected ? 3.5 : active ? 3 : 2}
-              strokeDasharray={selected ? '5 3' : undefined}
+              fillOpacity={selected ? 0.5 : active ? 0.45 : 0.3}
+              stroke={color}
+              strokeWidth={selected ? 3 : active ? 3 : 2}
               strokeLinejoin="round"
             />
-            {selected &&
-              [rect.corners[0], rect.corners[1], rect.corners[2], rect.corners[3]].map((c, i) => (
-                <rect key={i} x={c.x * zoom - 3} y={c.y * zoom - 3} width={6} height={6} fill="white" stroke="#111827" strokeWidth={1.5} pointerEvents="none" />
-              ))}
             <text
               x={rect.center.x * zoom}
               y={rect.center.y * zoom - 10}

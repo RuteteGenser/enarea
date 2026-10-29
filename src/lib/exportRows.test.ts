@@ -58,7 +58,7 @@ describe('buildExportTables', () => {
 });
 
 describe('Vindu/Dør items', () => {
-  it('lists placed and unplaced items with size, area, type and room', () => {
+  it('lists every placed window/door with size, area, type and wall — not types that are not placed', () => {
     const f = {
       ...file(true),
       openings: [
@@ -70,10 +70,9 @@ describe('Vindu/Dør items', () => {
     const types = [{ id: 't', category: 'vindu' as const, name: 'Vindu 3-lags', uValue: 0.8, createdAt: 1, updatedAt: 1 }];
     const sheet = buildExportTables(project, [{ file: f, annotations: [room] }], types)[3];
     const named = sheet.rows.filter((r) => r[1] !== null);
-    expect(named).toHaveLength(2);
+    expect(named).toHaveLength(1); // Dør 2 is not placed on any wall, so it is not listed
     expect(named[0].slice(1, 8)).toEqual(['Vindu 1', 'Vindu', 1200, 1500, 1.8, 'Vindu 3-lags', 0.8]);
     expect(named[0][10]).toBe(2); // wall number
-    expect(named[1].slice(1, 3)).toEqual(['Dør 2', 'Dør']);
     const rooms = buildExportTables(project, [{ file: f, annotations: [room] }], types)[1];
     expect(rooms.rows[0][rooms.headers.indexOf('Vindu (antall)')]).toBe(2); // 1 material-picker window + placed Vindu 1
     expect(rooms.rows[0][rooms.headers.indexOf('Vindu (m²)')]).toBeCloseTo(4.2); // 2.4 + 1.8

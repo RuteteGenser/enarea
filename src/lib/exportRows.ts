@@ -144,9 +144,9 @@ export function buildExportTables(
       const typeRow = buildingTypes.find((t) => t.id === type.typeId);
       const area = openingArea(type);
       const placements = placedCopies.filter((it) => it.openingId === type.id);
-      // One row per placed copy; a type that isn't placed yet still gets a row.
-      for (const item of placements.length > 0 ? placements : [null]) {
-        const room = item ? annotations.find((a) => a.id === item.placement.annotationId) : undefined;
+      // One row per placed copy. A type that isn't placed anywhere has no wall, so it isn't listed.
+      for (const item of placements) {
+        const room = annotations.find((a) => a.id === item.placement.annotationId);
         openings.push([
           file.name,
           type.name,
@@ -158,8 +158,8 @@ export function buildExportTables(
           typeRow?.uValue ?? null,
           room?.roomNumber ?? null,
           room ? displayName(room) : null,
-          item ? item.placement.edgeIndex + 1 : null,
-          room && item ? bearingCell(wallBearing(room, item.placement.edgeIndex, project.northDirection)) : null,
+          item.placement.edgeIndex + 1,
+          room ? bearingCell(wallBearing(room, item.placement.edgeIndex, project.northDirection)) : null,
         ]);
       }
     }
