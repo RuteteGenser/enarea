@@ -306,10 +306,12 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
     page.style.transition = `transform ${JUMP_TRANSITION_MS}ms ease`;
     page.style.transform = `translate(${pan.x}px, ${pan.y}px)`;
     requestJump(null);
-    const timeout = window.setTimeout(() => {
+    // Not cleared in an effect cleanup: requestJump(null) above changes pendingJumpId, which
+    // re-runs this effect and would cancel the timer, leaving the transition on forever
+    // (every later pan/zoom then animated).
+    window.setTimeout(() => {
       page.style.transition = '';
     }, JUMP_TRANSITION_MS);
-    return () => window.clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- zoom read fresh, intentionally not a trigger (see comment above)
   }, [pendingJumpId]);
 

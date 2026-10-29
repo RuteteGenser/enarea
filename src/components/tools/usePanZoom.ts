@@ -8,6 +8,8 @@ const MAX_ZOOM = 8;
 export type Pan = { x: number; y: number };
 
 function applyTransform(pageEl: HTMLDivElement, pan: Pan) {
+  // Panning/zooming must be instant; drop any leftover "jump" animation.
+  pageEl.style.transition = '';
   pageEl.style.transform = `translate(${pan.x}px, ${pan.y}px)`;
 }
 

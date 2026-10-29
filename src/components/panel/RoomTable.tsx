@@ -7,10 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import BuildingComponentPicker from '@/components/material/BuildingComponentPicker';
 import RoomTemplatePicker from '@/components/roomTemplate/RoomTemplatePicker';
 import { useAnnotationStore } from '@/store/annotationStore';
+import { useProjectStore } from '@/store/projectStore';
+import { useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { formatArea, metersPerUnit } from '@/lib/calibration';
 import { annotationArea } from '@/lib/geometry';
-import { AREA_TYPES, findAreaType, peopleForArea } from '@/lib/areaTypes';
+import { AREA_TYPES, areaTypeForCategory, findAreaType, peopleForArea } from '@/lib/areaTypes';
 import { formatOpeningArea, openingsSummary } from '@/lib/wallOpenings';
 import { displayName } from '@/lib/annotationLabel';
 import { applyRoomNameAndMatch } from '@/lib/roomTemplateMatch';
@@ -231,12 +233,18 @@ function RoomTableRow({ annotation, selected, unit, mpu, onSelect }: RoomTableRo
     setPeopleDraft(String(annotation.people ?? ''));
   }, [annotation.people]);
 
+  // Rooms made before an area type was stored show the one matching the project's building category.
+  const { projectId } = useParams<{ projectId: string }>();
+  const defaultAreaType = useProjectStore((s) =>
+    areaTypeForCategory(projectId ? s.getProject(projectId)?.buildingCategory : undefined),
+  );
   const areaSquareMeters = annotationArea(annotation) * mpu * mpu;
 
   function changeAreaType(id: string) {
     const type = findAreaType(id);
     if (!type) {
-      updateAnnotation(annotation.id, { areaType: undefined });
+      // Stored explicitly so the project's default isn't shown again for this room.
+      updateAnnotation(annotation.id, { areaType: NO_AREA_TYPE });
       return;
     }
     // Suggest the number of people for this floor area; Personer can still be edited afterwards.
@@ -366,7 +374,7 @@ function RoomTableRow({ annotation, selected, unit, mpu, onSelect }: RoomTableRo
       <td className="px-2 py-1.5 tabular-nums text-muted-foreground">{area}</td>
 
       <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
-        <Select value={annotation.areaType ?? NO_AREA_TYPE} onValueChange={changeAreaType}>
+        <Select value={annotation.areaType ?? defaultAreaType ?? NO_AREA_TYPE} onValueChange={changeAreaType}>
           <SelectTrigger className="h-6 min-w-32 px-1.5 py-0 text-sm">
             <SelectValue />
           </SelectTrigger>
