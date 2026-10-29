@@ -206,6 +206,7 @@ export type RoomTemplate = {
   aliases?: string[]; // extra match keywords, e.g. ["konferanserom"]
   ventilationRate?: number;
   ventilationUnit?: VentilationUnit;
+  perPersonRate?: number; // extra m³/h per person, added to the area part when calculating
   note?: string;
   createdAt: number;
   updatedAt: number;
@@ -218,6 +219,7 @@ export type RoomTemplateAssignment = {
   name: string;
   ventilationRate?: number;
   ventilationUnit?: VentilationUnit;
+  perPersonRate?: number;
   note?: string;
   matchType: RoomTemplateMatchType;
 };

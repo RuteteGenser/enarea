@@ -444,7 +444,7 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
 
       <td className="px-2 py-1.5 whitespace-nowrap text-muted-foreground">
         {annotation.roomTemplate?.ventilationRate !== undefined
-          ? `${annotation.roomTemplate.ventilationRate} ${VENTILATION_UNIT_LABELS[annotation.roomTemplate.ventilationUnit ?? 'm3h_per_m2']}`
+          ? `${annotation.roomTemplate.ventilationRate} ${VENTILATION_UNIT_LABELS[annotation.roomTemplate.ventilationUnit ?? 'm3h_per_m2']}${annotation.roomTemplate.perPersonRate ? ` + ${annotation.roomTemplate.perPersonRate} m³/h per person` : ''}`
           : '--'}
       </td>
 

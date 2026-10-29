@@ -121,6 +121,26 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
           onClick={() => setTool('select')}
         />
 
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                (tool === 'calibrate' || tool === 'calibrate-area') && 'bg-primary/10 text-primary hover:bg-primary/15',
+              )}
+              title="Kalibrer"
+            >
+              <Ruler />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onClick={() => setTool('calibrate')}>Tegn referanselinje</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTool('calibrate-area')}>Tegn areal</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setScaleDialogOpen(true)}>Angi skala (1:X)</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <Separator orientation="vertical" className="mx-1 h-6" />
 
         {DRAW_TOOLS.map((t) => (
@@ -219,27 +239,6 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
 
         <Separator orientation="vertical" className="mx-1 h-6" />
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                (tool === 'calibrate' || tool === 'calibrate-area') && 'bg-primary/10 text-primary hover:bg-primary/15',
-              )}
-              title="Kalibrer"
-            >
-              <Ruler />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start">
-            <DropdownMenuItem onClick={() => setTool('calibrate')}>Tegn referanselinje</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTool('calibrate-area')}>Tegn areal</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setScaleDialogOpen(true)}>Angi skala (1:X)</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <Separator orientation="vertical" className="mx-1 h-6" />
 
         <ToolButton icon={Undo2} label="Angre" shortcut="Ctrl+Z" disabled={!canUndo} onClick={undo} />
         <ToolButton icon={Redo2} label="Gjør om" shortcut="Ctrl+Shift+Z" disabled={!canRedo} onClick={redo} />

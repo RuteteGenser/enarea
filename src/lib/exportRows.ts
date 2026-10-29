@@ -23,18 +23,26 @@ export function ventilationTotal(
   unit: VentilationUnit | undefined,
   squareMeters: number | null,
   people: number | undefined,
+  perPersonRate?: number,
 ): number | null {
   if (rate === undefined) return null;
+  let base: number | null;
   switch (unit ?? 'm3h_per_m2') {
     case 'm3h_per_m2':
-      return squareMeters === null ? null : rate * squareMeters;
+      base = squareMeters === null ? null : rate * squareMeters;
+      break;
     case 'm3h_per_person':
-      return people ? rate * people : null;
+      base = people ? rate * people : null;
+      break;
     case 'm3h_total':
-      return rate;
+      base = rate;
+      break;
     default:
       return null; // per dusj / per toalettstol: the count isn't recorded
   }
+  if (base === null) return null;
+  // Rooms in use: the air for the people (e.g. 26 m³/h each) comes on top of the area part.
+  return base + (perPersonRate && people ? perPersonRate * people : 0);
 }
 
 const round = (value: number, decimals = 2) => Math.round(value * 10 ** decimals) / 10 ** decimals;
@@ -84,7 +92,7 @@ export function buildExportTables(
       const roomItems = items.filter((it) => it.placement?.annotationId === annotation.id);
       const total = openingTotals(annotation.edges, roomItems);
       const wallTypes = [...new Set((annotation.edges ?? []).map((e) => e.buildingComponent?.name).filter(Boolean))];
-      const air = ventilationTotal(template?.ventilationRate, template?.ventilationUnit, area, annotation.people);
+      const air = ventilationTotal(template?.ventilationRate, template?.ventilationUnit, area, annotation.people, template?.perPersonRate);
 
       rooms.push([
         file.name,
