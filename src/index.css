@@ -24,8 +24,8 @@
   --radius: 0.5rem;
 
   --canvas: oklch(0.93 0.004 240);
-  --toolbar: oklch(0.955 0.03 20);
-  --panel: oklch(0.965 0.025 20);
+  --toolbar: oklch(0.42 0.005 250);
+  --panel: oklch(0.38 0.005 250);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -51,8 +51,8 @@
     --ring: oklch(0.68 0.13 254);
 
     --canvas: oklch(0.12 0.008 240);
-    --toolbar: oklch(0.26 0.04 20);
-    --panel: oklch(0.24 0.035 20);
+    --toolbar: oklch(0.3 0.005 250);
+    --panel: oklch(0.26 0.005 250);
   }
 }
 
@@ -104,6 +104,25 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+}
+
+/* Grey app chrome (header, toolbar, file tabs, Målinger): white text and lighter greys inside.
+   Menus and dialogs render in portals outside it and keep the normal theme. */
+.on-chrome {
+  --foreground: oklch(1 0 0);
+  --card-foreground: oklch(1 0 0);
+  --muted-foreground: oklch(0.86 0 0);
+  --secondary: oklch(0.5 0.005 250);
+  --secondary-foreground: oklch(1 0 0);
+  --muted: oklch(0.5 0.005 250);
+  --accent: oklch(0.52 0.01 250);
+  --accent-foreground: oklch(1 0 0);
+  --border: oklch(0.55 0.005 250);
+  --input: oklch(0.6 0.005 250);
+  --primary: oklch(0.85 0.1 254);
+  --primary-foreground: oklch(0.2 0.01 250);
+  --ring: oklch(0.85 0.1 254);
+  color: oklch(1 0 0);
 }
 
 @layer utilities {

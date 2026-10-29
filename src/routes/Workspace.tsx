@@ -85,7 +85,7 @@ export default function Workspace() {
         </div>
       )}
 
-      <div className="flex h-11 shrink-0 items-center gap-3 border-b border-border bg-toolbar px-3">
+      <div className="on-chrome flex h-11 shrink-0 items-center gap-3 border-b border-border bg-toolbar px-3">
         <Button variant="ghost" size="icon-sm" onClick={() => navigate('/')} title="Til prosjektliste">
           <ArrowLeft className="size-4" />
         </Button>
@@ -120,12 +120,12 @@ export default function Workspace() {
               onClick={togglePanel}
               title={panelOpen ? 'Skjul målinger' : 'Vis målinger'}
               aria-expanded={panelOpen}
-              className="flex h-5 shrink-0 items-center justify-center border-t border-border bg-panel text-muted-foreground transition-colors hover:text-foreground"
+              className="on-chrome flex h-5 shrink-0 items-center justify-center border-t border-border bg-panel text-muted-foreground transition-colors hover:text-foreground"
             >
               <ChevronDown className={`size-4 transition-transform duration-300 ease-in-out ${panelOpen ? '' : 'rotate-180'}`} />
             </button>
             <div
-              className={`shrink-0 overflow-hidden bg-panel transition-[height] duration-300 ease-in-out motion-reduce:transition-none ${panelOpen ? 'h-44' : 'h-0'}`}
+              className={`on-chrome shrink-0 overflow-hidden bg-panel transition-[height] duration-300 ease-in-out motion-reduce:transition-none ${panelOpen ? 'h-44' : 'h-0'}`}
               aria-hidden={!panelOpen}
             >
               <div className="h-44">

@@ -40,7 +40,7 @@ export default function FileTabs({ projectId, files, activeFileId, onSelect }: F
   }
 
   return (
-    <div className="flex h-10 shrink-0 items-center gap-1 border-b border-border bg-toolbar px-2">
+    <div className="on-chrome flex h-10 shrink-0 items-center gap-1 border-b border-border bg-toolbar px-2">
       <div className="flex flex-1 items-center gap-1 overflow-x-auto no-scrollbar">
         {files.map((file) => (
           <div
