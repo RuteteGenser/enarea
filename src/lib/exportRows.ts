@@ -5,8 +5,8 @@ import { findAreaType } from '@/lib/areaTypes';
 import { openingArea, OPENING_KIND_LABELS } from '@/lib/openings';
 import { openingTotals } from '@/lib/wallOpenings';
 import { BUILDING_CATEGORY_LABELS, BUILDING_COMPONENT_CATEGORY_LABELS, VENTILATION_UNIT_LABELS } from '@/types';
-import { ORIENTATION_NAMES, wallOrientation } from '@/lib/wallOrientation';
-import type { Annotation, BuildingComponentType, Orientation, OpeningItem, PdfFile, Project, VentilationUnit } from '@/types';
+import { wallBearing } from '@/lib/wallOrientation';
+import type { Annotation, BuildingComponentType, OpeningItem, PdfFile, Project, VentilationUnit } from '@/types';
 
 export type ExportFileData = { file: PdfFile; annotations: Annotation[] };
 
@@ -15,7 +15,7 @@ export type Cell = string | number | null;
 
 export type ExportTable = { title: string; headers: string[]; rows: Cell[][] };
 
-const orientationName = (o: Orientation | undefined): Cell => (o ? ORIENTATION_NAMES[o] : null);
+const bearingCell = (degrees: number | undefined): Cell => (degrees === undefined ? null : degrees);
 
 /** Air volume in m³/h when it can be derived from the room's area/people (otherwise null). */
 export function ventilationTotal(
@@ -124,7 +124,7 @@ export function buildExportTables(
           edge.buildingComponent?.uValue ?? null,
           edge.buildingComponent?.wallThickness ?? null,
           edge.wallType === 'external' ? 'Yttervegg' : edge.wallType === 'internal' ? 'Innervegg' : null,
-          orientationName(wallOrientation(annotation, i, project.northDirection)),
+          bearingCell(wallBearing(annotation, i, project.northDirection)),
           wall.vindu.count || null,
           wall.vindu.count ? round(wall.vindu.area) : null,
           wall.dor.count || null,
@@ -144,7 +144,7 @@ export function buildExportTables(
             annotation.roomNumber ?? null,
             name,
             i + 1,
-            orientationName(wallOrientation(annotation, i, project.northDirection)),
+            bearingCell(wallBearing(annotation, i, project.northDirection)),
           ]);
         }
       });
@@ -168,7 +168,7 @@ export function buildExportTables(
         room?.roomNumber ?? null,
         room ? displayName(room) : null,
         item.placement ? item.placement.edgeIndex + 1 : null,
-        room && item.placement ? orientationName(wallOrientation(room, item.placement.edgeIndex, project.northDirection)) : null,
+        room && item.placement ? bearingCell(wallBearing(room, item.placement.edgeIndex, project.northDirection)) : null,
       ]);
     }
   }
@@ -223,7 +223,7 @@ export function buildExportTables(
         'U-verdi (W/m²K)',
         'Tykkelse (mm)',
         'Yttervegg/innervegg',
-        'Himmelretning',
+        'Himmelretning (°)',
         'Vindu (antall)',
         'Vindu (m²)',
         'Dør (antall)',
@@ -245,7 +245,7 @@ export function buildExportTables(
         'Rom nr',
         'Rom',
         'Vegg nr',
-        'Himmelretning',
+        'Himmelretning (°)',
       ],
       rows: openings,
     },

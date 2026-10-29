@@ -100,6 +100,17 @@ describe('windows and doors are counted separately', () => {
   });
 });
 
+describe('wall direction in degrees', () => {
+  it('writes the compass bearing of outer walls', () => {
+    const outer = { ...room, edges: [{ wallType: 'external' as const }, {}, {}, {}] };
+    const north90 = { ...project, northDirection: 90 };
+    const walls = buildExportTables(north90, [{ file: file(true), annotations: [outer] }])[2];
+    const col = walls.headers.indexOf('Himmelretning (°)');
+    expect(walls.rows[0][col]).toBe(270); // top wall, compass turned 90° to the right
+    expect(walls.rows[1][col]).toBeNull(); // not an outer wall
+  });
+});
+
 describe('ventilationTotal', () => {
   it('derives m³/h where possible', () => {
     expect(ventilationTotal(2.5, 'm3h_per_m2', 20, undefined)).toBe(50);

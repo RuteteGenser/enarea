@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compassPoint, outwardBearing, wallOrientation } from '@/lib/wallOrientation';
+import { compassPoint, orientationDegrees, outwardBearing, wallBearing, wallOrientation } from '@/lib/wallOrientation';
 import type { Point } from '@/types';
 
 // Screen coordinates (y grows downwards): a square listed clockwise as seen on the page.
@@ -55,5 +55,21 @@ describe('wallOrientation', () => {
 
   it('is undefined for sides that are not outer walls', () => {
     expect(wallOrientation(room, 1, 0)).toBeUndefined();
+  });
+});
+
+describe('wallBearing (degrees for Excel)', () => {
+  const room = { points: square, edges: [{ wallType: 'external' as const }, { wallType: 'external' as const, orientation: 'S' as const }, {}, {}] };
+
+  it('gives whole degrees from the compass', () => {
+    expect(wallBearing(room, 0, 0)).toBe(0);
+    expect(wallBearing(room, 0, 90)).toBe(270);
+    expect(wallBearing(room, 0, 45)).toBe(315);
+  });
+
+  it('uses a hand-set direction as its degrees and skips non-outer sides', () => {
+    expect(wallBearing(room, 1, 123)).toBe(180);
+    expect(wallBearing(room, 2, 0)).toBeUndefined();
+    expect(orientationDegrees('W')).toBe(270);
   });
 });

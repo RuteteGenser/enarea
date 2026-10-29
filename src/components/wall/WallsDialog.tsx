@@ -91,7 +91,8 @@ export default function WallsDialog({ file }: { file: PdfFile }) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={AUTO}>
-                      Kompass: {ORIENTATION_NAMES[compassPoint(outwardBearing(annotation.points, index, north))]}
+                      Kompass: {ORIENTATION_NAMES[compassPoint(outwardBearing(annotation.points, index, north))]} (
+                      {Math.round(outwardBearing(annotation.points, index, north)) % 360}°)
                     </SelectItem>
                     {ORIENTATION_OPTIONS.map((o) => (
                       <SelectItem key={o} value={o}>

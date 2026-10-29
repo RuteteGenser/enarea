@@ -28,6 +28,11 @@ export const ORIENTATION_SHORT: Record<Orientation, string> = {
 
 export const ORIENTATION_OPTIONS = COMPASS_ORDER;
 
+/** Bearing in degrees of a compass point (N = 0, Ø = 90, S = 180, V = 270). */
+export function orientationDegrees(o: Orientation): number {
+  return COMPASS_ORDER.indexOf(o) * 45;
+}
+
 /** The nearest of the eight compass points for a bearing in degrees (0 = north, clockwise). */
 export function compassPoint(bearing: number): Orientation {
   const index = Math.round((((bearing % 360) + 360) % 360) / 45) % 8;
@@ -71,4 +76,19 @@ export function wallOrientation(
   const edge = annotation.edges?.[edgeIndex];
   if (edge?.wallType !== 'external') return undefined;
   return edge.orientation ?? compassPoint(outwardBearing(annotation.points, edgeIndex, north));
+}
+
+/**
+ * Compass bearing in whole degrees (0–359, clockwise from north) that an outer wall faces: the
+ * hand-set direction if there is one, otherwise computed from the compass. Undefined for non-outer sides.
+ */
+export function wallBearing(
+  annotation: Pick<Annotation, 'points' | 'edges'>,
+  edgeIndex: number,
+  north: number,
+): number | undefined {
+  const edge = annotation.edges?.[edgeIndex];
+  if (edge?.wallType !== 'external') return undefined;
+  if (edge.orientation) return orientationDegrees(edge.orientation);
+  return Math.round(outwardBearing(annotation.points, edgeIndex, north)) % 360;
 }
