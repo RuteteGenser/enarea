@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { annotationsRepo } from '@/lib/db';
 import { createId } from '@/lib/id';
 import { areaTypeForCategory } from '@/lib/areaTypes';
-import { movePersonMarkers } from '@/lib/personMarkers';
+import { movePersonMarkers, trimPersonMarkers } from '@/lib/personMarkers';
 import { useFilesStore } from '@/store/filesStore';
 import { useProjectStore } from '@/store/projectStore';
 import type { Annotation, EdgeMeta } from '@/types';
@@ -68,6 +68,13 @@ export const useAnnotationStore = create<AnnotationStore>((set, get) => ({
   },
 
   updateAnnotation: (id: string, patch: Partial<Annotation>) => {
+    // Lowering the number of people (e.g. in Målinger) also removes the surplus person icons from the drawing.
+    if ('people' in patch && !('personMarkers' in patch)) {
+      const markers = get().annotations.find((a) => a.id === id)?.personMarkers;
+      if (markers && markers.length > (patch.people ?? 0)) {
+        patch = { ...patch, personMarkers: trimPersonMarkers(markers, patch.people ?? 0) };
+      }
+    }
     const next = get().annotations.map((a) => (a.id === id ? { ...a, ...patch, updatedAt: Date.now() } : a));
     get().commit(next);
   },

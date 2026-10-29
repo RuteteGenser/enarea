@@ -1,5 +1,13 @@
 import { distance } from '@/lib/geometry';
-import type { Annotation, BuildingComponentType, OpeningItem, OpeningKind, OpeningPlacement, Point } from '@/types';
+import type {
+  Annotation,
+  BuildingComponentType,
+  OpeningItem,
+  OpeningKind,
+  OpeningPlacement,
+  PlacedOpening,
+  Point,
+} from '@/types';
 
 export const OPENING_KIND_LABELS: Record<OpeningKind, string> = { vindu: 'Vindu', dor: 'Dør' };
 
@@ -88,34 +96,42 @@ export function placedOpeningRect(item: OpeningItem, annotations: Annotation[], 
   return openingRect(a, b, place.t, width, OPENING_DEPTH_METERS / metersPerUnit);
 }
 
-/** The windows/doors to choose from when placing: the originals, not the copies made while placing them. */
-export function placementTemplates(items: OpeningItem[]): OpeningItem[] {
-  return items.filter((i) => !i.templateId || !items.some((o) => o.id === i.templateId));
+/** A window/door type joined with one of its placements — what the drawing, Målinger and Excel work with. */
+export type JoinedOpening = OpeningItem & { openingId: string; placement: OpeningPlacement };
+
+/** One entry per placement (id = the placement's id), carrying the type's name, size and building type. */
+export function joinPlacements(defs: OpeningItem[], placed: PlacedOpening[]): JoinedOpening[] {
+  const joined: JoinedOpening[] = [];
+  for (const p of placed) {
+    const def = defs.find((d) => d.id === p.openingId);
+    if (!def) continue;
+    joined.push({
+      ...def,
+      id: p.id,
+      openingId: def.id,
+      placement: { annotationId: p.annotationId, edgeIndex: p.edgeIndex, t: p.t },
+    });
+  }
+  return joined;
 }
 
 /**
- * Places the chosen window/door at `placement`. The first click uses the item itself; every further
- * click makes a new copy (same kind, size and type, next running number) so the tool stays on one
- * type until another is picked.
+ * Brings older saves up to date: a type that carried its own placement becomes a type plus a placement,
+ * and copies made by the earlier "place again" behaviour are folded back into their original type.
+ * Idempotent.
  */
-export function placeOpening(
-  items: OpeningItem[],
-  templateId: string,
-  placement: OpeningPlacement,
-  newId: string,
-): OpeningItem[] {
-  const template = items.find((i) => i.id === templateId);
-  if (!template) return items;
-  if (!template.placement) return items.map((i) => (i.id === templateId ? { ...i, placement } : i));
-  const copy: OpeningItem = {
-    id: newId,
-    kind: template.kind,
-    name: nextOpeningName(items, template.kind),
-    widthMm: template.widthMm,
-    heightMm: template.heightMm,
-    typeId: template.typeId,
-    templateId: template.templateId ?? template.id,
-    placement,
-  };
-  return [...items, copy];
+export function normalizeOpenings(
+  defs: OpeningItem[] | undefined,
+  placed: PlacedOpening[] | undefined,
+): { openings: OpeningItem[]; placedOpenings: PlacedOpening[] } {
+  const items = defs ?? [];
+  const out: PlacedOpening[] = [...(placed ?? [])];
+  const types: OpeningItem[] = [];
+  for (const item of items) {
+    const { placement, templateId, ...type } = item;
+    const owner = templateId && items.some((i) => i.id === templateId) ? templateId : type.id;
+    if (placement) out.push({ id: item.id, openingId: owner, ...placement });
+    if (!templateId || owner === type.id) types.push(type);
+  }
+  return { openings: types, placedOpenings: out };
 }

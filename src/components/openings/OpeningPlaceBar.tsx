@@ -1,7 +1,6 @@
 import { ListPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { placementTemplates } from '@/lib/openings';
 import { useViewportStore } from '@/store/viewportStore';
 import type { PdfFile } from '@/types';
 
@@ -12,8 +11,8 @@ export default function OpeningPlaceBar({ file }: { file: PdfFile }) {
   const setDialogOpen = useViewportStore((s) => s.setOpeningsDialogOpen);
 
   const items = file.openings ?? [];
-  const templates = placementTemplates(items);
-  const current = items.find((i) => i.id === placingId) ?? templates.find((i) => !i.placement) ?? templates[0];
+  const current = items.find((i) => i.id === placingId) ?? items[0];
+  const countOf = (id: string) => (file.placedOpenings ?? []).filter((p) => p.openingId === id).length;
 
   return (
     <div className="absolute left-1/2 top-3 z-10 flex -translate-x-1/2 items-center gap-2 rounded-md border border-border bg-card px-2 py-1.5 shadow-md">
@@ -27,10 +26,11 @@ export default function OpeningPlaceBar({ file }: { file: PdfFile }) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {templates.map((item) => (
+              {items.map((item) => (
                 <SelectItem key={item.id} value={item.id}>
                   {item.name}
                   {item.widthMm && item.heightMm ? ` – ${item.widthMm}×${item.heightMm}` : ''}
+                  {countOf(item.id) > 0 ? ` (${countOf(item.id)} plassert)` : ''}
                 </SelectItem>
               ))}
             </SelectContent>

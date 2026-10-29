@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { areaAtPoint, movePersonMarkers, withPersonAdded, withPersonRemoved } from '@/lib/personMarkers';
+import { areaAtPoint, movePersonMarkers, trimPersonMarkers, withPersonAdded, withPersonRemoved } from '@/lib/personMarkers';
 import type { Annotation } from '@/types';
 
 const rect = (id: string, x0: number, y0: number, x1: number, y1: number): Annotation => ({
@@ -68,5 +68,23 @@ describe('movePersonMarkers', () => {
     let n = 0;
     expect(movePersonMarkers([{ id: 'x', x: 1, y: 2 }], 12, 12, () => `n${++n}`)).toEqual([{ id: 'n1', x: 13, y: 14 }]);
     expect(movePersonMarkers(undefined, 12, 12, () => 'n')).toBeUndefined();
+  });
+});
+
+describe('trimPersonMarkers', () => {
+  const markers = [
+    { id: 'a', x: 1, y: 1 },
+    { id: 'b', x: 2, y: 2 },
+    { id: 'c', x: 3, y: 3 },
+  ];
+
+  it('keeps the earliest icons up to the new count', () => {
+    expect(trimPersonMarkers(markers, 2)?.map((m) => m.id)).toEqual(['a', 'b']);
+    expect(trimPersonMarkers(markers, 5)).toHaveLength(3);
+  });
+
+  it('removes all icons at zero', () => {
+    expect(trimPersonMarkers(markers, 0)).toBeUndefined();
+    expect(trimPersonMarkers(undefined, 2)).toBeUndefined();
   });
 });

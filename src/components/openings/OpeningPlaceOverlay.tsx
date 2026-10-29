@@ -6,8 +6,6 @@ import {
   nearestEdge,
   OPENING_DEPTH_METERS,
   openingRect,
-  placementTemplates,
-  placeOpening,
 } from '@/lib/openings';
 import { cn } from '@/lib/utils';
 import { useAnnotationStore } from '@/store/annotationStore';
@@ -29,9 +27,8 @@ export default function OpeningPlaceOverlay({ file, zoom, width, height }: Openi
   const svgRef = useRef<SVGSVGElement>(null);
   const [cursor, setCursor] = useState<Point | null>(null);
 
-  const items = file.openings ?? [];
-  const templates = placementTemplates(items);
-  const item = items.find((i) => i.id === placingId) ?? templates.find((i) => !i.placement) ?? templates[0];
+  const types = file.openings ?? [];
+  const item = types.find((i) => i.id === placingId) ?? types[0];
   const mpu = metersPerUnit(file.calibration);
   const rooms = annotations.filter((a) => a.type !== 'line' && a.visible);
   const widthUnits = ((item?.widthMm ?? DEFAULT_OPENING_WIDTH_MM) / 1000) / mpu;
@@ -54,9 +51,13 @@ export default function OpeningPlaceOverlay({ file, zoom, width, height }: Openi
     if (isSpaceDown || e.button !== 0 || !item) return;
     const target = nearestEdge(toPdf(e), rooms, SNAP_SCREEN_PX / zoom, widthUnits);
     if (!target) return;
-    // Stays on this window/door type: each click places another one until a different type is chosen.
-    const placement = { annotationId: target.annotationId, edgeIndex: target.edgeIndex, t: target.t };
-    void setOpenings(file.id, placeOpening(items, item.id, placement, createId()));
+    // Stays on this window/door type: each click places another one of it (no new type is made) until
+    // a different type is chosen.
+    const placed = [
+      ...(file.placedOpenings ?? []),
+      { id: createId(), openingId: item.id, annotationId: target.annotationId, edgeIndex: target.edgeIndex, t: target.t },
+    ];
+    void setOpenings(file.id, types, placed);
     setPlacingId(item.id);
   }
 

@@ -6,11 +6,13 @@ import { useAnnotationStore } from '@/store/annotationStore';
 import { useViewportStore } from '@/store/viewportStore';
 import { formatArea, metersPerUnit } from '@/lib/calibration';
 import { annotationArea } from '@/lib/geometry';
-import type { Calibration, OpeningItem } from '@/types';
+import { joinPlacements } from '@/lib/openings';
+import type { Calibration, OpeningItem, PlacedOpening } from '@/types';
 
 type MeasurementPanelProps = {
   calibration: Calibration;
   openings?: OpeningItem[];
+  placedOpenings?: PlacedOpening[];
 };
 
 /**
@@ -51,7 +53,7 @@ export function MeasurementHeader({
   );
 }
 
-export default function MeasurementPanel({ calibration, openings = [] }: MeasurementPanelProps) {
+export default function MeasurementPanel({ calibration, openings = [], placedOpenings = [] }: MeasurementPanelProps) {
   const annotations = useAnnotationStore((s) => s.annotations);
   const selectedId = useAnnotationStore((s) => s.selectedId);
   const setSelected = useAnnotationStore((s) => s.setSelected);
@@ -86,7 +88,7 @@ export default function MeasurementPanel({ calibration, openings = [] }: Measure
             selectedId={selectedId}
             unit={unit}
             calibration={calibration}
-            openings={openings}
+            openings={joinPlacements(openings, placedOpenings)}
             onSelectAndJump={selectAndJump}
           />
 
@@ -113,7 +115,7 @@ export default function MeasurementPanel({ calibration, openings = [] }: Measure
             </div>
           )}
 
-          {openings.length > 0 && <OpeningsTable openings={openings} />}
+          {openings.length > 0 && <OpeningsTable openings={openings} placed={placedOpenings} />}
         </div>
       )}
     </div>

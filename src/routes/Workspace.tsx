@@ -131,7 +131,7 @@ export default function Workspace() {
               aria-hidden={!panelOpen}
             >
               <div className="h-40">
-                <MeasurementPanel calibration={activeFile.calibration} openings={activeFile.openings} />
+                <MeasurementPanel calibration={activeFile.calibration} openings={activeFile.openings} placedOpenings={activeFile.placedOpenings} />
               </div>
             </div>
           </>

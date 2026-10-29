@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { filesRepo } from '@/lib/db';
 import { createId } from '@/lib/id';
-import type { Calibration, OpeningItem, PdfFile } from '@/types';
+import { normalizeOpenings } from '@/lib/openings';
+import type { Calibration, OpeningItem, PdfFile, PlacedOpening } from '@/types';
 
 type FilesStore = {
   filesByProject: Record<string, PdfFile[]>;
@@ -12,7 +13,7 @@ type FilesStore = {
   renameFile: (fileId: string, name: string) => Promise<void>;
   deleteFile: (fileId: string) => Promise<void>;
   setCalibration: (fileId: string, calibration: Calibration) => Promise<void>;
-  setOpenings: (fileId: string, openings: OpeningItem[]) => Promise<void>;
+  setOpenings: (fileId: string, openings: OpeningItem[], placedOpenings?: PlacedOpening[]) => Promise<void>;
   setActiveFile: (fileId: string | null) => void;
   getFile: (fileId: string) => PdfFile | undefined;
 };
@@ -23,7 +24,11 @@ export const useFilesStore = create<FilesStore>((set, get) => ({
   activeFileId: null,
 
   loadFiles: async (projectId: string) => {
-    const files = await filesRepo.listByProject(projectId);
+    const files = (await filesRepo.listByProject(projectId)).map((f) =>
+      f.openings?.some((o) => o.placement || o.templateId)
+        ? { ...f, ...(({ openings, placedOpenings }) => ({ openings, placedOpenings }))(normalizeOpenings(f.openings, f.placedOpenings)) }
+        : f,
+    );
     set((state) => ({
       filesByProject: { ...state.filesByProject, [projectId]: files },
       filesLoaded: { ...state.filesLoaded, [projectId]: true },
@@ -75,10 +80,12 @@ export const useFilesStore = create<FilesStore>((set, get) => ({
     }));
   },
 
-  setOpenings: async (fileId: string, openings: OpeningItem[]) => {
+  setOpenings: async (fileId: string, openings: OpeningItem[], placedOpenings?: PlacedOpening[]) => {
     const file = get().getFile(fileId);
     if (!file) return;
-    const updated: PdfFile = { ...file, openings };
+    // Placements of a type that no longer exists go with it.
+    const placed = (placedOpenings ?? file.placedOpenings ?? []).filter((p) => openings.some((o) => o.id === p.openingId));
+    const updated: PdfFile = { ...file, openings, placedOpenings: placed };
     await filesRepo.put(updated);
     set((state) => ({
       filesByProject: {

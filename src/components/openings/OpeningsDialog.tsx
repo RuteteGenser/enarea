@@ -78,8 +78,8 @@ export default function OpeningsDialog({ file }: OpeningsDialogProps) {
         <DialogHeader>
           <DialogTitle>Vinduer og dører</DialogTitle>
           <DialogDescription>
-            Legg til vinduer og dører, skriv inn bredde og høyde i mm og velg type fra bygningstabellen. Plasser dem
-            på veggene med plasseringsverktøyet.
+            Lag vindu- og dørtyper, skriv inn bredde og høyde i mm og velg type fra bygningstabellen. Hver type kan
+            plasseres mange ganger på veggene med plasseringsverktøyet.
           </DialogDescription>
         </DialogHeader>
 
@@ -102,6 +102,7 @@ export default function OpeningsDialog({ file }: OpeningsDialogProps) {
               key={item.id}
               item={item}
               typeOptions={types.filter((t) => t.category === typeCategoryFor(item.kind))}
+              placedCount={(file.placedOpenings ?? []).filter((p) => p.openingId === item.id).length}
               onChange={(patch) => update(item.id, patch)}
               onDelete={() => save(items.filter((i) => i.id !== item.id))}
             />
@@ -143,6 +144,7 @@ export default function OpeningsDialog({ file }: OpeningsDialogProps) {
 type OpeningRowProps = {
   item: OpeningItem;
   typeOptions: { id: string; name: string; uValue?: number }[];
+  placedCount: number;
   onChange: (patch: Partial<OpeningItem>) => void;
   onDelete: () => void;
 };
@@ -152,7 +154,7 @@ function parseMm(text: string): number | undefined {
   return text.trim() !== '' && Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
-function OpeningRow({ item, typeOptions, onChange, onDelete }: OpeningRowProps) {
+function OpeningRow({ item, typeOptions, placedCount, onChange, onDelete }: OpeningRowProps) {
   const [name, setName] = useState(item.name);
   const [width, setWidth] = useState(item.widthMm ? String(item.widthMm) : '');
   const [height, setHeight] = useState(item.heightMm ? String(item.heightMm) : '');
@@ -232,7 +234,12 @@ function OpeningRow({ item, typeOptions, onChange, onDelete }: OpeningRowProps) 
           )}
         </SelectContent>
       </Select>
-      <Button variant="ghost" size="icon-sm" onClick={onDelete} title="Slett">
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        onClick={onDelete}
+        title={placedCount > 0 ? `Slett (fjerner også ${placedCount} plasserte)` : 'Slett'}
+      >
         <Trash2 className="size-3.5" />
       </Button>
     </div>

@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
 import { metersPerUnit } from '@/lib/calibration';
-import { DEFAULT_OPENING_WIDTH_MM, placedOpeningRect } from '@/lib/openings';
+import { DEFAULT_OPENING_WIDTH_MM, joinPlacements, placedOpeningRect } from '@/lib/openings';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useFilesStore } from '@/store/filesStore';
-import type { Calibration, OpeningItem } from '@/types';
+import type { Calibration, OpeningItem, PlacedOpening } from '@/types';
 
 const KIND_COLORS = { vindu: '#0091ff', dor: '#b45309' } as const;
 
 type OpeningRectsProps = {
   fileId: string;
+  /** The window/door types. */
   openings: OpeningItem[];
+  /** Where they are placed (one entry per placed copy). */
+  placed: PlacedOpening[];
   zoom: number;
   calibration: Calibration;
   /** In the Velg tool a window/door can be grabbed and moved along its wall. */
@@ -17,7 +20,8 @@ type OpeningRectsProps = {
 };
 
 /** The placed windows and doors of the file, drawn as rectangles on their walls. */
-export default function OpeningRects({ fileId, openings, zoom, calibration, movable = false }: OpeningRectsProps) {
+export default function OpeningRects({ fileId, openings, placed, zoom, calibration, movable = false }: OpeningRectsProps) {
+  const joined = joinPlacements(openings, placed);
   const annotations = useAnnotationStore((s) => s.annotations);
   const setOpenings = useFilesStore((s) => s.setOpenings);
   const mpu = metersPerUnit(calibration);
@@ -31,19 +35,32 @@ export default function OpeningRects({ fileId, openings, zoom, calibration, mova
     const onDown = (e: MouseEvent) => {
       if (!(e.target as Element | null)?.closest?.('[data-opening]')) setSelectedId(null);
     };
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setSelectedId(null);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectedId(null);
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && !(e.target instanceof HTMLInputElement)) {
+        // Delete removes the selected window/door (and must not also delete the selected area).
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        // Removes this placed copy only; the window/door type stays in the list.
+        const file = useFilesStore.getState().getFile(fileId);
+        void setOpenings(fileId, file?.openings ?? [], (file?.placedOpenings ?? []).filter((p) => p.id !== selectedId));
+        setSelectedId(null);
+      }
+    };
     window.addEventListener('mousedown', onDown);
-    window.addEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
     return () => {
       window.removeEventListener('mousedown', onDown);
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', onKey, true);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reads the latest list from the store
   }, [selectedId]);
 
   const dragId = drag?.id;
   useEffect(() => {
     if (!dragId) return;
-    const item = openings.find((o) => o.id === dragId);
+    const item = joined.find((o) => o.id === dragId);
     const place = item?.placement;
     const room = place ? annotations.find((a) => a.id === place.annotationId) : undefined;
     const a = room && place ? room.points[place.edgeIndex] : undefined;
@@ -71,7 +88,8 @@ export default function OpeningRects({ fileId, openings, zoom, calibration, mova
       if (commit && Math.abs(latest - place!.t) > 1e-6) {
         void setOpenings(
           fileId,
-          openings.map((o) => (o.id === dragId && o.placement ? { ...o, placement: { ...o.placement, t: latest } } : o)),
+          openings,
+          placed.map((p) => (p.id === dragId ? { ...p, t: latest } : p)),
         );
       }
       setDrag(null);
@@ -92,7 +110,7 @@ export default function OpeningRects({ fileId, openings, zoom, calibration, mova
 
   return (
     <g>
-      {openings.map((item) => {
+      {joined.map((item) => {
         const live = drag?.id === item.id && item.placement ? { ...item, placement: { ...item.placement, t: drag.t } } : item;
         const rect = placedOpeningRect(live, annotations, mpu);
         if (!rect) return null;

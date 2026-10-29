@@ -10,7 +10,7 @@ import { useDrawTool } from '@/components/tools/useDrawTool';
 import { useSelectTool } from '@/components/tools/useSelectTool';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useViewportStore } from '@/store/viewportStore';
-import type { Calibration, OpeningItem, Point, Unit } from '@/types';
+import type { Calibration, OpeningItem, PlacedOpening, Point, Unit } from '@/types';
 
 type AnnotationLayerProps = {
   fileId: string;
@@ -20,13 +20,14 @@ type AnnotationLayerProps = {
   calibration: Calibration;
   unit: Unit;
   openings?: OpeningItem[];
+  placedOpenings?: PlacedOpening[];
 };
 
 function toScreen(p: Point, zoom: number) {
   return { x: p.x * zoom, y: p.y * zoom };
 }
 
-export default function AnnotationLayer({ fileId, zoom, width, height, calibration, unit, openings }: AnnotationLayerProps) {
+export default function AnnotationLayer({ fileId, zoom, width, height, calibration, unit, openings, placedOpenings }: AnnotationLayerProps) {
   const tool = useViewportStore((s) => s.tool);
   const isSpaceDown = useViewportStore((s) => s.isSpaceDown);
   const annotations = useAnnotationStore((s) => s.annotations);
@@ -167,10 +168,11 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
       )}
 
       {/* Above the wall layer: a window sits on its wall, so it must catch the mouse first. */}
-      {openings && openings.length > 0 && (
+      {placedOpenings && placedOpenings.length > 0 && openings && (
         <OpeningRects
           fileId={fileId}
           openings={openings}
+          placed={placedOpenings}
           zoom={zoom}
           calibration={calibration}
           movable={isSelectTool && !isSpaceDown}
