@@ -16,13 +16,14 @@ function isButtonTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && target.tagName === 'BUTTON';
 }
 
-const TOOL_KEYS: Record<string, 'select' | 'measure' | 'rectangle' | 'polygon' | 'pan' | 'detect' | 'wall' | 'material' | 'people'> = {
+const TOOL_KEYS: Record<string, 'select' | 'room-name' | 'measure' | 'rectangle' | 'polygon' | 'pan' | 'detect' | 'wall' | 'material' | 'people'> = {
   v: 'select',
   l: 'measure',
   r: 'rectangle',
   p: 'polygon',
   h: 'pan',
   d: 'detect',
+  n: 'room-name',
   w: 'wall',
   m: 'material',
   o: 'people',

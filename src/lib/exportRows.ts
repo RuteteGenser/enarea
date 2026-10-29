@@ -34,7 +34,6 @@ export function buildExportTables(
   const rooms: Cell[][] = [];
   const walls: Cell[][] = [];
   const openings: Cell[][] = [];
-  const lines: Cell[][] = [];
 
   let totalArea = 0;
   let totalPeople = 0;
@@ -50,14 +49,8 @@ export function buildExportTables(
     for (const annotation of annotations) {
       const name = displayName(annotation);
 
-      if (annotation.type === 'line') {
-        lines.push([
-          file.name,
-          annotation.name?.trim() || null,
-          calibrated ? round(distance(annotation.points[0], annotation.points[1]) * mpu) : null,
-        ]);
-        continue;
-      }
+      // Saved lines are not part of the export.
+      if (annotation.type === 'line') continue;
 
       roomCount++;
       const area = calibrated ? annotationArea(annotation) * mpu * mpu : null;
@@ -241,6 +234,5 @@ export function buildExportTables(
       ],
       rows: openings,
     },
-    { title: 'Linjer', headers: ['Fil', 'Navn', 'Lengde (m)'], rows: lines },
   ];
 }

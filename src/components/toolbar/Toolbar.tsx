@@ -6,6 +6,7 @@ import {
   Hexagon,
   Wand2,
   Sparkles,
+  ScanText,
   RulerDimensionLine,
   DoorOpen,
   ListPlus,
@@ -165,6 +166,16 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
           disabledReason="Kalibrer PDF-en først"
           onClick={() => setTool('detect')}
         />
+        <ToolButton
+          icon={ScanText}
+          label="Gjenkjenn romnavn"
+          shortcut="N"
+          active={tool === 'room-name'}
+          onClick={() => setTool('room-name')}
+        />
+
+        <Separator orientation="vertical" className="mx-1 h-6" />
+
         <DropdownMenu>
           <Tooltip>
             <TooltipTrigger asChild>

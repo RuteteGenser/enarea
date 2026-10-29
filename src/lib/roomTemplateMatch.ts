@@ -58,10 +58,10 @@ export function toRoomTemplateAssignment(template: RoomTemplate, matchType: Room
 // Sets an annotation's name and (re-)runs room-template matching against it. A previously
 // confirmed manual assignment is never overwritten by auto-matching. Fires a toast when a
 // fuzzy (unconfirmed) match is applied so the user can double-check it.
-export function applyRoomNameAndMatch(annotationId: string, name: string): void {
+export function applyRoomNameAndMatch(annotationId: string, name: string, extra: Partial<Annotation> = {}): void {
   const { annotations, updateAnnotation } = useAnnotationStore.getState();
   const existing = annotations.find((a) => a.id === annotationId);
-  const patch: Partial<Annotation> = { name };
+  const patch: Partial<Annotation> = { name, ...extra };
 
   if (existing?.roomTemplate?.matchType !== 'manual') {
     const result = matchRoomTemplate(name, useRoomTemplateStore.getState().templates);

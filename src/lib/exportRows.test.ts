@@ -37,7 +37,7 @@ const room: Annotation = {
 describe('buildExportTables', () => {
   it('makes one table per sheet with titles on top', () => {
     const tables = buildExportTables(project, [{ file: file(true), annotations: [room] }]);
-    expect(tables.map((t) => t.title)).toEqual(['Prosjekt', 'Rom', 'Vegger', 'Vinduer og dører', 'Linjer']);
+    expect(tables.map((t) => t.title)).toEqual(['Prosjekt', 'Rom', 'Vegger', 'Vinduer og dører']);
     for (const t of tables) for (const row of t.rows) expect(row).toHaveLength(t.headers.length);
   });
 
@@ -154,6 +154,15 @@ describe('Vegger sheet only has outer walls', () => {
   it('keeps the wall numbers of the sides, so they match the drawing', () => {
     const walls = buildExportTables(project, [{ file: file(true), annotations: [{ ...room, edges: [{}, {}, {}, { wallType: 'external' }] }] }])[2];
     expect(walls.rows[0][walls.headers.indexOf('Vegg nr')]).toBe(4);
+  });
+});
+
+describe('lines', () => {
+  it('are not exported (no Linjer sheet, no rows from lines)', () => {
+    const line = { ...room, id: 'l', type: 'line' as const, points: [{ x: 0, y: 0 }, { x: 50, y: 0 }], edges: undefined };
+    const tables = buildExportTables(project, [{ file: file(true), annotations: [line] }]);
+    expect(tables.map((x) => x.title)).not.toContain('Linjer');
+    expect(tables[1].rows).toHaveLength(0);
   });
 });
 

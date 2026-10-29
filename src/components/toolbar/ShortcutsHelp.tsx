@@ -9,6 +9,7 @@ const SHORTCUTS: [string, string][] = [
   ['R', 'Rektangel'],
   ['P', 'Polygon'],
   ['D', 'Gjenkjenn rom'],
+  ['N', 'Gjenkjenn romnavn (klikk på navn/nummer)'],
   ['W', 'Merk yttervegg'],
   ['O', 'Personer (klikk i rom, Shift + klikk fjerner)'],
   ['H / Mellomrom + dra', 'Panorer'],
