@@ -2,7 +2,7 @@ export type Point = { x: number; y: number };
 
 export type PdfLayer = { id: string; name: string; visible: boolean };
 
-export type ToolId = 'select' | 'line' | 'rectangle' | 'polygon' | 'calibrate' | 'calibrate-area' | 'pan' | 'detect' | 'wall' | 'material' | 'people';
+export type ToolId = 'select' | 'line' | 'rectangle' | 'polygon' | 'calibrate' | 'calibrate-area' | 'pan' | 'detect' | 'wall' | 'wall-auto' | 'material' | 'people';
 
 export type Unit = 'm' | 'mm';
 

@@ -5,6 +5,7 @@ import {
   Square,
   Hexagon,
   Wand2,
+  Sparkles,
   BrickWall,
   Palette,
   Users,
@@ -22,6 +23,7 @@ import ToolButton from '@/components/toolbar/ToolButton';
 import ShortcutsHelp from '@/components/toolbar/ShortcutsHelp';
 import ScaleCalibrationDialog from '@/components/calibration/ScaleCalibrationDialog';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Separator } from '@/components/ui/separator';
 import {
   DropdownMenu,
@@ -137,15 +139,32 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
           disabledReason="Kalibrer PDF-en først"
           onClick={() => setTool('detect')}
         />
-        <ToolButton
-          icon={BrickWall}
-          label="Merk yttervegg"
-          shortcut="W"
-          active={tool === 'wall'}
-          disabled={!calibrated}
-          disabledReason="Kalibrer PDF-en først"
-          onClick={() => setTool('wall')}
-        />
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={!calibrated}
+                  className={cn((tool === 'wall' || tool === 'wall-auto') && 'bg-primary/10 text-primary hover:bg-primary/15')}
+                  aria-pressed={tool === 'wall' || tool === 'wall-auto'}
+                >
+                  <BrickWall />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>{calibrated ? 'Merk yttervegg (W)' : 'Kalibrer PDF-en først'}</TooltipContent>
+          </Tooltip>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onSelect={() => setTool('wall-auto')}>
+              <Sparkles /> Automatisk – alle ytterkanter
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setTool('wall')}>
+              <BrickWall /> Individuell markering
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <ToolButton
           icon={Palette}
           label="Materialvelger"
