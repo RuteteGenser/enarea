@@ -131,6 +131,8 @@ export default function RoomTable({
 
   /** Windows-style selection: Ctrl toggles one row, Shift selects from the anchor row to this one. */
   function selectRow(id: string, e: React.MouseEvent | React.KeyboardEvent) {
+    // Popups (pickers, selects) render in portals but their events still bubble through the row: ignore those.
+    if (e.target instanceof Node && !e.currentTarget.contains(e.target)) return;
     const ctrl = e.ctrlKey || e.metaKey;
     if (e.shiftKey && anchorId.current) {
       const from = rows.findIndex((r) => r.id === anchorId.current);
@@ -148,7 +150,14 @@ export default function RoomTable({
     }
     // Clicking a control inside a selected row (to edit all selected rows) must not drop the selection.
     const insideControl = e.target instanceof Element && e.target.closest('input, button, select, [role="combobox"]');
-    if (insideControl && selectedIds.length > 1 && selectedIds.includes(id)) return;
+    if (insideControl) {
+      // Opening a picker selects the row without moving the view; with several rows selected nothing changes.
+      if (!selectedIds.includes(id)) {
+        anchorId.current = id;
+        setSelected(id);
+      }
+      return;
+    }
     anchorId.current = id;
     setSelected(id);
     onSelectAndJump(id);
@@ -439,7 +448,7 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
         )}
       </td>
 
-      <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
+      <td className="px-2 py-1.5">
         <RoomTemplatePicker
           current={annotation.roomTemplate}
           open={roomPickerOpen}
@@ -465,7 +474,7 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
 
       <td className="px-2 py-1.5 tabular-nums text-muted-foreground">{area}</td>
 
-      <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
+      <td className="px-2 py-1.5">
         <Input
           type="number"
           min={0}
@@ -485,7 +494,7 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
         />
       </td>
 
-      <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
+      <td className="px-2 py-1.5">
         <BuildingComponentPicker
           categories={['gulv', 'dekke']}
           current={annotation.buildingComponent}
