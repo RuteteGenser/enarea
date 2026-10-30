@@ -1,5 +1,6 @@
 import { formatArea, formatLength, metersPerUnit } from '@/lib/calibration';
 import { annotationArea, distance } from '@/lib/geometry';
+import { areaLabelPoint } from '@/lib/labelPoint';
 import { ANNOTATION_COLORS } from '@/types';
 import type { Annotation, Calibration, Point, Unit } from '@/types';
 
@@ -42,10 +43,9 @@ export default function ShapeRenderer({
   } else {
     const squareMeters = annotationArea(annotation, geometryPoints) * mpu * mpu;
     valueLabel = formatArea(squareMeters, unit);
-    labelPos = {
-      x: screenPoints.reduce((sum, p) => sum + p.x, 0) / screenPoints.length,
-      y: screenPoints.reduce((sum, p) => sum + p.y, 0) / screenPoints.length,
-    };
+    // The middle of the widest part of the area, so the box is not on an edge (also for L/U shapes).
+    const middle = areaLabelPoint(geometryPoints, annotation.regions);
+    labelPos = { x: middle.x * zoom, y: middle.y * zoom };
   }
 
   // A label placed at the click point when a type was assigned (see MaterialPickerOverlay)
@@ -56,10 +56,18 @@ export default function ShapeRenderer({
 
   const pointsAttr = screenPoints.map((p) => `${p.x},${p.y}`).join(' ');
   const strokeDasharray = annotation.locked ? '5 3' : undefined;
-  const labelText = annotation.name ? `${annotation.name}  ${valueLabel}` : valueLabel;
-  const peopleText =
-    annotation.type !== 'line' && annotation.people ? `${annotation.people} ${annotation.people === 1 ? 'person' : 'personer'}` : '';
-  const labelWidth = Math.max(labelText.length, peopleText.length) * 6.2 + 12;
+  // Label lines for an area:  "Romnr Romnavn" / kvadratmeter / personer. Lines have a single value.
+  const isArea = annotation.type !== 'line';
+  const titleText = isArea ? [annotation.roomNumber, annotation.name].filter(Boolean).join(' ') : (annotation.name ?? '');
+  const peopleText = isArea && annotation.people ? `${annotation.people} ${annotation.people === 1 ? 'person' : 'personer'}` : '';
+  const labelLines = [
+    ...(titleText ? [{ text: titleText, strong: true }] : []),
+    { text: valueLabel, strong: !titleText },
+    ...(peopleText ? [{ text: peopleText, strong: false }] : []),
+  ];
+  const LINE_HEIGHT = 14;
+  const labelWidth = Math.max(...labelLines.map((l) => l.text.length)) * 6.3 + 14;
+  const labelHeight = labelLines.length * LINE_HEIGHT + 8;
 
   return (
     <g
@@ -156,31 +164,31 @@ export default function ShapeRenderer({
         </g>
       )}
 
+      {/* The box is centred on the label point. */}
       <g transform={`translate(${labelPos.x}, ${labelPos.y})`}>
         <rect
           x={-labelWidth / 2}
-          y={-19}
+          y={-labelHeight / 2}
           width={labelWidth}
-          height={peopleText ? 33 : 20}
+          height={labelHeight}
           rx={4}
           className="fill-card/90 stroke-border"
           strokeWidth={1}
         />
-        <text x={0} y={-4} textAnchor="middle" fontSize={11} className="select-none fill-foreground" style={{ fontWeight: 500 }}>
-          {annotation.name ? (
-            <>
-              {annotation.name}{'  '}
-              <tspan className="fill-muted-foreground">{valueLabel}</tspan>
-            </>
-          ) : (
-            valueLabel
-          )}
-        </text>
-        {peopleText && (
-          <text x={0} y={9} textAnchor="middle" fontSize={11} className="select-none fill-muted-foreground" style={{ fontWeight: 500 }}>
-            {peopleText}
+        {labelLines.map((line, i) => (
+          <text
+            key={i}
+            x={0}
+            y={-labelHeight / 2 + 4 + LINE_HEIGHT * i + LINE_HEIGHT / 2}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fontSize={11}
+            className={line.strong ? 'select-none fill-foreground' : 'select-none fill-muted-foreground'}
+            style={{ fontWeight: line.strong ? 600 : 500 }}
+          >
+            {line.text}
           </text>
-        )}
+        ))}
       </g>
     </g>
   );
