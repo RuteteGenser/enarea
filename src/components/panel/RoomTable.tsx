@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown, Eye, EyeOff, Lock, Search, Trash2, TriangleAlert, Unlock } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
@@ -99,7 +99,7 @@ function isMissing(annotation: Annotation, filter: MissingFilter): boolean {
 
 type RoomTableProps = {
   annotations: Annotation[];
-  selectedId: string | null;
+  selectedIds: string[];
   unit: Unit;
   calibration: Calibration;
   onSelectAndJump: (id: string) => void;
@@ -108,7 +108,7 @@ type RoomTableProps = {
 
 export default function RoomTable({
   annotations,
-  selectedId,
+  selectedIds,
   unit,
   calibration,
   onSelectAndJump,
@@ -120,6 +120,10 @@ export default function RoomTable({
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   const mpu = metersPerUnit(calibration);
+  const setSelected = useAnnotationStore((s) => s.setSelected);
+  const setSelectedMany = useAnnotationStore((s) => s.setSelectedMany);
+  // The row a Shift-range starts from (the last row clicked without Shift).
+  const anchorId = useRef<string | null>(null);
 
   function toggleSort(key: ColumnKey) {
     if (sortKey !== key) {
@@ -130,6 +134,31 @@ export default function RoomTable({
     } else {
       setSortKey(null);
     }
+  }
+
+  /** Windows-style selection: Ctrl toggles one row, Shift selects from the anchor row to this one. */
+  function selectRow(id: string, e: React.MouseEvent | React.KeyboardEvent) {
+    const ctrl = e.ctrlKey || e.metaKey;
+    if (e.shiftKey && anchorId.current) {
+      const from = rows.findIndex((r) => r.id === anchorId.current);
+      const to = rows.findIndex((r) => r.id === id);
+      if (from >= 0 && to >= 0) {
+        const range = rows.slice(Math.min(from, to), Math.max(from, to) + 1).map((r) => r.id);
+        setSelectedMany(ctrl ? [...new Set([...selectedIds, ...range])] : range);
+        return;
+      }
+    }
+    if (ctrl) {
+      anchorId.current = id;
+      useAnnotationStore.getState().toggleSelected(id);
+      return;
+    }
+    // Clicking a control inside a selected row (to edit all selected rows) must not drop the selection.
+    const insideControl = e.target instanceof Element && e.target.closest('input, button, select, [role="combobox"]');
+    if (insideControl && selectedIds.length > 1 && selectedIds.includes(id)) return;
+    anchorId.current = id;
+    setSelected(id);
+    onSelectAndJump(id);
   }
 
   const rows = useMemo(() => {
@@ -216,11 +245,11 @@ export default function RoomTable({
                 <RoomTableRow
                   key={annotation.id}
                   annotation={annotation}
-                  selected={annotation.id === selectedId}
+                  selected={selectedIds.includes(annotation.id)}
                   unit={unit}
                   mpu={mpu}
                   openingItems={openings}
-                  onSelect={() => onSelectAndJump(annotation.id)}
+                  onSelect={(e) => selectRow(annotation.id, e)}
                 />
               ))}
             </tbody>
@@ -237,7 +266,7 @@ type RoomTableRowProps = {
   unit: Unit;
   mpu: number;
   openingItems: OpeningItem[];
-  onSelect: () => void;
+  onSelect: (e: React.MouseEvent | React.KeyboardEvent) => void;
 };
 
 type EditingField = 'rom' | 'romnr' | null;
@@ -245,8 +274,23 @@ type EditingField = 'rom' | 'romnr' | null;
 function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect }: RoomTableRowProps) {
   const updateAnnotation = useAnnotationStore((s) => s.updateAnnotation);
   const deleteAnnotation = useAnnotationStore((s) => s.deleteAnnotation);
-  const toggleLock = useAnnotationStore((s) => s.toggleLock);
-  const toggleVisible = useAnnotationStore((s) => s.toggleVisible);
+  const batch = useAnnotationStore((s) => s.batch);
+
+  /** The rows an edit applies to: every selected row when this one is part of a multi-selection, else just this one. */
+  function targets(): Annotation[] {
+    const { annotations, selectedIds } = useAnnotationStore.getState();
+    if (selectedIds.length > 1 && selectedIds.includes(annotation.id)) {
+      return annotations.filter((a) => selectedIds.includes(a.id) && a.type !== 'line');
+    }
+    return [annotation];
+  }
+
+  /** Applies a patch to all targets as one undo step. */
+  function applyToTargets(patchFor: (a: Annotation) => Partial<Annotation>) {
+    batch(() => {
+      for (const a of targets()) updateAnnotation(a.id, patchFor(a));
+    });
+  }
 
   const [editing, setEditing] = useState<EditingField>(null);
   const [draft, setDraft] = useState('');
@@ -267,24 +311,26 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
   const areaSquareMeters = annotationArea(annotation) * mpu * mpu;
 
   /** Person icons matching a people count: added in the middle of the room, or removed from the end. */
-  function markersFor(count: number | undefined) {
-    return markersForPeople(annotation, count ?? 0, PERSON_SPACING_METERS / mpu, createId);
+  function markersFor(target: Annotation, count: number | undefined) {
+    return markersForPeople(target, count ?? 0, PERSON_SPACING_METERS / mpu, createId);
   }
 
   function setPeople(count: number | undefined) {
-    updateAnnotation(annotation.id, { people: count, personMarkers: markersFor(count) });
+    applyToTargets((a) => ({ people: count, personMarkers: markersFor(a, count) }));
   }
 
   function changeAreaType(id: string) {
     const type = findAreaType(id);
     if (!type) {
       // Stored explicitly so the project's default isn't shown again for this room.
-      updateAnnotation(annotation.id, { areaType: NO_AREA_TYPE });
+      applyToTargets(() => ({ areaType: NO_AREA_TYPE }));
       return;
     }
     // Suggest the number of people for this floor area; Personer can still be edited afterwards.
-    const people = peopleForArea(areaSquareMeters, type.m2PerPerson);
-    updateAnnotation(annotation.id, { areaType: id, people, personMarkers: markersFor(people) });
+    applyToTargets((a) => {
+      const people = peopleForArea(annotationArea(a) * mpu * mpu, type.m2PerPerson);
+      return { areaType: id, people, personMarkers: markersFor(a, people) };
+    });
   }
 
   const area = formatArea(areaSquareMeters, unit);
@@ -308,13 +354,13 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
   function commitRom() {
     setEditing(null);
     const trimmed = draft.trim();
-    if (trimmed && trimmed !== annotation.name) applyRoomNameAndMatch(annotation.id, trimmed);
+    if (trimmed && trimmed !== annotation.name) batch(() => targets().forEach((a) => applyRoomNameAndMatch(a.id, trimmed)));
   }
 
   function commitRomnr() {
     setEditing(null);
     const trimmed = draft.trim();
-    if (trimmed !== (annotation.roomNumber ?? '')) updateAnnotation(annotation.id, { roomNumber: trimmed || undefined });
+    if (trimmed !== (annotation.roomNumber ?? '')) applyToTargets(() => ({ roomNumber: trimmed || undefined }));
   }
 
   function commitPeople() {
@@ -337,9 +383,9 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
       role="button"
       tabIndex={0}
       onClick={onSelect}
-      onKeyDown={(e) => e.key === 'Enter' && onSelect()}
+      onKeyDown={(e) => e.key === 'Enter' && onSelect(e)}
       className={cn(
-        'group border-b border-border/50 transition-colors',
+        'group select-none border-b border-border/50 transition-colors',
         selected ? 'bg-accent' : 'hover:bg-secondary/60',
         !annotation.visible && 'opacity-50',
       )}
@@ -397,7 +443,7 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
           current={annotation.roomTemplate}
           open={roomPickerOpen}
           onOpenChange={setRoomPickerOpen}
-          onSelect={(next) => updateAnnotation(annotation.id, { roomTemplate: next ?? undefined })}
+          onSelect={(next) => applyToTargets(() => ({ roomTemplate: next ?? undefined }))}
         >
           <button
             type="button"
@@ -460,7 +506,7 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
           current={annotation.buildingComponent}
           open={gulvDekkePickerOpen}
           onOpenChange={setGulvDekkePickerOpen}
-          onSelect={(next) => updateAnnotation(annotation.id, { buildingComponent: next ?? undefined })}
+          onSelect={(next) => applyToTargets(() => ({ buildingComponent: next ?? undefined }))}
         >
           <button
             type="button"
@@ -506,7 +552,7 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
                   <button
                     key={c}
                     type="button"
-                    onClick={() => updateAnnotation(annotation.id, { color: c })}
+                    onClick={() => applyToTargets(() => ({ color: c }))}
                     className={cn(
                       'size-6 rounded-full ring-1 ring-black/10 transition-transform hover:scale-110',
                       c === annotation.color && 'ring-2 ring-primary ring-offset-1',
@@ -517,13 +563,13 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
               </div>
             </PopoverContent>
           </Popover>
-          <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); toggleVisible(annotation.id); }}>
+          <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); applyToTargets(() => ({ visible: !annotation.visible })); }}>
             {annotation.visible ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
           </Button>
-          <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); toggleLock(annotation.id); }}>
+          <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); applyToTargets(() => ({ locked: !annotation.locked })); }}>
             {annotation.locked ? <Lock className="size-3.5" /> : <Unlock className="size-3.5" />}
           </Button>
-          <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); deleteAnnotation(annotation.id); }}>
+          <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); batch(() => targets().forEach((a) => deleteAnnotation(a.id))); }}>
             <Trash2 className="size-3.5" />
           </Button>
         </div>
