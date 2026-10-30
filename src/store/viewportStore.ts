@@ -15,6 +15,10 @@ type ViewportStore = {
   showCompass: boolean;
   showAnnotations: boolean;
   panelOpen: boolean;
+  /** Height of the Målinger panel in px (dragged by its top edge). */
+  panelHeight: number;
+  panelResizing: boolean;
+  setPanelHeight: (height: number) => void;
   isSpaceDown: boolean;
   isShiftDown: boolean;
   /** True while the F key is held: shows the magnifier loupe (and slows the cursor). */
@@ -52,6 +56,19 @@ type ViewportStore = {
   resetLayersVisible: () => void;
 };
 
+const PANEL_HEIGHT_KEY = 'enarea.panelHeight';
+export const DEFAULT_PANEL_HEIGHT = 160;
+
+function loadPanelHeight(): number {
+  try {
+    const saved = Number(localStorage.getItem(PANEL_HEIGHT_KEY));
+    if (saved >= 80) return saved;
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_PANEL_HEIGHT;
+}
+
 export const useViewportStore = create<ViewportStore>((set, get) => ({
   tool: 'select', // the default tool: Velg
   zoom: 1,
@@ -62,6 +79,16 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   showCompass: true,
   showAnnotations: true,
   panelOpen: true,
+  panelHeight: loadPanelHeight(),
+  panelResizing: false,
+  setPanelHeight: (height) => {
+    set({ panelHeight: height });
+    try {
+      localStorage.setItem(PANEL_HEIGHT_KEY, String(Math.round(height)));
+    } catch {
+      /* storage unavailable: the height just isn't remembered */
+    }
+  },
   isSpaceDown: false,
   isShiftDown: false,
   isMagnifierKeyDown: false,

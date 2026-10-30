@@ -27,13 +27,43 @@ export function MeasurementHeader({
 }: MeasurementPanelProps & { open: boolean; onToggle: () => void }) {
   const annotations = useAnnotationStore((s) => s.annotations);
   const unit = useViewportStore((s) => s.unit);
+  const panelHeight = useViewportStore((s) => s.panelHeight);
+  const setPanelHeight = useViewportStore((s) => s.setPanelHeight);
   const mpu = metersPerUnit(calibration);
+
+  /** Drag the top edge up to make the panel taller; it can grow until only a strip of the drawing is left. */
+  function startResize(e: React.MouseEvent) {
+    if (!open) return;
+    e.preventDefault();
+    const startY = e.clientY;
+    const startHeight = panelHeight;
+    const maxHeight = () => Math.max(120, window.innerHeight - 220);
+    useViewportStore.setState({ panelResizing: true });
+    function onMove(ev: MouseEvent) {
+      setPanelHeight(Math.min(maxHeight(), Math.max(80, startHeight + (startY - ev.clientY))));
+    }
+    function onUp() {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      useViewportStore.setState({ panelResizing: false });
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
+
   const totalArea = annotations
     .filter((a) => a.type !== 'line')
     .reduce((sum, a) => sum + annotationArea(a) * mpu * mpu, 0);
 
   return (
-    <div className="on-chrome flex shrink-0 items-center gap-1 border-t border-border bg-panel px-2">
+    <div className="on-chrome relative flex shrink-0 items-center gap-1 border-t border-border bg-panel px-2">
+      {open && (
+        <div
+          onMouseDown={startResize}
+          title="Dra for å endre høyde"
+          className="absolute inset-x-0 -top-1 z-10 h-2 cursor-ns-resize hover:bg-primary/40"
+        />
+      )}
       <button
         type="button"
         onClick={onToggle}
