@@ -14,14 +14,15 @@ export const OPENING_KIND_LABELS: Record<OpeningKind, string> = { vindu: 'Vindu'
 /** Depth of the drawn rectangle across the wall, in meters. */
 export const OPENING_DEPTH_METERS = 0.25;
 
-/** Next free running number over all windows and doors, so names read Vindu 1, Vindu 2, Dør 3 … */
+/** Next free number within the same kind: Vindu 1, Vindu 2, Vindu 3 … and separately Dør 1, Dør 2 … */
 export function nextOpeningName(items: OpeningItem[], kind: OpeningKind): string {
+  const sameKind = items.filter((item) => item.kind === kind);
   let max = 0;
-  for (const item of items) {
+  for (const item of sameKind) {
     const match = item.name.match(/(\d+)\s*$/);
     if (match) max = Math.max(max, Number(match[1]));
   }
-  return `${OPENING_KIND_LABELS[kind]} ${Math.max(max, items.length) + 1}`;
+  return `${OPENING_KIND_LABELS[kind]} ${Math.max(max, sameKind.length) + 1}`;
 }
 
 /** Area in m² from the size in mm; undefined until both sizes are set. */

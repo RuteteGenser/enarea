@@ -2,17 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { joinPlacements, nearestEdge, nextOpeningName, normalizeOpenings, openingArea, openingRect } from '@/lib/openings';
 import type { Annotation, OpeningItem } from '@/types';
 
-const item = (name: string): OpeningItem => ({ id: name, kind: 'vindu', name });
+const item = (name: string, kind: OpeningItem['kind'] = 'vindu'): OpeningItem => ({ id: name, kind, name });
 
 describe('nextOpeningName', () => {
-  it('numbers windows and doors in one running sequence', () => {
+  it('numbers windows and doors separately', () => {
     expect(nextOpeningName([], 'vindu')).toBe('Vindu 1');
     expect(nextOpeningName([item('Vindu 1')], 'vindu')).toBe('Vindu 2');
-    expect(nextOpeningName([item('Vindu 1'), item('Vindu 2')], 'dor')).toBe('Dør 3');
+    expect(nextOpeningName([item('Vindu 1'), item('Vindu 2'), item('Vindu 3')], 'dor')).toBe('Dør 1');
+    expect(nextOpeningName([item('Vindu 1'), item('Dør 1', 'dor')], 'dor')).toBe('Dør 2');
   });
 
-  it('continues after the highest number even with gaps', () => {
-    expect(nextOpeningName([item('Vindu 1'), item('Dør 5')], 'vindu')).toBe('Vindu 6');
+  it('continues after the highest number of the same kind even with gaps', () => {
+    expect(nextOpeningName([item('Vindu 1'), item('Vindu 5')], 'vindu')).toBe('Vindu 6');
+    expect(nextOpeningName([item('Vindu 1'), item('Dør 5', 'dor')], 'vindu')).toBe('Vindu 2');
   });
 });
 
