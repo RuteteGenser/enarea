@@ -66,8 +66,6 @@ export type Annotation = {
   people?: number;
   // Person icons placed inside this area with the Personer tool; each one is counted in `people`.
   personMarkers?: PersonMarker[];
-  // Id of the chosen area type (src/lib/areaTypes.ts); picking one suggests `people` from the floor area.
-  areaType?: string;
   labelPos?: Point;
   color: AnnotationColor;
   locked: boolean;
