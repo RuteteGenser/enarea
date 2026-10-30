@@ -204,7 +204,7 @@ export default function RoomTable({
   return (
     <div className="flex flex-col">
       <div className="flex shrink-0 items-center gap-2 border-b border-border px-2 py-1.5">
-        <div className="relative flex-1">
+        <div className="relative w-56 max-w-full shrink-0">
           <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Søk rom eller romnr…"
