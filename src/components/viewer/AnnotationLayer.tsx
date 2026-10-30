@@ -31,8 +31,9 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
   const tool = useViewportStore((s) => s.tool);
   const isSpaceDown = useViewportStore((s) => s.isSpaceDown);
   const annotations = useAnnotationStore((s) => s.annotations);
-  const selectedId = useAnnotationStore((s) => s.selectedId);
+  const selectedIds = useAnnotationStore((s) => s.selectedIds);
   const setSelected = useAnnotationStore((s) => s.setSelected);
+  const toggleSelected = useAnnotationStore((s) => s.toggleSelected);
   const setEdgeMeta = useAnnotationStore((s) => s.setEdgeMeta);
 
   const svgRef = useRef<SVGSVGElement>(null);
@@ -70,7 +71,8 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
 
   const mpu = metersPerUnit(calibration);
   const isSelectTool = tool === 'select';
-  const selectedAnnotation = annotations.find((a) => a.id === selectedId);
+  // Corner handles only make sense for a single element.
+  const selectedAnnotation = selectedIds.length === 1 ? annotations.find((a) => a.id === selectedIds[0]) : undefined;
 
   let previewLabel: { pos: Point; text: string } | null = null;
   let previewShape: React.ReactNode = null;
@@ -111,7 +113,7 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       style={{
-        cursor: isSpaceDown ? undefined : tool === 'select' ? 'default' : tool === 'pan' ? undefined : 'crosshair',
+        cursor: isSpaceDown ? undefined : tool === 'select' || tool === 'box-select' ? 'default' : tool === 'pan' ? undefined : 'crosshair',
       }}
       onMouseMove={handlers.onMouseMove}
       onMouseDown={handlers.onMouseDown}
@@ -134,17 +136,17 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
             zoom={zoom}
             calibration={calibration}
             unit={unit}
-            selected={annotation.id === selectedId}
-            onSelect={isSelectTool && !isSpaceDown ? setSelected : undefined}
+            selected={selectedIds.includes(annotation.id)}
+            onSelect={isSelectTool && !isSpaceDown ? (id, additive) => (additive ? toggleSelected(id) : setSelected(id)) : undefined}
           />
         </g>
       ))}
 
-      {isSelectTool && !isSpaceDown && hoveredRoomId && hoveredRoomId !== selectedId && (
+      {isSelectTool && !isSpaceDown && hoveredRoomId && !selectedIds.includes(hoveredRoomId) && (
         <HoverOutline annotation={annotations.find((a) => a.id === hoveredRoomId)} zoom={zoom} />
       )}
 
-            {isSelectTool && selectedAnnotation && (
+      {isSelectTool && selectedAnnotation && (
         <SelectionHandles
           annotation={selectedAnnotation}
           points={livePointsFor(selectedAnnotation.id) ?? selectedAnnotation.points}

@@ -5,6 +5,8 @@ import type { Point } from '@/types';
 const WALL_LUMINANCE_THRESHOLD = 238;
 const MAX_FILL_PIXELS = 4_000_000;
 const MIN_FILL_PIXELS = 100;
+/** Detection runs at no more than this many pixels per PDF unit (see detectRoomPolygon). */
+const MAX_DETECT_PIXELS_PER_UNIT = 3;
 const SIMPLIFY_EPSILON_PX = 2.5;
 
 /** 8 directions in clockwise order, starting at North. */
@@ -33,10 +35,12 @@ function floodFillRoom(
   imageData: ImageData,
   seedX: number,
   seedY: number,
+  blocked?: Uint8Array,
 ): { visited: Uint8Array; minX: number; minY: number; maxX: number; maxY: number } | null {
   const { width, height, data } = imageData;
   if (seedX < 0 || seedY < 0 || seedX >= width || seedY >= height) return null;
   if (luminanceAt(data, width, seedX, seedY) < WALL_LUMINANCE_THRESHOLD) return null;
+  if (blocked && blocked[seedY * width + seedX]) return null;
 
   const visited = new Uint8Array(width * height);
   const stack: number[] = [seedY * width + seedX];
@@ -67,6 +71,7 @@ function floodFillRoom(
       if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
       const nIdx = ny * width + nx;
       if (visited[nIdx]) continue;
+      if (blocked && blocked[nIdx]) continue; // already marked: counts as a wall
       if (luminanceAt(data, width, nx, ny) < WALL_LUMINANCE_THRESHOLD) continue;
       visited[nIdx] = 1;
       stack.push(nIdx);
@@ -228,19 +233,68 @@ export function detectRoomPolygon(
   seedX: number,
   seedY: number,
   pixelsPerPdfUnit: number,
+  covered?: Point[][],
 ): Point[] | null {
-  const fill = floodFillRoom(imageData, Math.round(seedX), Math.round(seedY));
+  // Zoomed far in, tiny gaps between drawn lines (a door line that doesn't quite touch the wall) become
+  // several pixels wide and the fill leaks through them — it never does when zoomed out. So the detection
+  // always works at a limited resolution: a coarser copy where a block counts as wall if any pixel in it is.
+  const factor = Math.max(1, Math.ceil(pixelsPerPdfUnit / MAX_DETECT_PIXELS_PER_UNIT));
+  const image = factor > 1 ? downscaleWalls(imageData, factor) : imageData;
+  const scale = pixelsPerPdfUnit / factor;
+  const blocked = covered && covered.length > 0 ? coveredMask(covered, image.width, image.height, scale) : undefined;
+
+  const fill = floodFillRoom(image, Math.round(seedX / factor), Math.round(seedY / factor), blocked);
   if (!fill) return null;
 
-  const boundary = traceBoundary(fill.visited, imageData.width, imageData.height, fill.minX, fill.minY, fill.maxX, fill.maxY);
+  const boundary = traceBoundary(fill.visited, image.width, image.height, fill.minX, fill.minY, fill.maxX, fill.maxY);
   if (!boundary || boundary.length < 3) return null;
 
   const simplified = simplifyClosedPolygon(boundary, SIMPLIFY_EPSILON_PX);
   if (simplified.length < 3) return null;
 
-  const corrected = inflatePolygon(simplified, 0.5);
+  // Half a pixel for tracing through pixel centres, and the block that walls grew by when coarsened.
+  const corrected = inflatePolygon(simplified, factor > 1 ? 1 : 0.5);
 
-  return corrected.map((p) => ({ x: p.x / pixelsPerPdfUnit, y: p.y / pixelsPerPdfUnit }));
+  return corrected.map((p) => ({ x: p.x / scale, y: p.y / scale }));
+}
+
+/** Coarser copy of the image (blocks of `factor` px): the darkest pixel of each block wins, so thin lines and small gaps in them stay closed. */
+function downscaleWalls(imageData: ImageData, factor: number): ImageData {
+  const { width, height, data } = imageData;
+  const w = Math.ceil(width / factor);
+  const h = Math.ceil(height / factor);
+  const out = new Uint8ClampedArray(w * h * 4);
+  out.fill(255);
+  for (let by = 0; by < h; by++) {
+    for (let bx = 0; bx < w; bx++) {
+      let darkest = 255;
+      const yEnd = Math.min(height, (by + 1) * factor);
+      const xEnd = Math.min(width, (bx + 1) * factor);
+      for (let y = by * factor; y < yEnd && darkest > 0; y++) {
+        for (let x = bx * factor; x < xEnd; x++) {
+          const l = luminanceAt(data, width, x, y);
+          if (l < darkest) darkest = l;
+        }
+      }
+      const i = (by * w + bx) * 4;
+      out[i] = out[i + 1] = out[i + 2] = darkest;
+      out[i + 3] = 255;
+    }
+  }
+  return { width: w, height: h, data: out, colorSpace: 'srgb' } as ImageData;
+}
+
+/**
+ * Mask (1 = covered) of areas that are already marked, in raster pixels, grown by one pixel so the next
+ * detection stops just short of them: a new pick then only gets what is not marked yet, and nothing is
+ * counted twice. `polygons` are in PDF units.
+ */
+export function coveredMask(polygons: Point[][], width: number, height: number, pixelsPerPdfUnit: number): Uint8Array {
+  const mask = new Uint8Array(width * height);
+  for (const poly of polygons) {
+    if (poly.length >= 3) fillPolygonMask(mask, width, height, poly.map((p) => ({ x: p.x * pixelsPerPdfUnit, y: p.y * pixelsPerPdfUnit })));
+  }
+  return windowPass(windowPass(mask, width, height, 1, false, false), width, height, 1, true, false);
 }
 
 /** Scanline even-odd fill of a polygon (already in mask pixel coordinates) into the mask. */

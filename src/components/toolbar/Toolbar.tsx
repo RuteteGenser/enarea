@@ -1,5 +1,6 @@
 import {
   MousePointer2,
+  MousePointerSquareDashed,
   Hand,
   Slash,
   Square,
@@ -113,6 +114,13 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
           shortcut="V"
           active={tool === 'select'}
           onClick={() => setTool('select')}
+        />
+        <ToolButton
+          icon={MousePointerSquareDashed}
+          label="Boksvalg"
+          shortcut="B"
+          active={tool === 'box-select'}
+          onClick={() => setTool('box-select')}
         />
         <ToolButton
           icon={Hand}

@@ -17,8 +17,9 @@ function isButtonTarget(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && target.tagName === 'BUTTON';
 }
 
-const TOOL_KEYS: Record<string, 'select' | 'room-name' | 'measure' | 'rectangle' | 'polygon' | 'pan' | 'detect' | 'wall' | 'material' | 'people'> = {
+const TOOL_KEYS: Record<string, 'select' | 'box-select' | 'room-name' | 'measure' | 'rectangle' | 'polygon' | 'pan' | 'detect' | 'wall' | 'material' | 'people'> = {
   v: 'select',
+  b: 'box-select',
   l: 'measure',
   r: 'rectangle',
   p: 'polygon',
@@ -86,12 +87,10 @@ export function useKeyboardShortcuts(enabled: boolean) {
       }
 
       if ((e.key === 'Delete' || e.key === 'Backspace') && !mod) {
-        const { selectedId, deleteAnnotation, annotations } = useAnnotationStore.getState();
-        if (!selectedId) return;
-        const annotation = annotations.find((a) => a.id === selectedId);
-        if (annotation?.locked) return;
+        const { selectedIds, deleteSelected } = useAnnotationStore.getState();
+        if (selectedIds.length === 0) return;
         e.preventDefault();
-        deleteAnnotation(selectedId);
+        deleteSelected();
         return;
       }
 
