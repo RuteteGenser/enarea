@@ -17,6 +17,7 @@ import MagnifierLoupe from '@/components/viewer/MagnifierLoupe';
 import CalibrationOverlay from '@/components/calibration/CalibrationOverlay';
 import CalibrationAreaOverlay from '@/components/calibration/CalibrationAreaOverlay';
 import RoomDetectionOverlay from '@/components/detection/RoomDetectionOverlay';
+import BoxSelectOverlay from '@/components/select/BoxSelectOverlay';
 import WallToolOverlay from '@/components/wall/WallToolOverlay';
 import WallAutoOverlay from '@/components/wall/WallAutoOverlay';
 import MaterialPickerOverlay from '@/components/material/MaterialPickerOverlay';
@@ -384,6 +385,7 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
                 placedOpenings={file.placedOpenings}
               />
             )}
+            {tool === 'box-select' && <BoxSelectOverlay zoom={zoom} width={pageWidth} height={pageHeight} />}
             {tool === 'calibrate' && (
               <CalibrationOverlay
                 fileId={file.id}

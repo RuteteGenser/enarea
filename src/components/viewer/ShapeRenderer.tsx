@@ -11,7 +11,7 @@ type ShapeRendererProps = {
   calibration: Calibration;
   unit: Unit;
   selected: boolean;
-  onSelect?: (id: string) => void;
+  onSelect?: (id: string, additive: boolean) => void;
 };
 
 export default function ShapeRenderer({
@@ -75,7 +75,7 @@ export default function ShapeRenderer({
       onClick={(e) => {
         if (!onSelect) return;
         e.stopPropagation();
-        onSelect(annotation.id);
+        onSelect(annotation.id, e.shiftKey);
       }}
     >
       {annotation.type === 'line' ? (

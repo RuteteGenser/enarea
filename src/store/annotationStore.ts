@@ -14,7 +14,10 @@ type AnnotationStore = {
   annotations: Annotation[];
   past: Annotation[][];
   future: Annotation[][];
+  /** The most recently selected element (null when nothing, or several via `selectedIds`). */
   selectedId: string | null;
+  /** Everything selected; more than one with Shift+click or the box-select tool. */
+  selectedIds: string[];
   clipboard: Annotation | null;
 
   loadForFile: (fileId: string) => Promise<void>;
@@ -23,6 +26,10 @@ type AnnotationStore = {
   updateAnnotation: (id: string, patch: Partial<Annotation>) => void;
   deleteAnnotation: (id: string) => void;
   setSelected: (id: string | null) => void;
+  /** Shift+click: adds the element to the selection, or removes it if it was already selected. */
+  toggleSelected: (id: string) => void;
+  setSelectedMany: (ids: string[]) => void;
+  deleteSelected: () => void;
   toggleLock: (id: string) => void;
   toggleVisible: (id: string) => void;
   setEdgeMeta: (id: string, edgeIndex: number, meta: EdgeMeta) => void;
@@ -40,11 +47,12 @@ export const useAnnotationStore = create<AnnotationStore>((set, get) => ({
   past: [],
   future: [],
   selectedId: null,
+  selectedIds: [],
   clipboard: null,
 
   loadForFile: async (fileId: string) => {
     const annotations = await annotationsRepo.listByFile(fileId);
-    set({ fileId, annotations, past: [], future: [], selectedId: null });
+    set({ fileId, annotations, past: [], future: [], selectedId: null, selectedIds: [] });
   },
 
   commit: (next: Annotation[]) => {
@@ -64,7 +72,7 @@ export const useAnnotationStore = create<AnnotationStore>((set, get) => ({
       if (areaType) annotation = { ...annotation, areaType };
     }
     get().commit([...get().annotations, annotation]);
-    set({ selectedId: annotation.id });
+    set({ selectedId: annotation.id, selectedIds: [annotation.id] });
   },
 
   updateAnnotation: (id: string, patch: Partial<Annotation>) => {
@@ -82,10 +90,28 @@ export const useAnnotationStore = create<AnnotationStore>((set, get) => ({
   deleteAnnotation: (id: string) => {
     const next = get().annotations.filter((a) => a.id !== id);
     get().commit(next);
-    if (get().selectedId === id) set({ selectedId: null });
+    const selectedIds = get().selectedIds.filter((s) => s !== id);
+    set({ selectedIds, selectedId: selectedIds.length === 1 ? selectedIds[0] : get().selectedId === id ? null : get().selectedId });
   },
 
-  setSelected: (id: string | null) => set({ selectedId: id }),
+  setSelected: (id: string | null) => set({ selectedId: id, selectedIds: id ? [id] : [] }),
+
+  toggleSelected: (id: string) => {
+    const { selectedIds } = get();
+    const next = selectedIds.includes(id) ? selectedIds.filter((s) => s !== id) : [...selectedIds, id];
+    set({ selectedIds: next, selectedId: next.length === 1 ? next[0] : null });
+  },
+
+  setSelectedMany: (ids: string[]) => set({ selectedIds: ids, selectedId: ids.length === 1 ? ids[0] : null }),
+
+  deleteSelected: () => {
+    const { annotations, selectedIds } = get();
+    const doomed = new Set(annotations.filter((a) => selectedIds.includes(a.id) && !a.locked).map((a) => a.id));
+    if (doomed.size === 0) return;
+    get().commit(annotations.filter((a) => !doomed.has(a.id)));
+    const left = selectedIds.filter((id) => !doomed.has(id));
+    set({ selectedIds: left, selectedId: left.length === 1 ? left[0] : null });
+  },
 
   toggleLock: (id: string) => {
     const annotation = get().annotations.find((a) => a.id === id);

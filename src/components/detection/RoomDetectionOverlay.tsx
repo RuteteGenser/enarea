@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useDrawingInProgress } from '@/components/tools/useDrawingInProgress';
 import { detectRoomPolygon, mergeRegions } from '@/lib/roomDetection';
 import { createId } from '@/lib/id';
+import { areaAtPoint } from '@/lib/personMarkers';
 import { isPointInPolygon } from '@/lib/geometry';
 import { cn } from '@/lib/utils';
 import { useAnnotationStore } from '@/store/annotationStore';
@@ -24,6 +25,7 @@ const GAP_PDF_UNITS = 3;
 
 export default function RoomDetectionOverlay({ fileId, zoom, width, height, canvasRef }: RoomDetectionOverlayProps) {
   const addAnnotation = useAnnotationStore((s) => s.addAnnotation);
+  const annotations = useAnnotationStore((s) => s.annotations);
   const isSpaceDown = useViewportStore((s) => s.isSpaceDown);
   const [pendingRegions, setPendingRegions] = useState<Point[][]>([]);
   useDrawingInProgress(pendingRegions.length > 0);
@@ -58,7 +60,18 @@ export default function RoomDetectionOverlay({ fileId, zoom, width, height, canv
     if (!ctx) return;
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-    const result = detectRoomPolygon(imageData, seedX, seedY, pixelsPerPdfUnit);
+    // Areas that are already marked (saved ones and picks waiting for approval) are walls for the detection,
+    // so only what is not marked yet is found and no part of a room is counted twice.
+    const taken = areaAtPoint(annotations, seedPdf);
+    if (taken) {
+      toast.warning(`Dette området er allerede markert${taken.name ? ` som «${taken.name}»` : ''}`);
+      return;
+    }
+    const marked = [
+      ...annotations.filter((a) => a.type !== 'line' && a.visible).flatMap((a) => [a.points, ...(a.regions ?? [])]),
+      ...pendingRegions,
+    ];
+    const result = detectRoomPolygon(imageData, seedX, seedY, pixelsPerPdfUnit, marked);
     if (!result) {
       toast.error('Fant ikke et avgrenset rom her');
       return;

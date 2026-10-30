@@ -32,6 +32,51 @@ function drawRectWalls(setPixel: (x: number, y: number, dark: boolean) => void, 
   }
 }
 
+describe('detection avoids what is already marked', () => {
+  // one room, walls at x=10..69, y=10..49 (interior 58 x 38), with no line in the middle
+  function room() {
+    const width = 80;
+    const height = 60;
+    const { data, setPixel } = makeCanvasImage(width, height);
+    drawRectWalls(setPixel, 10, 10, 69, 49);
+    return { width, height, image: toImageData(width, height, data) };
+  }
+  const leftHalf = [
+    { x: 11, y: 11 },
+    { x: 40, y: 11 },
+    { x: 40, y: 49 },
+    { x: 11, y: 49 },
+  ];
+
+  it('finds only the rest of the room when half of it is already marked', () => {
+    const { image } = room();
+    const result = detectRoomPolygon(image, 55, 30, 1, [leftHalf]);
+    expect(result).not.toBeNull();
+    const area = Math.abs(polygonArea(result!));
+    expect(area).toBeLessThan(58 * 38 * 0.55); // about the right half, not the whole room (2204)
+    expect(area).toBeGreaterThan(58 * 38 * 0.35);
+    for (const p of result!) expect(p.x).toBeGreaterThan(38); // nothing on the marked side
+  });
+
+  it('together the marked half and the new pick cover the room about once (no double counting)', () => {
+    const { image } = room();
+    const rest = detectRoomPolygon(image, 55, 30, 1, [leftHalf])!;
+    const total = Math.abs(polygonArea(leftHalf)) + Math.abs(polygonArea(rest));
+    expect(total).toBeLessThan(58 * 38 * 1.04); // at most a few percent over the room's 2204
+    expect(total).toBeGreaterThan(58 * 38 * 0.9);
+  });
+
+  it('without anything marked the whole room is found as before', () => {
+    const { image } = room();
+    expect(Math.abs(polygonArea(detectRoomPolygon(image, 55, 30, 1, [])!))).toBeCloseTo(58 * 38, 0);
+  });
+
+  it('a click inside the marked part finds nothing', () => {
+    const { image } = room();
+    expect(detectRoomPolygon(image, 20, 30, 1, [leftHalf])).toBeNull();
+  });
+});
+
 describe('detectRoomPolygon with faint lines', () => {
   /** A room whose door swing is separated from the rest only by thin, light grey lines (anti-aliased detail lines). */
   function roomWithFaintDoorLine(grey: number) {
