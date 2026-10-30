@@ -1,7 +1,6 @@
 import { annotationArea, distance } from '@/lib/geometry';
 import { metersPerUnit } from '@/lib/calibration';
 import { displayName } from '@/lib/annotationLabel';
-import { findAreaType } from '@/lib/areaTypes';
 import { joinPlacements, openingArea, OPENING_KIND_LABELS } from '@/lib/openings';
 import { openingTotals } from '@/lib/wallOpenings';
 import { ventilationTotal } from '@/lib/ventilation';
@@ -70,7 +69,6 @@ export function buildExportTables(
         name,
         template?.name ?? null,
         area === null ? null : round(area),
-        findAreaType(annotation.areaType)?.label ?? null,
         annotation.people ?? null,
         annotation.buildingComponent?.name ?? null,
         annotation.buildingComponent?.uValue ?? null,
@@ -181,7 +179,6 @@ export function buildExportTables(
         'Navn',
         'Romtype',
         'Areal (m²)',
-        'Arealtype',
         'Personer',
         'Gulv/dekke',
         'U-verdi gulv/dekke (W/m²K)',

@@ -1,10 +1,7 @@
 import { create } from 'zustand';
 import { annotationsRepo } from '@/lib/db';
 import { createId } from '@/lib/id';
-import { areaTypeForCategory } from '@/lib/areaTypes';
 import { movePersonMarkers, trimPersonMarkers } from '@/lib/personMarkers';
-import { useFilesStore } from '@/store/filesStore';
-import { useProjectStore } from '@/store/projectStore';
 import type { Annotation, EdgeMeta } from '@/types';
 
 const MAX_HISTORY = 50;
@@ -73,13 +70,6 @@ export const useAnnotationStore = create<AnnotationStore>((set, get) => ({
   },
 
   addAnnotation: (annotation: Annotation) => {
-    // New areas start with the area type that matches the project's building category.
-    if (annotation.type !== 'line' && !annotation.areaType) {
-      const file = useFilesStore.getState().getFile(annotation.fileId);
-      const project = file ? useProjectStore.getState().getProject(file.projectId) : undefined;
-      const areaType = areaTypeForCategory(project?.buildingCategory);
-      if (areaType) annotation = { ...annotation, areaType };
-    }
     get().commit([...get().annotations, annotation]);
     set({ selectedId: annotation.id, selectedIds: [annotation.id] });
   },

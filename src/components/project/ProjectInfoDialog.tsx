@@ -100,7 +100,7 @@ export default function ProjectInfoDialog({
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="project-category">Arealtype / bygningskategori *</Label>
+              <Label htmlFor="project-category">Bygningskategori *</Label>
               <Select value={category} onValueChange={(v) => setCategory(v as BuildingCategory)}>
                 <SelectTrigger id="project-category">
                   <SelectValue placeholder="Velg bygningskategori" />

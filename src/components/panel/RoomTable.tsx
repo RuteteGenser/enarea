@@ -7,15 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import BuildingComponentPicker from '@/components/material/BuildingComponentPicker';
 import RoomTemplatePicker from '@/components/roomTemplate/RoomTemplatePicker';
 import { useAnnotationStore } from '@/store/annotationStore';
-import { useProjectStore } from '@/store/projectStore';
-import { useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { formatArea, metersPerUnit } from '@/lib/calibration';
 import { annotationArea } from '@/lib/geometry';
 import { createId } from '@/lib/id';
 import { ventilationBreakdown, ventilationTotal } from '@/lib/ventilation';
 import { markersForPeople } from '@/lib/personMarkers';
-import { AREA_TYPES, areaTypeForCategory, findAreaType } from '@/lib/areaTypes';
 import { formatOpeningArea, openingsSummary } from '@/lib/wallOpenings';
 import { displayName } from '@/lib/annotationLabel';
 import { applyRoomNameAndMatch } from '@/lib/roomTemplateMatch';
@@ -23,21 +20,19 @@ import { distinctWallTypeNames } from '@/lib/wallTypesSummary';
 import { ANNOTATION_COLORS, VENTILATION_UNIT_LABELS } from '@/types';
 import type { Annotation, AnnotationColor, Calibration, OpeningItem, Unit } from '@/types';
 
-const NO_AREA_TYPE = 'none';
 
 /** Distance between person icons put in the middle of a room, in meters. */
 const PERSON_SPACING_METERS = 0.7;
 
 const COLOR_ORDER: AnnotationColor[] = ['red', 'blue', 'green', 'yellow', 'purple', 'black'];
 
-type ColumnKey = 'romnr' | 'rom' | 'romtype' | 'area' | 'arealtype' | 'personer' | 'gulvdekke' | 'veggtype' | 'vinduer' | 'luftmengde';
+type ColumnKey = 'romnr' | 'rom' | 'romtype' | 'area' | 'personer' | 'gulvdekke' | 'veggtype' | 'vinduer' | 'luftmengde';
 
 const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: 'romnr', label: 'Nr' },
   { key: 'rom', label: 'Navn' },
   { key: 'romtype', label: 'Romtype' },
   { key: 'area', label: 'Kvadratmeter' },
-  { key: 'arealtype', label: 'Arealtype' },
   { key: 'personer', label: 'Personer' },
   { key: 'gulvdekke', label: 'Type gulv/dekke' },
   { key: 'veggtype', label: 'Type vegg' },
@@ -67,8 +62,6 @@ function sortValue(annotation: Annotation, key: ColumnKey, mpu: number, openingI
       return annotationArea(annotation) * mpu * mpu;
     case 'romtype':
       return annotation.roomTemplate?.name.toLowerCase() ?? '';
-    case 'arealtype':
-      return findAreaType(annotation.areaType)?.label.toLowerCase() ?? '';
     case 'personer':
       return annotation.people ?? -1;
     case 'gulvdekke':
@@ -303,11 +296,6 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
     setPeopleDraft(String(annotation.people ?? ''));
   }, [annotation.people]);
 
-  // Rooms made before an area type was stored show the one matching the project's building category.
-  const { projectId } = useParams<{ projectId: string }>();
-  const defaultAreaType = useProjectStore((s) =>
-    areaTypeForCategory(projectId ? s.getProject(projectId)?.buildingCategory : undefined),
-  );
   const areaSquareMeters = annotationArea(annotation) * mpu * mpu;
 
   /** Person icons matching a people count: added in the middle of the room, or removed from the end. */
@@ -317,17 +305,6 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
 
   function setPeople(count: number | undefined) {
     applyToTargets((a) => ({ people: count, personMarkers: markersFor(a, count) }));
-  }
-
-  function changeAreaType(id: string) {
-    const type = findAreaType(id);
-    if (!type) {
-      // Stored explicitly so the project's default isn't shown again for this room.
-      applyToTargets(() => ({ areaType: NO_AREA_TYPE }));
-      return;
-    }
-    // Only the area type is set; the number of people is entered by hand.
-    applyToTargets(() => ({ areaType: id }));
   }
 
   const area = formatArea(areaSquareMeters, unit);
@@ -460,22 +437,6 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
       </td>
 
       <td className="px-2 py-1.5 tabular-nums text-muted-foreground">{area}</td>
-
-      <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
-        <Select value={annotation.areaType ?? defaultAreaType ?? NO_AREA_TYPE} onValueChange={changeAreaType}>
-          <SelectTrigger className="h-6 min-w-32 px-1.5 py-0 text-sm">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={NO_AREA_TYPE}>--</SelectItem>
-            {AREA_TYPES.map((t) => (
-              <SelectItem key={t.id} value={t.id}>
-                {t.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </td>
 
       <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
         <Input
