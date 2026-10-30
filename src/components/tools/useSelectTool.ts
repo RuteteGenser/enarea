@@ -2,6 +2,7 @@ import { useDrawingInProgress } from '@/components/tools/useDrawingInProgress';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { buildSnapCandidates, constrainAngle, distance } from '@/lib/geometry';
 import { snapCursor } from '@/components/tools/useSnap';
+import { splitWall } from '@/lib/splitWall';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useViewportStore } from '@/store/viewportStore';
 import type { Annotation, Point } from '@/types';
@@ -179,13 +180,9 @@ export function useSelectTool(zoom: number, svgRef: RefObject<SVGSVGElement | nu
     return drag?.annotationId === annotationId ? livePoints : null;
   }
 
-  function insertPoint(annotation: Annotation, edgeIndex: number, point: Point) {
-    if (annotation.locked) return;
-    const points = [...annotation.points];
-    points.splice(edgeIndex + 1, 0, point);
-    const edges = annotation.edges ? [...annotation.edges] : annotation.points.map(() => ({}));
-    edges.splice(edgeIndex + 1, 0, {});
-    updateAnnotation(annotation.id, { points, edges });
+  /** Adds a corner in the middle of a side; both halves keep the side's wall marking. */
+  function insertPoint(annotation: Annotation, edgeIndex: number) {
+    splitWall(annotation.id, edgeIndex);
   }
 
   return {

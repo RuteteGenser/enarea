@@ -12,7 +12,7 @@ type SelectionHandlesProps = {
   /** Corner that was clicked once and now shows a red X; another click removes it. */
   armedIndex: number | null;
   onVertexMouseDown: (index: number, e: React.MouseEvent) => void;
-  onInsertPoint: (edgeIndex: number, point: Point) => void;
+  onInsertPoint: (edgeIndex: number) => void;
   onEdgeMetaChange: (edgeIndex: number, meta: EdgeMeta) => void;
 };
 
@@ -41,12 +41,9 @@ export default function SelectionHandles({
     <g>
       {isClosedShape &&
         Array.from({ length: edgeCount }).map((_, i) => {
-          const a = points[i];
-          const b = points[(i + 1) % points.length];
           const aScreen = screenPoints[i];
           const bScreen = screenPoints[(i + 1) % screenPoints.length];
           const mid = midpoint(aScreen, bScreen);
-          const pdfMid = midpoint(a, b);
           const edgeMeta = annotation.edges?.[i] ?? {};
           return (
             <EdgeContextMenu key={i} edge={edgeMeta} onChange={(meta) => onEdgeMetaChange(i, meta)}>
@@ -67,7 +64,7 @@ export default function SelectionHandles({
                     onMouseEnter={() => setHoveredEdge(i)}
                     onClick={(e) => {
                       e.stopPropagation();
-                      onInsertPoint(i, pdfMid);
+                      onInsertPoint(i);
                     }}
                   >
                     <circle cx={mid.x} cy={mid.y} r={8} className="fill-primary" />
