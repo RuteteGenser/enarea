@@ -1,4 +1,4 @@
-import { annotationArea, distance } from '@/lib/geometry';
+import { annotationArea, distance, polygonPerimeter } from '@/lib/geometry';
 import { metersPerUnit } from '@/lib/calibration';
 import { displayName } from '@/lib/annotationLabel';
 import { joinPlacements, openingArea, OPENING_KIND_LABELS } from '@/lib/openings';
@@ -69,6 +69,7 @@ export function buildExportTables(
         name,
         template?.name ?? null,
         area === null ? null : round(area),
+        calibrated ? round(polygonPerimeter(annotation.points) * mpu) : null,
         annotation.people ?? null,
         annotation.buildingComponent?.name ?? null,
         annotation.buildingComponent?.uValue ?? null,
@@ -179,6 +180,7 @@ export function buildExportTables(
         'Navn',
         'Romtype',
         'Areal (m²)',
+        'Total vegglengde (m)',
         'Personer',
         'Gulv/dekke',
         'U-verdi gulv/dekke (W/m²K)',
