@@ -45,6 +45,7 @@ describe('buildExportTables', () => {
     const tables = buildExportTables(project, [{ file: file(true), annotations: [room] }]);
     const rooms = tables[1];
     expect(rooms.rows[0][rooms.headers.indexOf('Areal (m²)')]).toBe(200); // 100x200 units at 0.1 m/unit
+    expect(rooms.rows[0][rooms.headers.indexOf('Total vegglengde (m)')]).toBe(60); // 2 x (100 + 200) units at 0.1 m/unit
     expect(rooms.rows[0][rooms.headers.indexOf('Personer')]).toBe(3);
     expect(tables[2].rows).toHaveLength(0); // no side is marked as an outer wall
     expect(tables[3].rows[0][6]).toBe('Vindu'); // building type name
