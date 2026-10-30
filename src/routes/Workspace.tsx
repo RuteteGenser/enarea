@@ -26,6 +26,8 @@ export default function Workspace() {
   const loadAnnotationsForFile = useAnnotationStore((s) => s.loadForFile);
   const panelOpen = useViewportStore((s) => s.panelOpen);
   const togglePanel = useViewportStore((s) => s.togglePanel);
+  const panelHeight = useViewportStore((s) => s.panelHeight);
+  const panelResizing = useViewportStore((s) => s.panelResizing);
   const resetLayersVisible = useViewportStore((s) => s.resetLayersVisible);
   const roomTemplatesLoaded = useRoomTemplateStore((s) => s.loaded);
   const loadRoomTemplates = useRoomTemplateStore((s) => s.loadTemplates);
@@ -127,10 +129,11 @@ export default function Workspace() {
           <>
             <MeasurementHeader calibration={activeFile.calibration} open={panelOpen} onToggle={togglePanel} />
             <div
-              className={`on-chrome shrink-0 overflow-hidden bg-panel transition-[height] duration-300 ease-in-out motion-reduce:transition-none ${panelOpen ? 'h-40' : 'h-0'}`}
+              className={`on-chrome shrink-0 overflow-hidden bg-panel motion-reduce:transition-none ${panelResizing ? '' : 'transition-[height] duration-300 ease-in-out'}`}
+              style={{ height: panelOpen ? panelHeight : 0 }}
               aria-hidden={!panelOpen}
             >
-              <div className="h-40">
+              <div className="h-full">
                 <MeasurementPanel calibration={activeFile.calibration} openings={activeFile.openings} placedOpenings={activeFile.placedOpenings} />
               </div>
             </div>
