@@ -104,9 +104,17 @@ export default function RoomDetectionOverlay({ fileId, zoom, width, height, canv
     setPendingRegions([]);
   }
 
+  // The key handler lives for the whole tool session, so it calls the latest confirm() through a ref.
+  const confirmRef = useRef(confirm);
+  confirmRef.current = confirm;
+
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') setPendingRegions([]);
+      if (e.key === 'Enter' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+        e.preventDefault();
+        confirmRef.current();
+      }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
