@@ -177,6 +177,21 @@ export default function RoomTable({
     return filtered;
   }, [annotations, search, missingFilter, sortKey, sortDir, mpu, openings]);
 
+  // Totals over the rows shown (so the search and the missing-filter narrow them too).
+  const totals = useMemo(() => {
+    let areaSquareMeters = 0;
+    let people = 0;
+    let air = 0;
+    for (const a of rows) {
+      const squareMeters = annotationArea(a) * mpu * mpu;
+      areaSquareMeters += squareMeters;
+      people += a.people ?? 0;
+      const t = a.roomTemplate;
+      if (t) air += ventilationTotal(t.ventilationRate, t.ventilationUnit, squareMeters, a.people, t.perPersonRate) ?? 0;
+    }
+    return { areaSquareMeters, people, air };
+  }, [rows, mpu]);
+
   return (
     <div className="flex flex-col">
       <div className="flex shrink-0 items-center gap-2 border-b border-border px-2 py-1.5">
@@ -234,6 +249,18 @@ export default function RoomTable({
               </tr>
             </thead>
             <tbody>
+              <tr className="border-b border-border bg-secondary/40 text-xs font-semibold">
+                {COLUMNS.map((col) => (
+                  <td key={col.key} className="whitespace-nowrap px-2 py-1.5 tabular-nums">
+                    {col.key === 'rom' && `Totalt (${rows.length} rom)`}
+                    {col.key === 'area' && formatArea(totals.areaSquareMeters, unit)}
+                    {col.key === 'personer' && (totals.people > 0 ? totals.people : '')}
+                    {col.key === 'luftmengde' &&
+                      (totals.air > 0 ? `${totals.air.toLocaleString('nb-NO', { maximumFractionDigits: 1 })} m³/h` : '')}
+                  </td>
+                ))}
+                <td />
+              </tr>
               {rows.map((annotation) => (
                 <RoomTableRow
                   key={annotation.id}
