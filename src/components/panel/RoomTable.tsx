@@ -45,10 +45,13 @@ const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: 'luftmengde', label: 'Luftmengde' },
 ];
 
-type MissingFilter = 'alle' | 'gulvdekke' | 'veggtype' | 'luftmengde';
+type MissingFilter = 'alle' | 'romnr' | 'romnavn' | 'romtype' | 'gulvdekke' | 'veggtype' | 'luftmengde';
 
 const MISSING_FILTERS: { value: MissingFilter; label: string }[] = [
   { value: 'alle', label: 'Alle rom' },
+  { value: 'romnr', label: 'Mangler romnr' },
+  { value: 'romnavn', label: 'Mangler romnavn' },
+  { value: 'romtype', label: 'Mangler romtype' },
   { value: 'gulvdekke', label: 'Mangler gulv/dekke' },
   { value: 'veggtype', label: 'Mangler veggtype' },
   { value: 'luftmengde', label: 'Mangler luftmengde' },
@@ -85,6 +88,9 @@ function sortValue(annotation: Annotation, key: ColumnKey, mpu: number, openingI
 }
 
 function isMissing(annotation: Annotation, filter: MissingFilter): boolean {
+  if (filter === 'romnr') return !annotation.roomNumber?.trim();
+  if (filter === 'romnavn') return !annotation.name?.trim();
+  if (filter === 'romtype') return !annotation.roomTemplate;
   if (filter === 'gulvdekke') return !annotation.buildingComponent;
   if (filter === 'veggtype') return distinctWallTypeNames(annotation).length === 0;
   if (filter === 'luftmengde') return !annotation.roomTemplate;
