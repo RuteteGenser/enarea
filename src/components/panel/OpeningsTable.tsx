@@ -8,7 +8,7 @@ import { useBuildingComponentTypeStore } from '@/store/buildingComponentTypeStor
 import { useViewportStore } from '@/store/viewportStore';
 import type { OpeningItem, PlacedOpening } from '@/types';
 
-/** The file's windows and doors in Målinger: Vindu 1, Vindu 2, Dør 3 … with size, type and where they sit. */
+/** The file's windows and doors in Målinger: Vindu 1, Vindu 2, Dør 1 … with size, type and where they sit. */
 export default function OpeningsTable({ openings, placed }: { openings: OpeningItem[]; placed: PlacedOpening[] }) {
   const annotations = useAnnotationStore((s) => s.annotations);
   const types = useBuildingComponentTypeStore((s) => s.types);

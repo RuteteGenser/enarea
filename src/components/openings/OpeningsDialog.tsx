@@ -23,7 +23,7 @@ const NO_TYPE = 'none';
 
 type OpeningsDialogProps = { file: PdfFile };
 
-/** Popup panel: add windows/doors (Vindu 1, Dør 3 …), enter width and height and pick the type from the bygningstabell. */
+/** Popup panel: add windows/doors (Vindu 1, Dør 1 …), enter width and height and pick the type from the bygningstabell. */
 export default function OpeningsDialog({ file }: OpeningsDialogProps) {
   const open = useViewportStore((s) => s.openingsDialogOpen);
   const setOpen = useViewportStore((s) => s.setOpeningsDialogOpen);
