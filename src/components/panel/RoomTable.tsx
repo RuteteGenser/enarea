@@ -15,7 +15,7 @@ import { annotationArea } from '@/lib/geometry';
 import { createId } from '@/lib/id';
 import { ventilationBreakdown, ventilationTotal } from '@/lib/ventilation';
 import { markersForPeople } from '@/lib/personMarkers';
-import { AREA_TYPES, areaTypeForCategory, findAreaType, peopleForArea } from '@/lib/areaTypes';
+import { AREA_TYPES, areaTypeForCategory, findAreaType } from '@/lib/areaTypes';
 import { formatOpeningArea, openingsSummary } from '@/lib/wallOpenings';
 import { displayName } from '@/lib/annotationLabel';
 import { applyRoomNameAndMatch } from '@/lib/roomTemplateMatch';
@@ -326,11 +326,8 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
       applyToTargets(() => ({ areaType: NO_AREA_TYPE }));
       return;
     }
-    // Suggest the number of people for this floor area; Personer can still be edited afterwards.
-    applyToTargets((a) => {
-      const people = peopleForArea(annotationArea(a) * mpu * mpu, type.m2PerPerson);
-      return { areaType: id, people, personMarkers: markersFor(a, people) };
-    });
+    // Only the area type is set; the number of people is entered by hand.
+    applyToTargets(() => ({ areaType: id }));
   }
 
   const area = formatArea(areaSquareMeters, unit);
@@ -473,7 +470,7 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
             <SelectItem value={NO_AREA_TYPE}>--</SelectItem>
             {AREA_TYPES.map((t) => (
               <SelectItem key={t.id} value={t.id}>
-                {t.label} ({String(t.m2PerPerson).replace('.', ',')} m²/pers.)
+                {t.label}
               </SelectItem>
             ))}
           </SelectContent>
