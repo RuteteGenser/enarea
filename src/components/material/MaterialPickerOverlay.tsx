@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import BuildingComponentPicker from '@/components/material/BuildingComponentPicker';
 import { annotationArea } from '@/lib/geometry';
-import { createId } from '@/lib/id';
 import { cn } from '@/lib/utils';
 import { formatOpeningArea, totalOpeningArea } from '@/lib/wallOpenings';
 import { useAnnotationStore } from '@/store/annotationStore';
@@ -154,16 +153,6 @@ export default function MaterialPickerOverlay({ zoom, width, height }: MaterialP
                 onOpenChange={(open) => setOpenTarget(open ? edgeTarget : null)}
                 anchor={isOpen(edgeTarget) ? clickAnchor : undefined}
                 onSelect={(assignment) => setEdgeMeta(annotation.id, i, { buildingComponent: assignment ?? undefined })}
-                openingCategories={['vindu', 'ytterdor']}
-                openings={edge.openings}
-                onSelectOpening={(component, area) =>
-                  setEdgeMeta(annotation.id, i, {
-                    openings: [...(edge.openings ?? []), { id: createId(), component, area }],
-                  })
-                }
-                onRemoveOpening={(id) =>
-                  setEdgeMeta(annotation.id, i, { openings: (edge.openings ?? []).filter((o) => o.id !== id) })
-                }
               >
                 <line
                   x1={a.x}
