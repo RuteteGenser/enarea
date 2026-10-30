@@ -1,3 +1,5 @@
+import { splitWall } from '@/lib/splitWall';
+import { useAnnotationStore } from '@/store/annotationStore';
 import type { Annotation } from '@/types';
 
 /** Light outline of the room under the pointer in the Velg tool. */
@@ -71,6 +73,22 @@ export function WallDeleteLayer({ annotations, zoom, hovered, armed, onHover, on
                   onArm(key);
                 }}
               />
+              {isArmed && len >= 40 && (
+                <WallButtons
+                  x={(a.x + b.x) / 2}
+                  y={(a.y + b.y) / 2}
+                  onSplit={() => {
+                    onArm(null);
+                    splitWall(annotation.id, i);
+                  }}
+                  onRemove={() => {
+                    onArm(null);
+                    useAnnotationStore
+                      .getState()
+                      .setEdgeMeta(annotation.id, i, { wallType: undefined, orientation: undefined, buildingComponent: undefined });
+                  }}
+                />
+              )}
               {(isHovered || isArmed) && (
                 <line
                   x1={a.x}
@@ -88,6 +106,32 @@ export function WallDeleteLayer({ annotations, zoom, hovered, armed, onHover, on
           );
         });
       })}
+    </g>
+  );
+}
+
+/** The + (split the wall in two) and − (remove the wall marking) buttons on a selected wall. */
+function WallButtons({ x, y, onSplit, onRemove }: { x: number; y: number; onSplit: () => void; onRemove: () => void }) {
+  const button = (dx: number, title: string, onClick: () => void, minus: boolean) => (
+    <g
+      transform={`translate(${x + dx}, ${y})`}
+      className="cursor-pointer"
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+    >
+      <title>{title}</title>
+      <circle r={9} className={minus ? 'fill-destructive' : 'fill-primary'} />
+      <line x1={-3.5} y1={0} x2={3.5} y2={0} stroke="white" strokeWidth={1.5} />
+      {!minus && <line x1={0} y1={-3.5} x2={0} y2={3.5} stroke="white" strokeWidth={1.5} />}
+    </g>
+  );
+  return (
+    <g>
+      {button(-12, 'Del veggen i to', onSplit, false)}
+      {button(12, 'Fjern veggmarkeringen', onRemove, true)}
     </g>
   );
 }

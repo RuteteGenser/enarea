@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { splitWall } from '@/lib/splitWall';
 import EdgeContextMenu from '@/components/wall/EdgeContextMenu';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useViewportStore } from '@/store/viewportStore';
@@ -43,6 +44,7 @@ export default function WallToolOverlay({ zoom, width, height }: WallToolOverlay
           const edge: EdgeMeta = annotation.edges?.[i] ?? {};
           const isHovered = hoveredKey === key;
           const isExternal = edge.wallType === 'external';
+          const long = Math.hypot(b.x - a.x, b.y - a.y) >= 50;
 
           return (
             <EdgeContextMenu key={key} edge={edge} onChange={(meta) => setEdgeMeta(annotation.id, i, meta)}>
@@ -68,7 +70,7 @@ export default function WallToolOverlay({ zoom, width, height }: WallToolOverlay
                       opacity={0.45}
                       pointerEvents="none"
                     />
-                    <g transform={`translate(${mid.x}, ${mid.y})`} pointerEvents="none">
+                    <g transform={`translate(${mid.x - (long ? 12 : 0)}, ${mid.y})`} pointerEvents="none">
                       <circle r={9} className="fill-primary" />
                       {isExternal ? (
                         <line x1={-3.5} y1={0} x2={3.5} y2={0} stroke="white" strokeWidth={1.5} />
@@ -79,6 +81,23 @@ export default function WallToolOverlay({ zoom, width, height }: WallToolOverlay
                         </>
                       )}
                     </g>
+                    {long && (
+                      <g
+                        transform={`translate(${mid.x + 12}, ${mid.y})`}
+                        className="cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setHoveredKey(null);
+                          splitWall(annotation.id, i);
+                        }}
+                      >
+                        <title>Del veggen i to</title>
+                        <circle r={9} className="fill-primary" />
+                        <line x1={0} y1={-4.5} x2={0} y2={4.5} stroke="white" strokeWidth={1.5} />
+                        <line x1={-5} y1={0} x2={-2} y2={0} stroke="white" strokeWidth={1.5} />
+                        <line x1={2} y1={0} x2={5} y2={0} stroke="white" strokeWidth={1.5} />
+                      </g>
+                    )}
                   </>
                 )}
               </g>

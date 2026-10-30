@@ -153,7 +153,7 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
           zoom={zoom}
           armedIndex={armedVertex?.annotationId === selectedAnnotation.id ? armedVertex.index : null}
           onVertexMouseDown={(index, e) => startVertexDrag(selectedAnnotation, index, e)}
-          onInsertPoint={(edgeIndex, point) => insertPoint(selectedAnnotation, edgeIndex, point)}
+          onInsertPoint={(edgeIndex) => insertPoint(selectedAnnotation, edgeIndex)}
           onEdgeMetaChange={(edgeIndex, meta) => setEdgeMeta(selectedAnnotation.id, edgeIndex, meta)}
         />
       )}
