@@ -87,6 +87,7 @@ export function MeasurementHeader({
 export default function MeasurementPanel({ calibration, openings = [], placedOpenings = [] }: MeasurementPanelProps) {
   const annotations = useAnnotationStore((s) => s.annotations);
   const selectedId = useAnnotationStore((s) => s.selectedId);
+  const selectedIds = useAnnotationStore((s) => s.selectedIds);
   const setSelected = useAnnotationStore((s) => s.setSelected);
   const deleteAnnotation = useAnnotationStore((s) => s.deleteAnnotation);
   const updateAnnotation = useAnnotationStore((s) => s.updateAnnotation);
@@ -116,7 +117,7 @@ export default function MeasurementPanel({ calibration, openings = [], placedOpe
         <div className="flex-1 overflow-y-auto">
           <RoomTable
             annotations={roomAnnotations}
-            selectedId={selectedId}
+            selectedIds={selectedIds}
             unit={unit}
             calibration={calibration}
             openings={joinPlacements(openings, placedOpenings)}

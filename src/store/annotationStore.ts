@@ -9,6 +9,9 @@ import type { Annotation, EdgeMeta } from '@/types';
 
 const MAX_HISTORY = 50;
 
+/** While > 0, commits skip the undo history; `batch` pushes a single entry for the whole group. */
+let batchDepth = 0;
+
 type AnnotationStore = {
   fileId: string | null;
   annotations: Annotation[];
@@ -30,6 +33,8 @@ type AnnotationStore = {
   toggleSelected: (id: string) => void;
   setSelectedMany: (ids: string[]) => void;
   deleteSelected: () => void;
+  /** Runs several edits as one undo step. */
+  batch: (fn: () => void) => void;
   toggleLock: (id: string) => void;
   toggleVisible: (id: string) => void;
   setEdgeMeta: (id: string, edgeIndex: number, meta: EdgeMeta) => void;
@@ -58,8 +63,12 @@ export const useAnnotationStore = create<AnnotationStore>((set, get) => ({
   commit: (next: Annotation[]) => {
     const { annotations, past, fileId } = get();
     if (!fileId) return;
-    const trimmedPast = [...past, annotations].slice(-MAX_HISTORY);
-    set({ annotations: next, past: trimmedPast, future: [] });
+    if (batchDepth > 0) {
+      set({ annotations: next });
+    } else {
+      const trimmedPast = [...past, annotations].slice(-MAX_HISTORY);
+      set({ annotations: next, past: trimmedPast, future: [] });
+    }
     void annotationsRepo.replaceAllForFile(fileId, next);
   },
 
@@ -103,6 +112,19 @@ export const useAnnotationStore = create<AnnotationStore>((set, get) => ({
   },
 
   setSelectedMany: (ids: string[]) => set({ selectedIds: ids, selectedId: ids.length === 1 ? ids[0] : null }),
+
+  batch: (fn) => {
+    const before = get().annotations;
+    batchDepth++;
+    try {
+      fn();
+    } finally {
+      batchDepth--;
+    }
+    if (batchDepth === 0 && get().annotations !== before) {
+      set({ past: [...get().past, before].slice(-MAX_HISTORY), future: [] });
+    }
+  },
 
   deleteSelected: () => {
     const { annotations, selectedIds } = get();

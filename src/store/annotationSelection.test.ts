@@ -52,4 +52,15 @@ describe('multi-selection', () => {
     expect(useAnnotationStore.getState().annotations.map((a) => a.id)).toEqual(['c']);
     expect(useAnnotationStore.getState().past.length).toBe(1);
   });
+
+  it('batch makes several edits one undo step', () => {
+    const s = useAnnotationStore.getState();
+    s.batch(() => {
+      s.updateAnnotation('a', { name: 'x' });
+      s.updateAnnotation('b', { name: 'x' });
+    });
+    expect(useAnnotationStore.getState().past.length).toBe(1);
+    useAnnotationStore.getState().undo();
+    expect(useAnnotationStore.getState().annotations.every((a) => a.name === undefined)).toBe(true);
+  });
 });
