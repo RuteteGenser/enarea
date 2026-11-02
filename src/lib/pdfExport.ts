@@ -2,7 +2,7 @@ import { PDFDocument, StandardFonts, degrees, rgb, type PDFFont, type PDFPage } 
 import { annotationArea, distance } from '@/lib/geometry';
 import { formatArea, formatLength, metersPerUnit } from '@/lib/calibration';
 import { displayName, TYPE_LABEL_NB } from '@/lib/annotationLabel';
-import { joinPlacements, openingArea, OPENING_KIND_LABELS, placedOpeningRect } from '@/lib/openings';
+import { joinPlacements, openingArea, OPENING_DEPTH_METERS, OPENING_KIND_LABELS, placedOpeningRect } from '@/lib/openings';
 import { ANNOTATION_COLORS } from '@/types';
 import type { Annotation, BuildingComponentType, PdfFile, Project, Unit } from '@/types';
 
@@ -267,7 +267,31 @@ function drawAnnotationsOnPage(page: PDFPage, annotations: Annotation[], font: P
       for (let i = 0; i < corners.length; i++) {
         page.drawLine({ start: corners[i], end: corners[(i + 1) % corners.length], thickness: 1.2, color });
       }
-      page.drawText(item.name, { ...flip(rect.center.x + 4, rect.center.y - 5), size: 6, font, color, rotate: degrees(rotation) });
+      // The name is centred on the window/door, just outside it (on the side facing away from the room).
+      const room = annotations.find((a) => a.id === item.placement.annotationId);
+      const a = room?.points[item.placement.edgeIndex];
+      const b = room?.points[(item.placement.edgeIndex + 1) % (room?.points.length ?? 1)];
+      if (!room || !a || !b) continue;
+      const edgeLength = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+      let nx = -(b.y - a.y) / edgeLength;
+      let ny = (b.x - a.x) / edgeLength;
+      const inside = { x: room.points.reduce((sum, p) => sum + p.x, 0) / room.points.length, y: room.points.reduce((sum, p) => sum + p.y, 0) / room.points.length };
+      if ((rect.center.x - inside.x) * nx + (rect.center.y - inside.y) * ny < 0) {
+        nx = -nx;
+        ny = -ny;
+      }
+      const size = 6;
+      const textWidth = font.widthOfTextAtSize(item.name, size);
+      const depth = OPENING_DEPTH_METERS / mpu;
+      const distance = depth / 2 + 3 + Math.abs(nx) * (textWidth / 2) + Math.abs(ny) * (size / 2);
+      const middle = { x: rect.center.x + nx * distance, y: rect.center.y + ny * distance };
+      page.drawText(item.name, {
+        ...flip(middle.x - textWidth / 2, middle.y + size * 0.35),
+        size,
+        font,
+        color,
+        rotate: degrees(rotation),
+      });
     }
   }
 }
