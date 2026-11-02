@@ -2,6 +2,7 @@ import { ChevronDown, Ruler } from 'lucide-react';
 import MeasurementRow from '@/components/panel/MeasurementRow';
 import RoomTable from '@/components/panel/RoomTable';
 import OpeningsTable from '@/components/panel/OpeningsTable';
+import WallsTable from '@/components/panel/WallsTable';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useViewportStore } from '@/store/viewportStore';
 import { formatArea, metersPerUnit } from '@/lib/calibration';
@@ -146,6 +147,14 @@ export default function MeasurementPanel({ calibration, openings = [], placedOpe
               </div>
             </div>
           )}
+
+          <WallsTable
+            annotations={roomAnnotations}
+            selectedIds={selectedIds}
+            unit={unit}
+            calibration={calibration}
+            onSelectAndJump={selectAndJump}
+          />
 
           {openings.length > 0 && <OpeningsTable openings={openings} placed={placedOpenings} />}
         </div>
