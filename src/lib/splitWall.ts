@@ -42,3 +42,49 @@ export function splitWall(annotationId: string, edgeIndex: number): void {
     void useFilesStore.getState().setOpenings(file.id, file.openings ?? [], splitPlacements(file.placedOpenings, annotationId, edgeIndex));
   }
 }
+
+/**
+ * Removing corner `index` joins the side before it and the side after it into one. Windows/doors on those two
+ * sides slide onto the joined side at (roughly) the same spot, and the sides after it get a lower number.
+ */
+export function removeCornerPlacements(
+  placed: PlacedOpening[],
+  annotationId: string,
+  points: Point[],
+  index: number,
+): PlacedOpening[] {
+  const n = points.length;
+  const prev = (index - 1 + n) % n;
+  const length = (from: number) => {
+    const a = points[from];
+    const b = points[(from + 1) % n];
+    return Math.hypot(b.x - a.x, b.y - a.y);
+  };
+  const before = length(prev);
+  const after = length(index);
+  const total = before + after || 1;
+  const renumber = (edge: number) => (edge < index ? edge : edge - 1);
+  return placed.map((p) => {
+    if (p.annotationId !== annotationId) return p;
+    if (p.edgeIndex === prev) return { ...p, edgeIndex: renumber(prev), t: (p.t * before) / total };
+    if (p.edgeIndex === index) return { ...p, edgeIndex: renumber(prev), t: (before + p.t * after) / total };
+    return { ...p, edgeIndex: renumber(p.edgeIndex) };
+  });
+}
+
+/** Removes a corner of an area (the caller checks the shape keeps enough corners) and keeps its windows/doors in place. */
+export function removeCorner(annotationId: string, index: number): void {
+  const store = useAnnotationStore.getState();
+  const annotation = store.annotations.find((a) => a.id === annotationId);
+  if (!annotation || annotation.locked) return;
+  const points = annotation.points.filter((_, i) => i !== index);
+  const edges = annotation.edges ? annotation.edges.filter((_, i) => i !== index) : undefined;
+  store.updateAnnotation(annotationId, { points, edges });
+
+  const file = useFilesStore.getState().getFile(annotation.fileId);
+  if (file?.placedOpenings?.some((p) => p.annotationId === annotationId)) {
+    void useFilesStore
+      .getState()
+      .setOpenings(file.id, file.openings ?? [], removeCornerPlacements(file.placedOpenings, annotationId, annotation.points, index));
+  }
+}
