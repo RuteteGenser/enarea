@@ -100,6 +100,17 @@ export default function OpeningsTable({ openings, placed }: { openings: OpeningI
   }, [selected.length, setHighlighted]);
   useEffect(() => () => setHighlighted([]), [setHighlighted]);
 
+  // Something picked on the drawing is selected here too, and its line is scrolled into view.
+  const highlighted = useViewportStore((s) => s.highlightedOpenings);
+  useEffect(() => {
+    setSelected((current) => {
+      const unplaced = current.filter((key) => key.startsWith('type:'));
+      const same = current.length === highlighted.length + unplaced.length && highlighted.every((id) => current.includes(id));
+      return same ? current : [...highlighted, ...unplaced];
+    });
+    if (highlighted.length > 0) document.querySelector(`tr[data-opening-row="${highlighted[0]}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [highlighted]);
+
   useEffect(() => {
     if (!typesLoaded) void loadTypes();
   }, [typesLoaded, loadTypes]);
@@ -160,8 +171,9 @@ export default function OpeningsTable({ openings, placed }: { openings: OpeningI
             return (
               <tr
                 key={key}
+                data-opening-row={key}
                 onClick={(e) => selectRow(key, e)}
-                className={cn('cursor-pointer border-b border-border/50 transition-colors', selected.includes(key) ? 'bg-accent' : 'hover:bg-secondary/60')}
+                className={cn('scroll-mt-8 cursor-pointer border-b border-border/50 transition-colors', selected.includes(key) ? 'bg-accent' : 'hover:bg-secondary/60')}
               >
                 <td className="px-2 py-1 text-foreground">{item.name}</td>
                 <td className="px-2 py-1">

@@ -118,6 +118,11 @@ export default function RoomTable({
   // The row a Shift-range starts from (the last row clicked without Shift).
   const anchorId = useRef<string | null>(null);
 
+  // A room clicked on the drawing is highlighted here (it is selected), and its row is scrolled into view.
+  useEffect(() => {
+    if (selectedIds.length > 0) document.querySelector(`tr[data-room-row="${selectedIds[0]}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [selectedIds]);
+
   function toggleSort(key: ColumnKey) {
     if (sortKey !== key) {
       setSortKey(key);
@@ -390,12 +395,13 @@ function RoomTableRow({ annotation, selected, unit, mpu, openingItems, onSelect 
 
   return (
     <tr
+      data-room-row={annotation.id}
       role="button"
       tabIndex={0}
       onClick={onSelect}
       onKeyDown={(e) => e.key === 'Enter' && onSelect(e)}
       className={cn(
-        'group select-none border-b border-border/50 transition-colors',
+        'group scroll-mt-8 select-none border-b border-border/50 transition-colors',
         selected ? 'bg-accent' : 'hover:bg-secondary/60',
         !annotation.visible && 'opacity-50',
       )}

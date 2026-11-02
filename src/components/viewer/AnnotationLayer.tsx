@@ -38,12 +38,11 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
 
   const highlightedWalls = useViewportStore((s) => s.highlightedWalls);
   const setHighlightedWalls = useViewportStore((s) => s.setHighlightedWalls);
-  // The walls picked in Målinger stay marked only while their rooms are still selected.
+  // The walls picked in Målinger stay marked until the selection moves to something else.
   useEffect(() => {
-    if (highlightedWalls.length > 0 && highlightedWalls.some((w) => !selectedIds.includes(w.annotationId))) {
-      setHighlightedWalls([]);
-    }
-  }, [highlightedWalls, selectedIds, setHighlightedWalls]);
+    const picked = useViewportStore.getState().highlightedWalls;
+    if (picked.length > 0 && picked.some((w) => !selectedIds.includes(w.annotationId))) setHighlightedWalls([]);
+  }, [selectedIds, setHighlightedWalls]);
   const wallLines = highlightedWalls.flatMap((wall) => {
     const room = annotations.find((a) => a.id === wall.annotationId);
     const a = room?.points[wall.edgeIndex];
@@ -55,6 +54,21 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
   const [hoveredRoomId, setHoveredRoomId] = useState<string | null>(null);
   const [hoveredWall, setHoveredWall] = useState<string | null>(null);
   const [armedWall, setArmedWall] = useState<string | null>(null);
+
+  // A wall clicked on the drawing is marked in Målinger too (and stops being marked when it is un-marked here).
+  const previousArmed = useRef<string | null>(null);
+  useEffect(() => {
+    const previous = previousArmed.current;
+    previousArmed.current = armedWall;
+    if (armedWall) {
+      const [annotationId, edgeText] = armedWall.split(':');
+      setHighlightedWalls([{ annotationId, edgeIndex: Number(edgeText) }]);
+    } else if (previous) {
+      const [annotationId, edgeText] = previous.split(':');
+      const current = useViewportStore.getState().highlightedWalls;
+      if (current.length === 1 && current[0].annotationId === annotationId && current[0].edgeIndex === Number(edgeText)) setHighlightedWalls([]);
+    }
+  }, [armedWall, setHighlightedWalls]);
 
   // A marked wall is deleted with the Delete key, and un-marked by clicking anywhere else or Esc.
   useEffect(() => {
