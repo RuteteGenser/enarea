@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
+import { PDFDocument, StandardFonts, degrees, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import { annotationArea, distance } from '@/lib/geometry';
 import { formatArea, formatLength, metersPerUnit } from '@/lib/calibration';
 import { displayName, TYPE_LABEL_NB } from '@/lib/annotationLabel';
@@ -138,8 +138,22 @@ function drawCoverPage(
 }
 
 function drawAnnotationsOnPage(page: PDFPage, annotations: Annotation[], font: PDFFont, unit: Unit, mpu: number): void {
-  const { height: pageHeight } = page.getSize();
-  const flip = (x: number, y: number) => ({ x, y: pageHeight - y });
+  // Annotation coordinates are measured on the page as shown (y down). A rotated page (see "Roter PDF") has
+  // its content stored turned, so shown positions are mapped back to the page's own coordinates.
+  const { width: pageWidth, height: pageHeight } = page.getSize();
+  const rotation = (((page.getRotation().angle % 360) + 360) % 360) as 0 | 90 | 180 | 270;
+  const flip = (x: number, y: number) => {
+    switch (rotation) {
+      case 90:
+        return { x: y, y: x };
+      case 180:
+        return { x: pageWidth - x, y };
+      case 270:
+        return { x: pageWidth - y, y: pageHeight - x };
+      default:
+        return { x, y: pageHeight - y };
+    }
+  };
 
   for (const annotation of annotations) {
     if (!annotation.visible) continue;
@@ -160,21 +174,30 @@ function drawAnnotationsOnPage(page: PDFPage, annotations: Annotation[], font: P
       }
     }
 
-    const centroid = flipped.reduce((acc, p) => ({ x: acc.x + p.x / flipped.length, y: acc.y + p.y / flipped.length }), {
-      x: 0,
-      y: 0,
-    });
+    // The label sits at the middle of the shape, as seen on the page.
+    const shown = annotation.points;
+    const center = {
+      x: shown.reduce((sum, p) => sum + p.x, 0) / shown.length,
+      y: shown.reduce((sum, p) => sum + p.y, 0) / shown.length,
+    };
     const valueLabel = annotationValueLabel(annotation, mpu, unit);
     const labelText = annotation.name ? `${annotation.name}  ${valueLabel}` : valueLabel;
     const textWidth = font.widthOfTextAtSize(labelText, 9);
+    const turn = degrees(rotation);
     page.drawRectangle({
-      x: centroid.x - textWidth / 2 - 4,
-      y: centroid.y - 4,
+      ...flip(center.x - textWidth / 2 - 4, center.y + 4),
       width: textWidth + 8,
       height: 13,
       color: rgb(1, 1, 1),
+      rotate: turn,
     });
-    page.drawText(labelText, { x: centroid.x - textWidth / 2, y: centroid.y - 1, size: 9, font, color: rgb(0.1, 0.1, 0.12) });
+    page.drawText(labelText, {
+      ...flip(center.x - textWidth / 2, center.y + 1),
+      size: 9,
+      font,
+      color: rgb(0.1, 0.1, 0.12),
+      rotate: turn,
+    });
   }
 }
 
