@@ -19,7 +19,11 @@ function hexToRgb01(hex: string) {
   return rgb(r, g, b);
 }
 
-function annotationValueLabel(annotation: Annotation, mpu: number, unit: Unit): string {
+/** Without a calibration the numbers would be meaningless (PDF units taken for meters), so none are shown. */
+const NOT_CALIBRATED_LABEL = 'ikke kalibrert';
+
+function annotationValueLabel(annotation: Annotation, mpu: number, unit: Unit, calibrated: boolean): string {
+  if (!calibrated) return NOT_CALIBRATED_LABEL;
   if (annotation.type === 'line') {
     return formatLength(distance(annotation.points[0], annotation.points[1]) * mpu, unit);
   }
@@ -113,7 +117,7 @@ function drawCoverPage(
         font,
         color: rgb(0.4, 0.4, 0.43),
       });
-      page.drawText(annotationValueLabel(annotation, mpu, unit), {
+      page.drawText(annotationValueLabel(annotation, mpu, unit, file.calibration !== null), {
         x: MARGIN + colWidths.name + colWidths.type,
         y,
         size: 10,
@@ -135,7 +139,7 @@ function drawCoverPage(
       }
 
       if (annotation.type !== 'line') {
-        grandTotalArea += annotationArea(annotation) * mpu * mpu;
+        if (file.calibration) grandTotalArea += annotationArea(annotation) * mpu * mpu;
       }
     }
     y -= 14;
@@ -184,7 +188,9 @@ function drawCoverPage(
   }
 
   ensureSpace(24);
-  page.drawText(`Totalt areal: ${formatArea(grandTotalArea, unit)}`, {
+  const skipped = filesData.filter(({ file, annotations }) => file.calibration === null && annotations.some((a) => a.visible)).length;
+  const skippedNote = skipped > 0 ? `  (utenom ${skipped} ukalibrert${skipped === 1 ? '' : 'e'} tegning${skipped === 1 ? '' : 'er'})` : '';
+  page.drawText(`Totalt areal: ${formatArea(grandTotalArea, unit)}${skippedNote}`, {
     x: MARGIN,
     y,
     size: 12,
@@ -236,9 +242,9 @@ function drawAnnotationsOnPage(page: PDFPage, annotations: Annotation[], font: P
       x: shown.reduce((sum, p) => sum + p.x, 0) / shown.length,
       y: shown.reduce((sum, p) => sum + p.y, 0) / shown.length,
     };
-    const valueLabel = annotationValueLabel(annotation, mpu, unit);
+    const valueLabel = annotationValueLabel(annotation, mpu, unit, file.calibration !== null);
     const title = [annotation.roomNumber, annotation.name].filter(Boolean).join(' ');
-    const labelText = title ? `${title}  ${valueLabel}` : valueLabel;
+    const labelText = file.calibration === null ? title || valueLabel : title ? `${title}  ${valueLabel}` : valueLabel;
     const textWidth = font.widthOfTextAtSize(labelText, 9);
     const turn = degrees(rotation);
     page.drawRectangle({
