@@ -28,7 +28,7 @@ export { ventilationTotal };
 const round = (value: number, decimals = 2) => Math.round(value * 10 ** decimals) / 10 ** decimals;
 
 /**
- * Names the windows and doors on some sides: "2 × Vindu 1 (Trevindu), Dør 1". Placed items use the name of
+ * Names the windows and doors on some sides: "2 × Vindu 1 (Trevindu), 1 × Dør 1". Placed items use the name of
  * their type plus the building type picked for it; ones added in the material picker use the building type's name.
  */
 function openingNames(edges: (EdgeMeta | undefined)[], items: OpeningItem[], buildingTypes: BuildingComponentType[]): Cell {
@@ -40,7 +40,7 @@ function openingNames(edges: (EdgeMeta | undefined)[], items: OpeningItem[], bui
     add(typeName ? `${item.name} (${typeName})` : item.name);
   }
   if (counts.size === 0) return null;
-  return [...counts].map(([label, n]) => (n > 1 ? `${n} × ${label}` : label)).join(', ');
+  return [...counts].map(([label, n]) => `${n} × ${label}`).join(', ');
 }
 
 /**
