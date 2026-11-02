@@ -300,6 +300,20 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
       }
     }
 
+    // A window/door picked in Målinger: centre on it.
+    const picked = useViewportStore.getState().highlightedOpenings;
+    const placement = wall
+      ? undefined
+      : file.placedOpenings?.find((p) => picked.includes(p.id) && p.annotationId === annotation.id);
+    if (placement) {
+      const a = annotation.points[placement.edgeIndex];
+      const b = annotation.points[(placement.edgeIndex + 1) % annotation.points.length];
+      if (a && b) {
+        centerX = a.x + (b.x - a.x) * placement.t;
+        centerY = a.y + (b.y - a.y) * placement.t;
+      }
+    }
+
     // Read zoom fresh rather than depending on it (see deps below) — this
     // jump should only happen once, right when a new jump is requested,
     // using whatever zoom is current at that moment. Depending on `zoom`

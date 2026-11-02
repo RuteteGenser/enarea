@@ -28,6 +28,9 @@ type ViewportStore = {
   northDialogOpen: boolean;
   /** The walls picked in Målinger: shown on the drawing until the selection moves elsewhere. */
   highlightedWalls: { annotationId: string; edgeIndex: number }[];
+  /** Placed windows/doors (ids of the placements) picked in Målinger: marked on the drawing like the walls. */
+  highlightedOpenings: string[];
+  setHighlightedOpenings: (ids: string[]) => void;
   setHighlightedWalls: (walls: { annotationId: string; edgeIndex: number }[]) => void;
   setNorthDialogOpen: (open: boolean) => void;
   northScreenshotBearing: number | null;
@@ -103,6 +106,7 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   openingsDialogOpen: false,
   northDialogOpen: false,
   highlightedWalls: [],
+  highlightedOpenings: [],
   northScreenshotBearing: null,
   wallsDialogOpen: false,
   placingOpeningId: null,
@@ -133,6 +137,7 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   setMagnifierKeyDown: (down) => set({ isMagnifierKeyDown: down }),
   setOpeningsDialogOpen: (open) => set({ openingsDialogOpen: open }),
   setHighlightedWalls: (walls) => set({ highlightedWalls: walls }),
+  setHighlightedOpenings: (ids) => set({ highlightedOpenings: ids }),
   setNorthDialogOpen: (open) => set({ northDialogOpen: open }),
   setNorthScreenshotBearing: (bearing) => set({ northScreenshotBearing: bearing }),
   setWallsDialogOpen: (open) => set({ wallsDialogOpen: open }),
