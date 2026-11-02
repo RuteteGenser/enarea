@@ -263,8 +263,12 @@ describe('summary of windows and doors per type', () => {
     ],
   };
   const types = [{ id: 'bt', category: 'vindu' as const, name: 'Trevindu', uValue: 1.1, createdAt: 1, updatedAt: 1 }];
-  const walls = buildExportTables(project, [{ file: f, annotations: [{ ...room, edges: [{}, {}, {}, {}] }] }], types)[2];
-  const summary = walls.summaries!.find((s) => s.title.includes('vinduer og dører per type'))!;
+  const tables = buildExportTables(project, [{ file: f, annotations: [{ ...room, edges: [{}, {}, {}, {}] }] }], types);
+  const summary = tables[3].summaries![0]; // in the Vinduer og dører sheet
+  it('is in the Vinduer og dører sheet, not in Vegger', () => {
+    expect(summary.title).toBe('Oppsummering: vinduer og dører per type');
+    expect(tables[2].summaries!.some((s) => s.title.includes('vinduer og dører'))).toBe(false);
+  });
 
   it('lists each placed type with its size, count and total area, windows first', () => {
     expect(summary.headers.slice(0, 5)).toEqual(['Fil', 'Navn / type', 'Vindu/dør', 'Bredde (mm)', 'Høyde (mm)']);
