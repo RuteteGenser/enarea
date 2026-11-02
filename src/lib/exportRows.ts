@@ -5,7 +5,7 @@ import { joinPlacements, openingArea, OPENING_KIND_LABELS } from '@/lib/openings
 import { openingTotals } from '@/lib/wallOpenings';
 import { ventilationTotal } from '@/lib/ventilation';
 import { BUILDING_CATEGORY_LABELS, BUILDING_COMPONENT_CATEGORY_LABELS, VENTILATION_UNIT_LABELS } from '@/types';
-import { compassPoint, ORIENTATION_NAMES, ORIENTATION_OPTIONS, wallBearing } from '@/lib/wallOrientation';
+import { compassPoint, ORIENTATION_NAMES, ORIENTATION_OPTIONS, orientationDegrees, wallBearing } from '@/lib/wallOrientation';
 import type { Annotation, BuildingComponentType, EdgeMeta, OpeningItem, PdfFile, Project } from '@/types';
 
 export type ExportFileData = { file: PdfFile; annotations: Annotation[] };
@@ -17,8 +17,8 @@ export type ExportTable = {
   title: string;
   headers: string[];
   rows: Cell[][];
-  /** A second, smaller table written below the rows (e.g. the sums per compass direction). */
-  summary?: { title: string; headers: string[]; rows: Cell[][] };
+  /** Smaller tables written below the rows, one after the other (e.g. the sums per compass direction). */
+  summaries?: { title: string; headers: string[]; rows: Cell[][] }[];
 };
 
 const bearingCell = (degrees: number | undefined): Cell => (degrees === undefined ? null : degrees);
@@ -56,6 +56,7 @@ export function buildExportTables(
   const walls: Cell[][] = [];
   const openings: Cell[][] = [];
   const wallSums: WallSum[] = [];
+  const zoneSums: ZoneSum[] = [];
 
   let totalArea = 0;
   let totalPeople = 0;
@@ -109,6 +110,9 @@ export function buildExportTables(
         air === null ? null : round(air, 1),
       ]);
 
+      const zone: ZoneSum = { file: file.name, roomNumber: annotation.roomNumber ?? null, room: name, outerCount: 0, outerLength: 0, outerArea: 0, hasHeight: false, allLength: calibrated ? polygonPerimeter(annotation.points) * mpu : null };
+      if (calibrated) zoneSums.push(zone);
+
       (annotation.edges ?? []).forEach((edge, i) => {
         const a = annotation.points[i];
         const b = annotation.points[(i + 1) % annotation.points.length];
@@ -138,6 +142,14 @@ export function buildExportTables(
           wall.dor.count ? round(wall.dor.area) : null,
           openingNames([edge], placed, buildingTypes),
         ]);
+        if (edge.wallType === 'external' && wallLength !== null) {
+          zone.outerCount++;
+          zone.outerLength += wallLength;
+          if (wallArea !== null) {
+            zone.outerArea += wallArea;
+            zone.hasHeight = true;
+          }
+        }
         if (edge.wallType === 'external' && calibrated && a && b) {
           wallSums.push({ file: file.name, roomKey: `${file.id}:${annotation.id}`, roomNumber: annotation.roomNumber ?? null, room: name, bearing: wallBearing(annotation, i, project.northDirection) ?? 0, length: distance(a, b) * mpu, area: wallArea, vindu: wall.vindu.area, dor: wall.dor.area });
         }
@@ -250,7 +262,7 @@ export function buildExportTables(
         'Vinduer og dører (navn)',
       ],
       rows: walls,
-      summary: wallSummary(wallSums),
+      summaries: [wallSummary(wallSums), zoneSummary(zoneSums)].filter((t): t is NonNullable<typeof t> => t !== undefined),
     },
     {
       title: 'Vinduer og dører',
@@ -286,7 +298,7 @@ type WallSum = {
 };
 
 /** Sums of the outer walls per compass direction (north first) and, within each, per room; with a sum row per direction and a total. */
-function wallSummary(walls: WallSum[]): ExportTable['summary'] {
+function wallSummary(walls: WallSum[]): NonNullable<ExportTable['summaries']>[number] | undefined {
   const rows: Cell[][] = [];
   const total = { count: 0, length: 0, area: 0, vindu: 0, dor: 0 };
   const sums = (list: WallSum[]) => ({
@@ -307,6 +319,7 @@ function wallSummary(walls: WallSum[]): ExportTable['summary'] {
       const sum = sums(mine);
       rows.push([
         ORIENTATION_NAMES[direction],
+        [...new Set(mine.map((w) => Math.round(w.bearing) % 360))].sort((a, b) => a - b).join(', '),
         mine[0].file,
         mine[0].roomNumber,
         mine[0].room,
@@ -318,7 +331,7 @@ function wallSummary(walls: WallSum[]): ExportTable['summary'] {
       ]);
     }
     const sum = sums(inDirection);
-    rows.push([`Sum ${ORIENTATION_NAMES[direction].toLowerCase()}`, null, null, null, sum.count, round(sum.length), sum.hasHeight ? round(sum.area) : null, round(sum.vindu), round(sum.dor)]);
+    rows.push([`Sum ${ORIENTATION_NAMES[direction].toLowerCase()}`, orientationDegrees(direction), null, null, null, sum.count, round(sum.length), sum.hasHeight ? round(sum.area) : null, round(sum.vindu), round(sum.dor)]);
     total.count += sum.count;
     total.length += sum.length;
     total.area += sum.area;
@@ -326,10 +339,49 @@ function wallSummary(walls: WallSum[]): ExportTable['summary'] {
     total.dor += sum.dor;
   }
   if (rows.length === 0) return undefined;
-  rows.push(['Sum alle', null, null, null, total.count, round(total.length), round(total.area), round(total.vindu), round(total.dor)]);
+  rows.push(['Sum alle', null, null, null, null, total.count, round(total.length), round(total.area), round(total.vindu), round(total.dor)]);
   return {
     title: 'Oppsummering: yttervegger per himmelretning og rom',
-    headers: ['Himmelretning', 'Fil', 'Rom nr', 'Rom', 'Antall vegger', 'Total lengde (m)', 'Veggareal (m²)', 'Vindu (m²)', 'Dør (m²)'],
+    headers: ['Himmelretning', 'Grader (°)', 'Fil', 'Rom nr', 'Rom', 'Antall vegger', 'Total lengde (m)', 'Veggareal (m²)', 'Vindu (m²)', 'Dør (m²)'],
+    rows,
+  };
+}
+
+type ZoneSum = {
+  file: string;
+  roomNumber: string | null;
+  room: string;
+  outerCount: number;
+  outerLength: number;
+  outerArea: number;
+  hasHeight: boolean;
+  allLength: number | null;
+};
+
+/** Total wall length per zone (room/area): the outer walls and all sides, with a total row. */
+function zoneSummary(zones: ZoneSum[]): NonNullable<ExportTable['summaries']>[number] | undefined {
+  if (zones.length === 0) return undefined;
+  const rows: Cell[][] = zones.map((z) => [
+    z.file,
+    z.roomNumber,
+    z.room,
+    z.outerCount || null,
+    round(z.outerLength),
+    z.hasHeight ? round(z.outerArea) : null,
+    z.allLength === null ? null : round(z.allLength),
+  ]);
+  rows.push([
+    'Sum',
+    null,
+    null,
+    zones.reduce((s, z) => s + z.outerCount, 0),
+    round(zones.reduce((s, z) => s + z.outerLength, 0)),
+    round(zones.reduce((s, z) => s + z.outerArea, 0)),
+    round(zones.reduce((s, z) => s + (z.allLength ?? 0), 0)),
+  ]);
+  return {
+    title: 'Oppsummering: total vegglengde per sone',
+    headers: ['Fil', 'Rom nr', 'Sone', 'Antall yttervegger', 'Total lengde yttervegger (m)', 'Veggareal yttervegger (m²)', 'Total vegglengde alle sider (m)'],
     rows,
   };
 }
