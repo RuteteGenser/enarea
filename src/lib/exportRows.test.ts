@@ -225,14 +225,23 @@ describe('wall height, area, names and direction summary', () => {
     expect(w.rows[0][w.headers.indexOf('Vinduer og dører (navn)')]).toBe('1 × Vindu 1 (Trevindu)');
   });
 
-  it('sums the outer walls per compass direction and room', () => {
-    const rows = walls.summary!.rows;
-    expect(walls.summary!.headers.slice(0, 4)).toEqual(['Himmelretning', 'Fil', 'Rom nr', 'Rom']);
+  it('sums the outer walls per compass direction and room, with the degrees', () => {
+    const summary = walls.summaries![0];
+    const rows = summary.rows;
+    expect(summary.headers.slice(0, 5)).toEqual(['Himmelretning', 'Grader (°)', 'Fil', 'Rom nr', 'Rom']);
     // top wall faces north, right wall faces east; each direction has its room rows and a sum row
     expect(rows.map((r) => r[0])).toEqual(['Nord', 'Sum nord', 'Øst', 'Sum øst', 'Sum alle']);
-    expect(rows[0].slice(1, 7)).toEqual(['plan.pdf', '101', 'Kontor', 1, 10, 25]);
-    expect(rows[2][6]).toBeNull(); // no height on the east wall
-    expect(rows[4][4]).toBe(2);
-    expect(rows[4][5]).toBe(30); // 10 m + 20 m
+    expect(rows.map((r) => r[1])).toEqual(['0', 0, '90', 90, null]);
+    expect(rows[0].slice(2, 8)).toEqual(['plan.pdf', '101', 'Kontor', 1, 10, 25]);
+    expect(rows[2][7]).toBeNull(); // no height on the east wall
+    expect(rows[4][5]).toBe(2);
+    expect(rows[4][6]).toBe(30); // 10 m + 20 m
+  });
+
+  it('has a second summary with the total wall length per zone', () => {
+    const zones = walls.summaries![1];
+    expect(zones.title).toBe('Oppsummering: total vegglengde per sone');
+    expect(zones.rows[0]).toEqual(['plan.pdf', '101', 'Kontor', 2, 30, 25, 60]); // 2 outer walls = 30 m, all four sides = 60 m
+    expect(zones.rows[1][0]).toBe('Sum');
   });
 });

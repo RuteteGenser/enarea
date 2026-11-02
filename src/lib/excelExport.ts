@@ -45,24 +45,25 @@ export async function exportProjectExcel(
       });
     }
 
-    // The summary goes under the table, after an empty row.
-    if (table.summary) {
+    // The summaries go under the table, each after an empty row.
+    for (const summary of table.summaries ?? []) {
       sheet.addRow([]);
-      const title = sheet.addRow([table.summary.title]);
+      const title = sheet.addRow([summary.title]);
       title.font = { bold: true, size: 12 };
-      const head = sheet.addRow(table.summary.headers);
+      const head = sheet.addRow(summary.headers);
       head.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      head.alignment = { wrapText: true };
       head.eachCell((cell) => {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_FILL } };
       });
-      table.summary.rows.forEach((values) => {
+      for (const values of summary.rows) {
         const row = sheet.addRow(values);
         row.eachCell((cell) => {
           if (typeof cell.value === 'number' && !Number.isInteger(cell.value)) cell.numFmt = '0.00';
         });
         if (String(values[0] ?? '').startsWith('Sum')) row.font = { bold: true }; // the sum rows
-      });
-      table.summary.headers.forEach((header, c) => {
+      }
+      summary.headers.forEach((header, c) => {
         const column = sheet.getColumn(c + 1);
         column.width = Math.max(column.width ?? 10, Math.min(MAX_COLUMN_WIDTH, header.length + 3));
       });
