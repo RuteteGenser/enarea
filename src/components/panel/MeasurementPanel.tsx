@@ -159,7 +159,7 @@ export default function MeasurementPanel({ calibration, openings = [], placedOpe
         </div>
       )}
 
-      <div className="shrink-0 px-2 text-right text-[9px] leading-none text-muted-foreground/80" title="Versjon">
+      <div className="shrink-0 px-2 py-0.5 text-right text-xs leading-none text-muted-foreground" title="Versjon">
         v{APP_VERSION}
       </div>
     </div>
