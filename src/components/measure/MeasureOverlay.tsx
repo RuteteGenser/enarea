@@ -10,9 +10,10 @@ import type { Calibration, Point } from '@/types';
 type MeasureOverlayProps = { zoom: number; width: number; height: number; calibration: Calibration };
 
 /**
- * Measure tool: click the start and end point (or drag) to read a distance. The line is only a
- * temporary readout — it is never saved to the model and disappears with the next measurement,
- * Esc or switching tool.
+ * Measure tool (a temporary tape measure): click points one after another to chain measurements — each leg gets
+ * its length and the running total is shown. A first press-and-drag also measures a leg. Double-click or Enter
+ * finishes the chain (the next click starts a new one); Esc clears. Nothing is saved to the model: the line
+ * disappears with the next measurement, Esc or switching tool.
  */
 export default function MeasureOverlay({ zoom, width, height, calibration }: MeasureOverlayProps) {
   const unit = useViewportStore((s) => s.unit);
@@ -20,29 +21,34 @@ export default function MeasureOverlay({ zoom, width, height, calibration }: Mea
   const snapCandidates = useSnapCandidates();
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const [start, setStart] = useState<Point | null>(null);
-  const [end, setEnd] = useState<Point | null>(null); // set once the measurement is finished
+  const [points, setPoints] = useState<Point[]>([]);
+  const [finished, setFinished] = useState(false);
   const [cursor, setCursor] = useState<Point | null>(null);
   const [snapped, setSnapped] = useState<Point | null>(null);
-  // A plain click (no drag) sets the start point; the next click finishes. A drag does both at once.
+  // The press that starts a chain can be a drag (start → end in one gesture) or a plain click.
   const dragFrom = useRef<Point | null>(null);
 
-  useDrawingInProgress(start !== null);
+  useDrawingInProgress(points.length > 0 && !finished);
+
+  const clear = () => {
+    setPoints([]);
+    setFinished(false);
+    setCursor(null);
+    setSnapped(null);
+  };
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setStart(null);
-        setEnd(null);
-        setCursor(null);
-        setSnapped(null);
-      }
+      if (e.key === 'Escape') clear();
+      if (e.key === 'Enter') setFinished(true);
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
   const mpu = metersPerUnit(calibration);
+  const last = points[points.length - 1] ?? null;
+  const live = last && !finished ? last : null;
 
   function resolve(e: ReactMouseEvent<SVGSVGElement>, reference: Point | null): Point {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -58,16 +64,16 @@ export default function MeasureOverlay({ zoom, width, height, calibration }: Mea
 
   function handleMouseMove(e: ReactMouseEvent<SVGSVGElement>) {
     if (isSpaceDown) return;
-    setCursor(resolve(e, start && !end ? start : null));
+    setCursor(resolve(e, live));
   }
 
   function handleMouseDown(e: ReactMouseEvent<SVGSVGElement>) {
     if (isSpaceDown || e.button !== 0) return;
-    // Pressing starts a new measurement unless one is waiting for its end point.
-    if (!start || end) {
+    // Pressing starts a new chain unless one is still going.
+    if (points.length === 0 || finished) {
       const p = resolve(e, null);
-      setStart(p);
-      setEnd(null);
+      setPoints([p]);
+      setFinished(false);
       dragFrom.current = p;
     } else {
       dragFrom.current = null;
@@ -75,23 +81,22 @@ export default function MeasureOverlay({ zoom, width, height, calibration }: Mea
   }
 
   function handleMouseUp(e: ReactMouseEvent<SVGSVGElement>) {
-    if (isSpaceDown || e.button !== 0 || !start) return;
-    const p = resolve(e, start);
+    if (isSpaceDown || e.button !== 0 || !last || finished) return;
+    const p = resolve(e, last);
     if (dragFrom.current) {
-      // First press-release: a real drag finishes right away, a click just sets the start point.
-      if (distance(dragFrom.current, p) * zoom > 4) setEnd(p);
+      // First press-release: a real drag measures the first leg, a click just sets the start point.
+      if (distance(dragFrom.current, p) * zoom > 4) setPoints([dragFrom.current, p]);
       dragFrom.current = null;
       return;
     }
-    if (!end) setEnd(p); // second click finishes
+    if (distance(last, p) * zoom > 2) setPoints((current) => [...current, p]);
   }
 
-  const to = end ?? (start && cursor ? cursor : null);
-  const meters = start && to ? distance(start, to) * mpu : null;
-  const a = start ? { x: start.x * zoom, y: start.y * zoom } : null;
-  const b = to ? { x: to.x * zoom, y: to.y * zoom } : null;
-  const label = meters === null ? '' : formatLength(meters, unit);
-  const labelWidth = label.length * 6.5 + 14;
+  const shown = live && cursor ? [...points, cursor] : points;
+  const legs = shown.slice(1).map((to, i) => ({ from: shown[i], to, meters: distance(shown[i], to) * mpu }));
+  const total = legs.reduce((sum, leg) => sum + leg.meters, 0);
+  const screen = (p: Point) => ({ x: p.x * zoom, y: p.y * zoom });
+  const tag = (text: string) => ({ text, width: text.length * 6.5 + 14 });
 
   return (
     <svg
@@ -103,23 +108,45 @@ export default function MeasureOverlay({ zoom, width, height, calibration }: Mea
       onMouseMove={handleMouseMove}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
+      onDoubleClick={() => points.length > 1 && setFinished(true)}
       onMouseLeave={() => setCursor(null)}
     >
-      {a && b && (
-        <g pointerEvents="none">
-          <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#0091ff" strokeWidth={2} strokeDasharray={end ? undefined : '6 4'} />
-          <circle cx={a.x} cy={a.y} r={4} fill="#0091ff" />
-          <circle cx={b.x} cy={b.y} r={4} fill="#0091ff" />
-          <g transform={`translate(${(a.x + b.x) / 2}, ${(a.y + b.y) / 2 - 14})`}>
-            <rect x={-labelWidth / 2} y={-10} width={labelWidth} height={20} rx={4} className="fill-card stroke-primary" strokeWidth={1} />
-            <text textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={600} className="select-none fill-foreground">
-              {label}
-            </text>
-          </g>
-        </g>
-      )}
-      {a && !b && <circle cx={a.x} cy={a.y} r={4} fill="#0091ff" pointerEvents="none" />}
-      {snapped && <circle cx={snapped.x * zoom} cy={snapped.y * zoom} r={7} fill="none" stroke="#0091ff" strokeWidth={1.5} pointerEvents="none" />}
+      <g pointerEvents="none">
+        {legs.map((leg, i) => {
+          const a = screen(leg.from);
+          const b = screen(leg.to);
+          const isLive = !finished && i === legs.length - 1 && live !== null && cursor !== null;
+          const { text, width: w } = tag(formatLength(leg.meters, unit));
+          return (
+            <g key={i}>
+              <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#0091ff" strokeWidth={2} strokeDasharray={isLive ? '6 4' : undefined} />
+              <g transform={`translate(${(a.x + b.x) / 2}, ${(a.y + b.y) / 2 - 14})`}>
+                <rect x={-w / 2} y={-10} width={w} height={20} rx={4} className="fill-card stroke-primary" strokeWidth={1} />
+                <text textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={600} className="select-none fill-foreground">
+                  {text}
+                </text>
+              </g>
+            </g>
+          );
+        })}
+        {shown.map((p, i) => (
+          <circle key={i} cx={p.x * zoom} cy={p.y * zoom} r={4} fill="#0091ff" />
+        ))}
+        {legs.length > 1 &&
+          (() => {
+            const end = screen(shown[shown.length - 1]);
+            const { text, width: w } = tag(`Totalt ${formatLength(total, unit)}`);
+            return (
+              <g transform={`translate(${end.x + w / 2 + 12}, ${end.y + 22})`}>
+                <rect x={-w / 2} y={-10} width={w} height={20} rx={4} className="fill-primary" />
+                <text textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={600} className="select-none fill-primary-foreground">
+                  {text}
+                </text>
+              </g>
+            );
+          })()}
+        {snapped && <circle cx={snapped.x * zoom} cy={snapped.y * zoom} r={7} fill="none" stroke="#0091ff" strokeWidth={1.5} />}
+      </g>
     </svg>
   );
 }

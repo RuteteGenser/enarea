@@ -7,7 +7,7 @@ const SHORTCUTS: [string, string][] = [
   ['V', 'Velg-verktøy'],
   ['B', 'Boksvalg (dra over flere elementer)'],
   ['Shift + klikk', 'Velg flere / fjern fra valget (Velg-verktøyet)'],
-  ['L', 'Mål avstand (midlertidig)'],
+  ['L', 'Mål avstand (midlertidig). Klikk punkt for punkt for å kjede målinger; dobbeltklikk eller Enter avslutter'],
   ['R', 'Rektangel'],
   ['P', 'Polygon'],
   ['D', 'Gjenkjenn rom (Enter godkjenner valgt område)'],
