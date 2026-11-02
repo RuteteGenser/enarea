@@ -45,6 +45,29 @@ export async function exportProjectExcel(
       });
     }
 
+    // The summary goes under the table, after an empty row.
+    if (table.summary) {
+      sheet.addRow([]);
+      const title = sheet.addRow([table.summary.title]);
+      title.font = { bold: true, size: 12 };
+      const head = sheet.addRow(table.summary.headers);
+      head.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      head.eachCell((cell) => {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_FILL } };
+      });
+      table.summary.rows.forEach((values, index) => {
+        const row = sheet.addRow(values);
+        row.eachCell((cell) => {
+          if (typeof cell.value === 'number' && !Number.isInteger(cell.value)) cell.numFmt = '0.00';
+        });
+        if (index === table.summary!.rows.length - 1) row.font = { bold: true };
+      });
+      table.summary.headers.forEach((header, c) => {
+        const column = sheet.getColumn(c + 1);
+        column.width = Math.max(column.width ?? 10, Math.min(MAX_COLUMN_WIDTH, header.length + 3));
+      });
+    }
+
     if (table.title === 'Prosjekt') {
       sheet.getColumn(1).font = { bold: true };
       sheet.getColumn(2).alignment = { horizontal: 'left' };

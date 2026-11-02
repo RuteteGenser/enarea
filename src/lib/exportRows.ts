@@ -5,21 +5,43 @@ import { joinPlacements, openingArea, OPENING_KIND_LABELS } from '@/lib/openings
 import { openingTotals } from '@/lib/wallOpenings';
 import { ventilationTotal } from '@/lib/ventilation';
 import { BUILDING_CATEGORY_LABELS, BUILDING_COMPONENT_CATEGORY_LABELS, VENTILATION_UNIT_LABELS } from '@/types';
-import { wallBearing } from '@/lib/wallOrientation';
-import type { Annotation, BuildingComponentType, PdfFile, Project } from '@/types';
+import { compassPoint, ORIENTATION_NAMES, ORIENTATION_OPTIONS, wallBearing } from '@/lib/wallOrientation';
+import type { Annotation, BuildingComponentType, EdgeMeta, OpeningItem, PdfFile, Project } from '@/types';
 
 export type ExportFileData = { file: PdfFile; annotations: Annotation[] };
 
 /** A spreadsheet cell: number, text, or empty. */
 export type Cell = string | number | null;
 
-export type ExportTable = { title: string; headers: string[]; rows: Cell[][] };
+export type ExportTable = {
+  title: string;
+  headers: string[];
+  rows: Cell[][];
+  /** A second, smaller table written below the rows (e.g. the sums per compass direction). */
+  summary?: { title: string; headers: string[]; rows: Cell[][] };
+};
 
 const bearingCell = (degrees: number | undefined): Cell => (degrees === undefined ? null : degrees);
 
 export { ventilationTotal };
 
 const round = (value: number, decimals = 2) => Math.round(value * 10 ** decimals) / 10 ** decimals;
+
+/**
+ * Names the windows and doors on some sides: "2 × Vindu 1 (Trevindu), Dør 1". Placed items use the name of
+ * their type plus the building type picked for it; ones added in the material picker use the building type's name.
+ */
+function openingNames(edges: (EdgeMeta | undefined)[], items: OpeningItem[], buildingTypes: BuildingComponentType[]): Cell {
+  const counts = new Map<string, number>();
+  const add = (label: string) => counts.set(label, (counts.get(label) ?? 0) + 1);
+  for (const edge of edges) for (const o of edge?.openings ?? []) add(o.component.name);
+  for (const item of items) {
+    const typeName = buildingTypes.find((t) => t.id === item.typeId)?.name;
+    add(typeName ? `${item.name} (${typeName})` : item.name);
+  }
+  if (counts.size === 0) return null;
+  return [...counts].map(([label, n]) => (n > 1 ? `${n} × ${label}` : label)).join(', ');
+}
 
 /**
  * Turns the project data into tables for the Excel export. Lengths are in m, areas in m²; they
@@ -33,6 +55,7 @@ export function buildExportTables(
   const rooms: Cell[][] = [];
   const walls: Cell[][] = [];
   const openings: Cell[][] = [];
+  const wallSums: { bearing: number; length: number; area: number | null; vindu: number; dor: number }[] = [];
 
   let totalArea = 0;
   let totalPeople = 0;
@@ -78,6 +101,7 @@ export function buildExportTables(
         total.vindu.count ? round(total.vindu.area) : null,
         total.dor.count || null,
         total.dor.count ? round(total.dor.area) : null,
+        openingNames(annotation.edges ?? [], roomItems, buildingTypes),
         template?.ventilationRate ?? null,
         template?.ventilationRate !== undefined
           ? VENTILATION_UNIT_LABELS[template.ventilationUnit ?? 'm3h_per_m2']
@@ -91,6 +115,8 @@ export function buildExportTables(
         const open = edge.openings ?? [];
         const placed = items.filter((it) => it.placement?.annotationId === annotation.id && it.placement.edgeIndex === i);
         const wall = openingTotals([edge], placed);
+        const wallLength = calibrated && a && b ? distance(a, b) * mpu : null;
+        const wallArea = wallLength !== null && edge.heightMeters ? wallLength * edge.heightMeters : null;
         // Only sides marked as outer walls are walls in the export: internal walls and unmarked sides
         // (e.g. where two zones meet) are left out. Windows/doors on them still appear in their own sheet.
         if (edge.wallType === 'external') walls.push([
@@ -99,6 +125,8 @@ export function buildExportTables(
           name,
           i + 1,
           calibrated && a && b ? round(distance(a, b) * mpu) : null,
+          edge.heightMeters ?? null,
+          wallArea === null ? null : round(wallArea),
           edge.buildingComponent?.name ?? null,
           edge.buildingComponent?.uValue ?? null,
           edge.buildingComponent?.wallThickness ?? null,
@@ -108,7 +136,11 @@ export function buildExportTables(
           wall.vindu.count ? round(wall.vindu.area) : null,
           wall.dor.count || null,
           wall.dor.count ? round(wall.dor.area) : null,
+          openingNames([edge], placed, buildingTypes),
         ]);
+        if (edge.wallType === 'external' && calibrated && a && b) {
+          wallSums.push({ bearing: wallBearing(annotation, i, project.northDirection) ?? 0, length: distance(a, b) * mpu, area: wallArea, vindu: wall.vindu.area, dor: wall.dor.area });
+        }
 
         for (const opening of open) {
           openings.push([
@@ -189,6 +221,7 @@ export function buildExportTables(
         'Vindu (m²)',
         'Dør (antall)',
         'Dør (m²)',
+        'Vinduer og dører (navn)',
         'Luftmengde (verdi)',
         'Luftmengde (enhet)',
         'Beregnet luftmengde (m³/h)',
@@ -203,6 +236,8 @@ export function buildExportTables(
         'Rom',
         'Vegg nr',
         'Lengde (m)',
+        'Vegghøyde (m)',
+        'Veggareal (m²)',
         'Veggtype',
         'U-verdi (W/m²K)',
         'Tykkelse (mm)',
@@ -212,8 +247,10 @@ export function buildExportTables(
         'Vindu (m²)',
         'Dør (antall)',
         'Dør (m²)',
+        'Vinduer og dører (navn)',
       ],
       rows: walls,
+      summary: wallSummary(wallSums),
     },
     {
       title: 'Vinduer og dører',
@@ -234,4 +271,36 @@ export function buildExportTables(
       rows: openings,
     },
   ];
+}
+
+/** Sums of the outer walls per compass direction (north first), with a total row. */
+function wallSummary(
+  walls: { bearing: number; length: number; area: number | null; vindu: number; dor: number }[],
+): ExportTable['summary'] {
+  const rows: Cell[][] = [];
+  const total = { count: 0, length: 0, area: 0, vindu: 0, dor: 0 };
+  for (const direction of ORIENTATION_OPTIONS) {
+    const mine = walls.filter((w) => compassPoint(w.bearing) === direction);
+    if (mine.length === 0) continue;
+    const sum = {
+      length: mine.reduce((s, w) => s + w.length, 0),
+      area: mine.reduce((s, w) => s + (w.area ?? 0), 0),
+      vindu: mine.reduce((s, w) => s + w.vindu, 0),
+      dor: mine.reduce((s, w) => s + w.dor, 0),
+    };
+    const withHeight = mine.filter((w) => w.area !== null).length;
+    rows.push([ORIENTATION_NAMES[direction], mine.length, round(sum.length), withHeight > 0 ? round(sum.area) : null, round(sum.vindu), round(sum.dor)]);
+    total.count += mine.length;
+    total.length += sum.length;
+    total.area += sum.area;
+    total.vindu += sum.vindu;
+    total.dor += sum.dor;
+  }
+  if (rows.length === 0) return undefined;
+  rows.push(['Sum', total.count, round(total.length), round(total.area), round(total.vindu), round(total.dor)]);
+  return {
+    title: 'Oppsummering: yttervegger per himmelretning',
+    headers: ['Himmelretning', 'Antall vegger', 'Total lengde (m)', 'Veggareal (m²)', 'Vindu (m²)', 'Dør (m²)'],
+    rows,
+  };
 }
