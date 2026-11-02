@@ -2,7 +2,7 @@ import { useDrawingInProgress } from '@/components/tools/useDrawingInProgress';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { buildSnapCandidates, constrainAngle, distance } from '@/lib/geometry';
 import { snapCursor } from '@/components/tools/useSnap';
-import { splitWall } from '@/lib/splitWall';
+import { removeCorner, splitWall } from '@/lib/splitWall';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useViewportStore } from '@/store/viewportStore';
 import type { Annotation, Point } from '@/types';
@@ -61,9 +61,7 @@ export function useSelectTool(zoom: number, svgRef: RefObject<SVGSVGElement | nu
     if (!annotation) return;
     const minPoints = annotation.type === 'line' ? 2 : 3;
     if (annotation.points.length <= minPoints) return;
-    const points = annotation.points.filter((_, i) => i !== index);
-    const edges = annotation.edges ? annotation.edges.filter((_, i) => i !== index) : undefined;
-    updateAnnotation(annotationId, { points, edges });
+    removeCorner(annotationId, index);
   }
 
   function canDeleteVertexOf(annotationId: string): boolean {

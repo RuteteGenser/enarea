@@ -5,6 +5,9 @@ import { useAnnotationStore } from '@/store/annotationStore';
 import { useFilesStore } from '@/store/filesStore';
 import type { Calibration, OpeningItem, PlacedOpening } from '@/types';
 
+/** The mouse must travel this far (screen px) before a window/door starts to move. */
+const DRAG_START_PX = 4;
+
 const KIND_COLORS = { vindu: '#0091ff', dor: '#b45309' } as const;
 
 type OpeningRectsProps = {
@@ -25,7 +28,7 @@ export default function OpeningRects({ fileId, openings, placed, zoom, calibrati
   const annotations = useAnnotationStore((s) => s.annotations);
   const setOpenings = useFilesStore((s) => s.setOpenings);
   const mpu = metersPerUnit(calibration);
-  const [drag, setDrag] = useState<{ id: string; t: number; svg: SVGSVGElement } | null>(null);
+  const [drag, setDrag] = useState<{ id: string; t: number; svg: SVGSVGElement; startX: number; startY: number } | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   // First click selects a window/door; only a selected one can then be dragged along its wall.
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -72,16 +75,21 @@ export default function OpeningRects({ fileId, openings, placed, zoom, calibrati
     const half = Math.min(0.5, widthUnits / 2 / len);
     let latest = place.t;
 
-    function tAt(e: MouseEvent, svg: SVGSVGElement): number {
+    function rawT(clientX: number, clientY: number, svg: SVGSVGElement): number {
       const box = svg.getBoundingClientRect();
-      const px = (e.clientX - box.left) / zoom;
-      const py = (e.clientY - box.top) / zoom;
-      const raw = ((px - a!.x) * (b!.x - a!.x) + (py - a!.y) * (b!.y - a!.y)) / (len * len);
-      return Math.min(1 - half, Math.max(half, raw)); // stays on the wall
+      const px = (clientX - box.left) / zoom;
+      const py = (clientY - box.top) / zoom;
+      return ((px - a!.x) * (b!.x - a!.x) + (py - a!.y) * (b!.y - a!.y)) / (len * len);
     }
+    // Where on the window it was grabbed: it moves with the mouse from there instead of jumping to centre under it.
+    const grabOffset = rawT(drag!.startX, drag!.startY, drag!.svg) - place.t;
+    let moved = false;
 
     function onMove(e: MouseEvent) {
-      latest = tAt(e, drag!.svg);
+      // A click (or a tiny wobble while clicking) must not move the window.
+      if (!moved && Math.hypot(e.clientX - drag!.startX, e.clientY - drag!.startY) < DRAG_START_PX) return;
+      moved = true;
+      latest = Math.min(1 - half, Math.max(half, rawT(e.clientX, e.clientY, drag!.svg) - grabOffset)); // stays on the wall
       setDrag((d) => (d ? { ...d, t: latest } : d));
     }
     function finish(commit: boolean) {
@@ -133,7 +141,7 @@ export default function OpeningRects({ fileId, openings, placed, zoom, calibrati
                 return;
               }
               const svg = (e.currentTarget as SVGGElement).ownerSVGElement;
-              if (svg) setDrag({ id: item.id, t: item.placement?.t ?? 0.5, svg });
+              if (svg) setDrag({ id: item.id, t: item.placement?.t ?? 0.5, svg, startX: e.clientX, startY: e.clientY });
             }}
             onClick={(e) => movable && e.stopPropagation()}
           >
