@@ -5,8 +5,8 @@ import { joinPlacements, openingArea, OPENING_KIND_LABELS } from '@/lib/openings
 import { openingTotals } from '@/lib/wallOpenings';
 import { ventilationTotal } from '@/lib/ventilation';
 import { BUILDING_CATEGORY_LABELS, BUILDING_COMPONENT_CATEGORY_LABELS, VENTILATION_UNIT_LABELS } from '@/types';
-import { compassPoint, ORIENTATION_NAMES, ORIENTATION_OPTIONS, wallBearing } from '@/lib/wallOrientation';
-import type { Annotation, BuildingComponentType, EdgeMeta, OpeningItem, Orientation, PdfFile, Project } from '@/types';
+import { compassPoint, ORIENTATION_NAMES, wallBearing } from '@/lib/wallOrientation';
+import type { Annotation, BuildingComponentType, EdgeMeta, OpeningItem, PdfFile, Project } from '@/types';
 
 export type ExportFileData = { file: PdfFile; annotations: Annotation[] };
 
@@ -332,14 +332,18 @@ type WallSum = {
 
 const roomLabel = (roomNumber: string | null, room: string | null) => [roomNumber, room].filter(Boolean).join(' ');
 
+/** The direction of a wall in whole degrees, and the compass name that goes with it (the degrees are never rounded to the name). */
+const degreesOfBearing = (bearing: number) => Math.round(bearing) % 360;
+const nameOfDegrees = (degrees: number) => ORIENTATION_NAMES[compassPoint(degrees)];
+const sortedDegrees = (list: number[]) => [...new Set(list)].sort((a, b) => a - b);
+
 /**
- * Sums of the outer walls room by room (and within each room per compass direction, north first), with a sum
- * row per room, then the sums per compass direction over all rooms and a grand total.
+ * Sums of the outer walls room by room; within each room one group per exact direction in degrees (not rounded to
+ * north/east/…), with a sum row per room. Then the sums per exact direction over all rooms and a grand total.
  */
 function wallSummary(walls: WallSum[]): NonNullable<ExportTable['summaries']>[number] | undefined {
   if (walls.length === 0) return undefined;
   const rows: Cell[][] = [];
-  const degrees = (list: WallSum[]) => [...new Set(list.map((w) => Math.round(w.bearing) % 360))].sort((a, b) => a - b).join(', ');
   const sums = (list: WallSum[]) => ({
     count: list.length,
     length: round(list.reduce((s, w) => s + w.length, 0)),
@@ -353,24 +357,23 @@ function wallSummary(walls: WallSum[]): NonNullable<ExportTable['summaries']>[nu
     const sum = sums(list);
     return [sum.count, sum.length, sum.area, sum.vinduCount, sum.vindu, sum.dorCount, sum.dor];
   };
+  const degreesIn = (list: WallSum[]) => sortedDegrees(list.map((w) => degreesOfBearing(w.bearing)));
 
   for (const roomKey of [...new Set(walls.map((w) => w.roomKey))]) {
     const inRoom = walls.filter((w) => w.roomKey === roomKey);
-    for (const direction of ORIENTATION_OPTIONS) {
-      const inDirection = inRoom.filter((w) => compassPoint(w.bearing) === direction);
-      if (inDirection.length === 0) continue;
-      rows.push([inRoom[0].file, inRoom[0].roomNumber, inRoom[0].room, ORIENTATION_NAMES[direction], degrees(inDirection), ...numbers(inDirection)]);
+    for (const degrees of degreesIn(inRoom)) {
+      const mine = inRoom.filter((w) => degreesOfBearing(w.bearing) === degrees);
+      rows.push([inRoom[0].file, inRoom[0].roomNumber, inRoom[0].room, nameOfDegrees(degrees), degrees, ...numbers(mine)]);
     }
-    rows.push([`Sum ${roomLabel(inRoom[0].roomNumber, inRoom[0].room)}`, null, null, null, degrees(inRoom), ...numbers(inRoom)]);
+    rows.push([`Sum ${roomLabel(inRoom[0].roomNumber, inRoom[0].room)}`, null, null, null, null, ...numbers(inRoom)]);
   }
-  for (const direction of ORIENTATION_OPTIONS) {
-    const inDirection = walls.filter((w) => compassPoint(w.bearing) === direction);
-    if (inDirection.length === 0) continue;
-    rows.push([`Sum ${ORIENTATION_NAMES[direction].toLowerCase()}`, null, null, null, degrees(inDirection), ...numbers(inDirection)]);
+  for (const degrees of degreesIn(walls)) {
+    const mine = walls.filter((w) => degreesOfBearing(w.bearing) === degrees);
+    rows.push([`Sum ${degrees}°`, null, null, nameOfDegrees(degrees), degrees, ...numbers(mine)]);
   }
   rows.push(['Sum alle', null, null, null, null, ...numbers(walls)]);
   return {
-    title: 'Oppsummering: yttervegger per rom og himmelretning',
+    title: 'Oppsummering: yttervegger per rom og himmelretning (grader)',
     headers: ['Fil', 'Rom nr', 'Rom', 'Himmelretning', 'Grader (°)', 'Antall vegger', 'Total lengde (m)', 'Veggareal (m²)', 'Vindu (antall)', 'Vindu (m²)', 'Dør (antall)', 'Dør (m²)'],
     rows,
   };
@@ -433,19 +436,21 @@ type OpeningTypeSum = {
 
 /**
  * How many windows/doors of each type there are, how big each one is and which way they face: room by room, within
- * each room per compass direction (north first) with one row per type (windows before doors), a sum row per room,
- * then the sums per direction over all rooms, per kind, and in total.
+ * each room per exact direction in degrees (not rounded to north/east/…) with one row per type (windows before
+ * doors), a sum row per room, then the sums per exact direction over all rooms, per kind, and in total.
  */
 function openingTypeSummary(items: OpeningTypeSum[]): NonNullable<ExportTable['summaries']>[number] | undefined {
   if (items.length === 0) return undefined;
   const rows: Cell[][] = [];
   const area = (list: OpeningTypeSum[]) => round(list.reduce((s, t) => s + (t.area ?? 0), 0));
-  const degreesOf = (list: OpeningTypeSum[]) =>
-    [...new Set(list.filter((t) => t.bearing !== null).map((t) => Math.round(t.bearing!) % 360))].sort((a, b) => a - b).join(', ');
   const blank = (n: number) => Array<Cell>(n).fill(null);
-  const directionOf = (t: OpeningTypeSum) => (t.bearing === null ? null : compassPoint(t.bearing));
-  const directions = [...ORIENTATION_OPTIONS, null] as (Orientation | null)[];
-  const nameOf = (d: Orientation | null) => (d === null ? 'Ikke på yttervegg' : ORIENTATION_NAMES[d]);
+  const degreesOf = (t: OpeningTypeSum) => (t.bearing === null ? null : degreesOfBearing(t.bearing));
+  /** Exact directions in degrees, then null for windows/doors that are not on an outer wall. */
+  const directionsIn = (list: OpeningTypeSum[]) => {
+    const found = sortedDegrees(list.flatMap((t) => (degreesOf(t) === null ? [] : [degreesOf(t) as number])));
+    return [...found, ...(list.some((t) => degreesOf(t) === null) ? [null] : [])] as (number | null)[];
+  };
+  const nameOf = (degrees: number | null) => (degrees === null ? 'Ikke på yttervegg' : nameOfDegrees(degrees));
 
   const byType = (list: OpeningTypeSum[]) => {
     const types = new Map<string, OpeningTypeSum[]>();
@@ -463,18 +468,17 @@ function openingTypeSummary(items: OpeningTypeSum[]): NonNullable<ExportTable['s
 
   for (const roomKey of [...new Set(items.map((t) => t.roomKey))]) {
     const inRoom = items.filter((t) => t.roomKey === roomKey);
-    for (const direction of directions) {
-      const inDirection = inRoom.filter((t) => directionOf(t) === direction);
-      for (const list of byType(inDirection)) {
+    for (const degrees of directionsIn(inRoom)) {
+      for (const list of byType(inRoom.filter((t) => degreesOf(t) === degrees))) {
         const t = list[0];
-        rows.push([t.file, t.roomNumber, t.room, nameOf(direction), degreesOf(list), t.name, t.kind, t.widthMm, t.heightMm, t.area === null ? null : round(t.area), t.typeName, t.uValue, list.length, area(list)]);
+        rows.push([t.file, t.roomNumber, t.room, nameOf(degrees), degrees, t.name, t.kind, t.widthMm, t.heightMm, t.area === null ? null : round(t.area), t.typeName, t.uValue, list.length, area(list)]);
       }
     }
-    rows.push([`Sum ${roomLabel(inRoom[0].roomNumber, inRoom[0].room)}`, null, null, null, degreesOf(inRoom), ...blank(7), inRoom.length, area(inRoom)]);
+    rows.push([`Sum ${roomLabel(inRoom[0].roomNumber, inRoom[0].room)}`, null, null, null, null, ...blank(7), inRoom.length, area(inRoom)]);
   }
-  for (const direction of directions) {
-    const inDirection = items.filter((t) => directionOf(t) === direction);
-    if (inDirection.length > 0) rows.push([`Sum ${nameOf(direction).toLowerCase()}`, null, null, null, degreesOf(inDirection), ...blank(7), inDirection.length, area(inDirection)]);
+  for (const degrees of directionsIn(items)) {
+    const mine = items.filter((t) => degreesOf(t) === degrees);
+    rows.push([degrees === null ? 'Sum ikke på yttervegg' : `Sum ${degrees}°`, null, null, degrees === null ? null : nameOf(degrees), degrees, ...blank(7), mine.length, area(mine)]);
   }
   for (const kind of ['Vindu', 'Dør']) {
     const mine = items.filter((t) => t.kind === kind);
@@ -482,7 +486,7 @@ function openingTypeSummary(items: OpeningTypeSum[]): NonNullable<ExportTable['s
   }
   rows.push(['Sum alle', ...blank(11), items.length, area(items)]);
   return {
-    title: 'Oppsummering: vinduer og dører per rom, himmelretning og type',
+    title: 'Oppsummering: vinduer og dører per rom, himmelretning (grader) og type',
     headers: ['Fil', 'Rom nr', 'Rom', 'Himmelretning', 'Grader (°)', 'Navn / type', 'Vindu/dør', 'Bredde (mm)', 'Høyde (mm)', 'Areal per stk (m²)', 'Byggedelstype', 'U-verdi (W/m²K)', 'Antall', 'Samlet areal (m²)'],
     rows,
   };
