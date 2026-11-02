@@ -26,9 +26,9 @@ type ViewportStore = {
   openingsDialogOpen: boolean;
   /** Compass calibration from a screenshot: the dialog, and the wall's angle against north once it is measured. */
   northDialogOpen: boolean;
-  /** A wall picked in Målinger: shown on the drawing until the selection changes. */
-  highlightedWall: { annotationId: string; edgeIndex: number } | null;
-  setHighlightedWall: (wall: { annotationId: string; edgeIndex: number } | null) => void;
+  /** The walls picked in Målinger: shown on the drawing until the selection moves elsewhere. */
+  highlightedWalls: { annotationId: string; edgeIndex: number }[];
+  setHighlightedWalls: (walls: { annotationId: string; edgeIndex: number }[]) => void;
   setNorthDialogOpen: (open: boolean) => void;
   northScreenshotBearing: number | null;
   setNorthScreenshotBearing: (bearing: number | null) => void;
@@ -102,7 +102,7 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   isMagnifierKeyDown: false,
   openingsDialogOpen: false,
   northDialogOpen: false,
-  highlightedWall: null,
+  highlightedWalls: [],
   northScreenshotBearing: null,
   wallsDialogOpen: false,
   placingOpeningId: null,
@@ -132,7 +132,7 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   setShiftDown: (down) => set({ isShiftDown: down }),
   setMagnifierKeyDown: (down) => set({ isMagnifierKeyDown: down }),
   setOpeningsDialogOpen: (open) => set({ openingsDialogOpen: open }),
-  setHighlightedWall: (wall) => set({ highlightedWall: wall }),
+  setHighlightedWalls: (walls) => set({ highlightedWalls: walls }),
   setNorthDialogOpen: (open) => set({ northDialogOpen: open }),
   setNorthScreenshotBearing: (bearing) => set({ northScreenshotBearing: bearing }),
   setWallsDialogOpen: (open) => set({ wallsDialogOpen: open }),

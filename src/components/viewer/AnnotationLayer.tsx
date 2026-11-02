@@ -36,17 +36,20 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
   const toggleSelected = useAnnotationStore((s) => s.toggleSelected);
   const setEdgeMeta = useAnnotationStore((s) => s.setEdgeMeta);
 
-  const highlightedWall = useViewportStore((s) => s.highlightedWall);
-  const setHighlightedWall = useViewportStore((s) => s.setHighlightedWall);
-  // The wall picked in Målinger stays marked only while its room is the one selected.
+  const highlightedWalls = useViewportStore((s) => s.highlightedWalls);
+  const setHighlightedWalls = useViewportStore((s) => s.setHighlightedWalls);
+  // The walls picked in Målinger stay marked only while their rooms are still selected.
   useEffect(() => {
-    if (highlightedWall && !(selectedIds.length === 1 && selectedIds[0] === highlightedWall.annotationId)) {
-      setHighlightedWall(null);
+    if (highlightedWalls.length > 0 && highlightedWalls.some((w) => !selectedIds.includes(w.annotationId))) {
+      setHighlightedWalls([]);
     }
-  }, [highlightedWall, selectedIds, setHighlightedWall]);
-  const wallRoom = highlightedWall ? annotations.find((a) => a.id === highlightedWall.annotationId) : undefined;
-  const wallA = wallRoom && highlightedWall ? wallRoom.points[highlightedWall.edgeIndex] : undefined;
-  const wallB = wallRoom && highlightedWall ? wallRoom.points[(highlightedWall.edgeIndex + 1) % wallRoom.points.length] : undefined;
+  }, [highlightedWalls, selectedIds, setHighlightedWalls]);
+  const wallLines = highlightedWalls.flatMap((wall) => {
+    const room = annotations.find((a) => a.id === wall.annotationId);
+    const a = room?.points[wall.edgeIndex];
+    const b = room?.points[(wall.edgeIndex + 1) % (room?.points.length ?? 1)];
+    return a && b ? [{ key: `${wall.annotationId}:${wall.edgeIndex}`, a, b }] : [];
+  });
 
   const svgRef = useRef<SVGSVGElement>(null);
   const [hoveredRoomId, setHoveredRoomId] = useState<string | null>(null);
@@ -195,21 +198,12 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
 
       <PersonMarkers annotations={annotations} zoom={zoom} interactive={isSelectTool && !isSpaceDown} />
 
-      {wallA && wallB && (
-        <g pointerEvents="none" className="animate-pulse">
-          <line
-            x1={wallA.x * zoom}
-            y1={wallA.y * zoom}
-            x2={wallB.x * zoom}
-            y2={wallB.y * zoom}
-            stroke="#f5a623"
-            strokeWidth={7}
-            strokeLinecap="round"
-            opacity={0.9}
-          />
-          <circle cx={((wallA.x + wallB.x) / 2) * zoom} cy={((wallA.y + wallB.y) / 2) * zoom} r={9} fill="none" stroke="#f5a623" strokeWidth={2.5} />
+      {wallLines.map(({ key, a, b }) => (
+        <g key={key} pointerEvents="none" className="animate-pulse">
+          <line x1={a.x * zoom} y1={a.y * zoom} x2={b.x * zoom} y2={b.y * zoom} stroke="#f5a623" strokeWidth={7} strokeLinecap="round" opacity={0.9} />
+          <circle cx={((a.x + b.x) / 2) * zoom} cy={((a.y + b.y) / 2) * zoom} r={9} fill="none" stroke="#f5a623" strokeWidth={2.5} />
         </g>
-      )}
+      ))}
 
       {previewShape}
 
