@@ -290,8 +290,8 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
     let centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
     let centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
     // A wall picked in Målinger: centre on that wall rather than on the whole room.
-    const wall = useViewportStore.getState().highlightedWall;
-    if (wall && wall.annotationId === annotation.id) {
+    const wall = useViewportStore.getState().highlightedWalls.find((w) => w.annotationId === annotation.id);
+    if (wall) {
       const a = annotation.points[wall.edgeIndex];
       const b = annotation.points[(wall.edgeIndex + 1) % annotation.points.length];
       if (a && b) {
