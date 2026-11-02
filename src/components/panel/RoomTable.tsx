@@ -230,12 +230,12 @@ export default function RoomTable({
       {rows.length === 0 ? (
         <p className="px-2 py-4 text-center text-sm text-muted-foreground">Ingen rom matcher filteret.</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div>
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-border">
                 {COLUMNS.map((col) => (
-                  <th key={col.key} className="whitespace-nowrap px-2 py-1 text-left">
+                  <th key={col.key} className="sticky top-0 z-10 bg-panel shadow-[0_1px_0_0_var(--border)] whitespace-nowrap px-2 py-1 text-left">
                     <button
                       type="button"
                       onClick={() => toggleSort(col.key)}
@@ -254,7 +254,7 @@ export default function RoomTable({
                     </button>
                   </th>
                 ))}
-                <th className="w-24" />
+                <th className="sticky top-0 z-10 bg-panel shadow-[0_1px_0_0_var(--border)] w-24" />
               </tr>
             </thead>
             <tbody>

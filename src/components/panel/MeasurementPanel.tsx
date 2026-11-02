@@ -115,7 +115,7 @@ export default function MeasurementPanel({ calibration, openings = [], placedOpe
           Ingen målinger ennå. Velg et verktøy i toolbaren for å starte.
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-auto">
           <RoomTable
             annotations={roomAnnotations}
             selectedIds={selectedIds}
