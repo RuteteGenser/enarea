@@ -55,7 +55,7 @@ export function buildExportTables(
   const rooms: Cell[][] = [];
   const walls: Cell[][] = [];
   const openings: Cell[][] = [];
-  const wallSums: { bearing: number; length: number; area: number | null; vindu: number; dor: number }[] = [];
+  const wallSums: WallSum[] = [];
 
   let totalArea = 0;
   let totalPeople = 0;
@@ -139,7 +139,7 @@ export function buildExportTables(
           openingNames([edge], placed, buildingTypes),
         ]);
         if (edge.wallType === 'external' && calibrated && a && b) {
-          wallSums.push({ bearing: wallBearing(annotation, i, project.northDirection) ?? 0, length: distance(a, b) * mpu, area: wallArea, vindu: wall.vindu.area, dor: wall.dor.area });
+          wallSums.push({ file: file.name, roomKey: `${file.id}:${annotation.id}`, roomNumber: annotation.roomNumber ?? null, room: name, bearing: wallBearing(annotation, i, project.northDirection) ?? 0, length: distance(a, b) * mpu, area: wallArea, vindu: wall.vindu.area, dor: wall.dor.area });
         }
 
         for (const opening of open) {
@@ -273,34 +273,63 @@ export function buildExportTables(
   ];
 }
 
-/** Sums of the outer walls per compass direction (north first), with a total row. */
-function wallSummary(
-  walls: { bearing: number; length: number; area: number | null; vindu: number; dor: number }[],
-): ExportTable['summary'] {
+type WallSum = {
+  file: string;
+  roomKey: string;
+  roomNumber: string | null;
+  room: string;
+  bearing: number;
+  length: number;
+  area: number | null;
+  vindu: number;
+  dor: number;
+};
+
+/** Sums of the outer walls per compass direction (north first) and, within each, per room; with a sum row per direction and a total. */
+function wallSummary(walls: WallSum[]): ExportTable['summary'] {
   const rows: Cell[][] = [];
   const total = { count: 0, length: 0, area: 0, vindu: 0, dor: 0 };
+  const sums = (list: WallSum[]) => ({
+    count: list.length,
+    length: list.reduce((s, w) => s + w.length, 0),
+    area: list.reduce((s, w) => s + (w.area ?? 0), 0),
+    hasHeight: list.some((w) => w.area !== null),
+    vindu: list.reduce((s, w) => s + w.vindu, 0),
+    dor: list.reduce((s, w) => s + w.dor, 0),
+  });
+
   for (const direction of ORIENTATION_OPTIONS) {
-    const mine = walls.filter((w) => compassPoint(w.bearing) === direction);
-    if (mine.length === 0) continue;
-    const sum = {
-      length: mine.reduce((s, w) => s + w.length, 0),
-      area: mine.reduce((s, w) => s + (w.area ?? 0), 0),
-      vindu: mine.reduce((s, w) => s + w.vindu, 0),
-      dor: mine.reduce((s, w) => s + w.dor, 0),
-    };
-    const withHeight = mine.filter((w) => w.area !== null).length;
-    rows.push([ORIENTATION_NAMES[direction], mine.length, round(sum.length), withHeight > 0 ? round(sum.area) : null, round(sum.vindu), round(sum.dor)]);
-    total.count += mine.length;
+    const inDirection = walls.filter((w) => compassPoint(w.bearing) === direction);
+    if (inDirection.length === 0) continue;
+    const rooms = [...new Set(inDirection.map((w) => w.roomKey))];
+    for (const key of rooms) {
+      const mine = inDirection.filter((w) => w.roomKey === key);
+      const sum = sums(mine);
+      rows.push([
+        ORIENTATION_NAMES[direction],
+        mine[0].file,
+        mine[0].roomNumber,
+        mine[0].room,
+        sum.count,
+        round(sum.length),
+        sum.hasHeight ? round(sum.area) : null,
+        round(sum.vindu),
+        round(sum.dor),
+      ]);
+    }
+    const sum = sums(inDirection);
+    rows.push([`Sum ${ORIENTATION_NAMES[direction].toLowerCase()}`, null, null, null, sum.count, round(sum.length), sum.hasHeight ? round(sum.area) : null, round(sum.vindu), round(sum.dor)]);
+    total.count += sum.count;
     total.length += sum.length;
     total.area += sum.area;
     total.vindu += sum.vindu;
     total.dor += sum.dor;
   }
   if (rows.length === 0) return undefined;
-  rows.push(['Sum', total.count, round(total.length), round(total.area), round(total.vindu), round(total.dor)]);
+  rows.push(['Sum alle', null, null, null, total.count, round(total.length), round(total.area), round(total.vindu), round(total.dor)]);
   return {
-    title: 'Oppsummering: yttervegger per himmelretning',
-    headers: ['Himmelretning', 'Antall vegger', 'Total lengde (m)', 'Veggareal (m²)', 'Vindu (m²)', 'Dør (m²)'],
+    title: 'Oppsummering: yttervegger per himmelretning og rom',
+    headers: ['Himmelretning', 'Fil', 'Rom nr', 'Rom', 'Antall vegger', 'Total lengde (m)', 'Veggareal (m²)', 'Vindu (m²)', 'Dør (m²)'],
     rows,
   };
 }
