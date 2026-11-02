@@ -43,6 +43,8 @@ export type EdgeMeta = {
   orientation?: Orientation;
   buildingComponent?: BuildingComponentAssignment;
   openings?: WallOpening[];
+  /** Height of the wall in meters (entered in Målinger); with the length it gives the wall area. */
+  heightMeters?: number;
 };
 
 export type PersonMarker = { id: string; x: number; y: number };

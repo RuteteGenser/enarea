@@ -190,3 +190,43 @@ describe('ventilationBreakdown', () => {
     expect(ventilationBreakdown(undefined, undefined, 10, 1)).toBeNull();
   });
 });
+
+describe('wall height, area, names and direction summary', () => {
+  const f = {
+    ...file(true),
+    openings: [{ id: 'w', kind: 'vindu' as const, name: 'Vindu 1', widthMm: 1000, heightMm: 1000, typeId: 'bt' }],
+    placedOpenings: [
+      { id: 'p1', openingId: 'w', annotationId: 'a', edgeIndex: 0, t: 0.2 },
+      { id: 'p2', openingId: 'w', annotationId: 'a', edgeIndex: 0, t: 0.5 },
+    ],
+  };
+  const types = [{ id: 'bt', category: 'vindu' as const, name: 'Trevindu', createdAt: 1, updatedAt: 1 }];
+  const outer = {
+    ...room,
+    edges: [{ wallType: 'external' as const, heightMeters: 2.5 }, { wallType: 'external' as const }, {}, {}],
+  };
+  const [, rooms, walls] = buildExportTables(project, [{ file: f, annotations: [outer] }], types);
+
+  it('writes height and wall area after the length', () => {
+    expect(walls.headers.slice(4, 7)).toEqual(['Lengde (m)', 'Vegghøyde (m)', 'Veggareal (m²)']);
+    expect(walls.rows[0][walls.headers.indexOf('Veggareal (m²)')]).toBe(25); // 10 m × 2.5 m
+    expect(walls.rows[1][walls.headers.indexOf('Vegghøyde (m)')]).toBeNull(); // no height entered
+    expect(walls.rows[1][walls.headers.indexOf('Veggareal (m²)')]).toBeNull();
+  });
+
+  it('names the window and door types used', () => {
+    expect(walls.rows[0][walls.headers.indexOf('Vinduer og dører (navn)')]).toBe('2 × Vindu 1 (Trevindu)');
+    expect(rooms.rows[0][rooms.headers.indexOf('Vinduer og dører (navn)')]).toContain('2 × Vindu 1 (Trevindu)');
+  });
+
+  it('sums the outer walls per compass direction', () => {
+    const rows = walls.summary!.rows;
+    expect(walls.summary!.headers[0]).toBe('Himmelretning');
+    // top wall faces north, right wall faces east; a total row closes the table
+    expect(rows.map((r) => r[0])).toEqual(['Nord', 'Øst', 'Sum']);
+    expect(rows[0].slice(1, 4)).toEqual([1, 10, 25]);
+    expect(rows[1][3]).toBeNull(); // no height on the east wall
+    expect(rows[2][1]).toBe(2);
+    expect(rows[2][2]).toBe(30); // 10 m + 20 m
+  });
+});
