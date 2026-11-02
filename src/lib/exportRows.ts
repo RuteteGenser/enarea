@@ -294,7 +294,7 @@ export function buildExportTables(
         'Vinduer og dører (navn)',
       ],
       rows: walls,
-      summaries: [wallSummary(wallSums), zoneSummary(zoneSums), openingTypeSummary([...typeSums, ...legacySums.values()])].filter((t): t is NonNullable<typeof t> => t !== undefined),
+      summaries: [wallSummary(wallSums), zoneSummary(zoneSums)].filter((t): t is NonNullable<typeof t> => t !== undefined),
     },
     {
       title: 'Vinduer og dører',
@@ -313,6 +313,7 @@ export function buildExportTables(
         'Himmelretning (°)',
       ],
       rows: openings,
+      summaries: [openingTypeSummary([...typeSums, ...legacySums.values()])].filter((t): t is NonNullable<typeof t> => t !== undefined),
     },
   ];
 }
