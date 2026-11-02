@@ -5,7 +5,7 @@ import { joinPlacements, openingArea, OPENING_KIND_LABELS } from '@/lib/openings
 import { openingTotals } from '@/lib/wallOpenings';
 import { ventilationTotal } from '@/lib/ventilation';
 import { BUILDING_CATEGORY_LABELS, BUILDING_COMPONENT_CATEGORY_LABELS, VENTILATION_UNIT_LABELS } from '@/types';
-import { compassPoint, ORIENTATION_NAMES, wallBearing } from '@/lib/wallOrientation';
+import { compassPoint, ORIENTATION_NAMES, ORIENTATION_OPTIONS, wallBearing } from '@/lib/wallOrientation';
 import type { Annotation, BuildingComponentType, EdgeMeta, OpeningItem, PdfFile, Project } from '@/types';
 
 export type ExportFileData = { file: PdfFile; annotations: Annotation[] };
@@ -19,12 +19,20 @@ export type ExportTable = {
   rows: Cell[][];
   /** Columns that identify a group of rows (e.g. the room): groups get alternating background colors in Excel. */
   groupBy?: number[];
+  /** Index of the column with the direction in degrees: rows get the color of their compass direction in Excel. */
+  directionColumn?: number;
   /** Smaller tables written below the rows, one after the other (e.g. the sums per compass direction). */
   summaries?: ExportSummary[];
 };
 
-/** How a summary row is colored: detail rows alternate per group, then room sums, direction/kind sums and the total. */
-export type RowStyle = 'detail' | 'detailAlt' | 'roomSum' | 'groupSum' | 'total';
+/**
+ * How a summary row is colored. Detail rows and direction sums take the color of their compass direction
+ * (`direction` = index in north, north-east, … ; 8 = no direction), so the directions are easy to tell apart.
+ */
+export type RowStyle = { kind: 'detail' | 'directionSum' | 'roomSum' | 'kindSum' | 'total'; direction?: number };
+
+/** Index (0–7) of the compass point a direction in degrees belongs to; the degrees themselves are never rounded in the data. */
+export const compassIndex = (degrees: number) => ORIENTATION_OPTIONS.indexOf(compassPoint(degrees));
 
 export type ExportSummary = { title: string; headers: string[]; rows: Cell[][]; styles?: RowStyle[] };
 
@@ -300,7 +308,7 @@ export function buildExportTables(
         'Vinduer og dører (navn)',
       ],
       rows: walls,
-      groupBy: [0, 1, 2],
+      directionColumn: 11,
       summaries: [wallSummary(wallSums), zoneSummary(zoneSums)].filter((t): t is NonNullable<typeof t> => t !== undefined),
     },
     {
@@ -320,7 +328,7 @@ export function buildExportTables(
         'Himmelretning (°)',
       ],
       rows: openings,
-      groupBy: [0, 8, 9],
+      directionColumn: 11,
       summaries: [openingTypeSummary(typeSums)].filter((t): t is NonNullable<typeof t> => t !== undefined),
     },
   ];
@@ -359,7 +367,6 @@ function wallSummary(walls: WallSum[]): ExportSummary | undefined {
     rows.push(row);
     styles.push(style);
   };
-  let group = 0;
   const sums = (list: WallSum[]) => ({
     count: list.length,
     length: round(list.reduce((s, w) => s + w.length, 0)),
@@ -379,16 +386,15 @@ function wallSummary(walls: WallSum[]): ExportSummary | undefined {
     const inRoom = walls.filter((w) => w.roomKey === roomKey);
     for (const degrees of degreesIn(inRoom)) {
       const mine = inRoom.filter((w) => degreesOfBearing(w.bearing) === degrees);
-      add(group % 2 ? 'detailAlt' : 'detail', [inRoom[0].file, inRoom[0].roomNumber, inRoom[0].room, nameOfDegrees(degrees), degrees, ...numbers(mine)]);
+      add({ kind: 'detail', direction: compassIndex(degrees) }, [inRoom[0].file, inRoom[0].roomNumber, inRoom[0].room, nameOfDegrees(degrees), degrees, ...numbers(mine)]);
     }
-    add('roomSum', [`Sum ${roomLabel(inRoom[0].roomNumber, inRoom[0].room)}`, null, null, null, null, ...numbers(inRoom)]);
-    group++;
+    add({ kind: 'roomSum' }, [`Sum ${roomLabel(inRoom[0].roomNumber, inRoom[0].room)}`, null, null, null, null, ...numbers(inRoom)]);
   }
   for (const degrees of degreesIn(walls)) {
     const mine = walls.filter((w) => degreesOfBearing(w.bearing) === degrees);
-    add('groupSum', [`Sum ${degrees}°`, null, null, nameOfDegrees(degrees), degrees, ...numbers(mine)]);
+    add({ kind: 'directionSum', direction: compassIndex(degrees) }, [`Sum ${degrees}°`, null, null, nameOfDegrees(degrees), degrees, ...numbers(mine)]);
   }
-  add('total', ['Sum alle', null, null, null, null, ...numbers(walls)]);
+  add({ kind: 'total' }, ['Sum alle', null, null, null, null, ...numbers(walls)]);
   return {
     title: 'Oppsummering: yttervegger per rom og himmelretning (grader)',
     headers: ['Fil', 'Rom nr', 'Rom', 'Himmelretning', 'Grader (°)', 'Antall vegger', 'Total lengde (m)', 'Veggareal (m²)', 'Vindu (antall)', 'Vindu (m²)', 'Dør (antall)', 'Dør (m²)'],
@@ -433,7 +439,7 @@ function zoneSummary(zones: ZoneSum[]): ExportSummary | undefined {
     title: 'Oppsummering: total vegglengde per sone',
     headers: ['Fil', 'Rom nr', 'Sone', 'Antall yttervegger', 'Total lengde yttervegger (m)', 'Veggareal yttervegger (m²)', 'Total vegglengde alle sider (m)'],
     rows,
-    styles: rows.map((_, index): RowStyle => (index < zones.length ? (index % 2 ? 'detailAlt' : 'detail') : 'total')),
+    styles: rows.map((_, index): RowStyle => ({ kind: index < zones.length ? 'detail' : 'total' })),
   };
 }
 
@@ -466,7 +472,6 @@ function openingTypeSummary(items: OpeningTypeSum[]): ExportSummary | undefined 
     rows.push(row);
     styles.push(style);
   };
-  let group = 0;
   const area = (list: OpeningTypeSum[]) => round(list.reduce((s, t) => s + (t.area ?? 0), 0));
   const blank = (n: number) => Array<Cell>(n).fill(null);
   const degreesOf = (t: OpeningTypeSum) => (t.bearing === null ? null : degreesOfBearing(t.bearing));
@@ -496,21 +501,20 @@ function openingTypeSummary(items: OpeningTypeSum[]): ExportSummary | undefined 
     for (const degrees of directionsIn(inRoom)) {
       for (const list of byType(inRoom.filter((t) => degreesOf(t) === degrees))) {
         const t = list[0];
-        add(group % 2 ? 'detailAlt' : 'detail', [t.file, t.roomNumber, t.room, nameOf(degrees), degrees, t.name, t.kind, t.widthMm, t.heightMm, t.area === null ? null : round(t.area), t.typeName, t.uValue, list.length, area(list)]);
+        add({ kind: 'detail', direction: degrees === null ? 8 : compassIndex(degrees) }, [t.file, t.roomNumber, t.room, nameOf(degrees), degrees, t.name, t.kind, t.widthMm, t.heightMm, t.area === null ? null : round(t.area), t.typeName, t.uValue, list.length, area(list)]);
       }
     }
-    add('roomSum', [`Sum ${roomLabel(inRoom[0].roomNumber, inRoom[0].room)}`, null, null, null, null, ...blank(7), inRoom.length, area(inRoom)]);
-    group++;
+    add({ kind: 'roomSum' }, [`Sum ${roomLabel(inRoom[0].roomNumber, inRoom[0].room)}`, null, null, null, null, ...blank(7), inRoom.length, area(inRoom)]);
   }
   for (const degrees of directionsIn(items)) {
     const mine = items.filter((t) => degreesOf(t) === degrees);
-    add('groupSum', [degrees === null ? 'Sum ikke på yttervegg' : `Sum ${degrees}°`, null, null, degrees === null ? null : nameOf(degrees), degrees, ...blank(7), mine.length, area(mine)]);
+    add({ kind: 'directionSum', direction: degrees === null ? 8 : compassIndex(degrees) }, [degrees === null ? 'Sum ikke på yttervegg' : `Sum ${degrees}°`, null, null, degrees === null ? null : nameOf(degrees), degrees, ...blank(7), mine.length, area(mine)]);
   }
   for (const kind of ['Vindu', 'Dør']) {
     const mine = items.filter((t) => t.kind === kind);
-    if (mine.length > 0) add('groupSum', [`Sum ${kind.toLowerCase()}`, ...blank(11), mine.length, area(mine)]);
+    if (mine.length > 0) add({ kind: 'kindSum' }, [`Sum ${kind.toLowerCase()}`, ...blank(11), mine.length, area(mine)]);
   }
-  add('total', ['Sum alle', ...blank(11), items.length, area(items)]);
+  add({ kind: 'total' }, ['Sum alle', ...blank(11), items.length, area(items)]);
   return {
     title: 'Oppsummering: vinduer og dører per rom, himmelretning (grader) og type',
     headers: ['Fil', 'Rom nr', 'Rom', 'Himmelretning', 'Grader (°)', 'Navn / type', 'Vindu/dør', 'Bredde (mm)', 'Høyde (mm)', 'Areal per stk (m²)', 'Byggedelstype', 'U-verdi (W/m²K)', 'Antall', 'Samlet areal (m²)'],

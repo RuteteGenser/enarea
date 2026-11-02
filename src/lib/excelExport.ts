@@ -1,18 +1,37 @@
-import { buildExportTables, type ExportFileData, type RowStyle } from '@/lib/exportRows';
+import { buildExportTables, compassIndex, type ExportFileData, type RowStyle } from '@/lib/exportRows';
 import type { BuildingComponentType, Project } from '@/types';
 
 const HEADER_FILL = 'FF1F3A5F';
 const MAX_COLUMN_WIDTH = 48;
 
-// Colors that make the groups easy to tell apart: rooms alternate between white and light blue, sums stand out.
-const GROUP_FILL = 'FFEAF1F8';
-const ROW_FILLS: Record<RowStyle, { fill?: string; bold?: boolean; white?: boolean }> = {
-  detail: {},
-  detailAlt: { fill: GROUP_FILL },
-  roomSum: { fill: 'FFC5D9ED', bold: true },
-  groupSum: { fill: 'FFFFE9B8', bold: true },
-  total: { fill: HEADER_FILL, bold: true, white: true },
+// Colors that make the groups easy to tell apart. Each compass direction has its own color, so the same
+// direction looks the same in every room and sheet; the last entry is for rows without a direction.
+const DIRECTION_FILLS = ['FFD6E6F7', 'FFD3EFEA', 'FFDDF0CB', 'FFF3F0C5', 'FFFCE3BF', 'FFF8D3CF', 'FFE8D6F0', 'FFD9DCF4', 'FFEDEDED'];
+const DIRECTION_SUM_FILLS = ['FF9CC2EA', 'FF98DDD2', 'FFB9E097', 'FFE8E28C', 'FFF9C985', 'FFF1A9A2', 'FFD2AEE3', 'FFAEB6E8', 'FFC8C8C8'];
+const ROOM_SUM_FILL = 'FFC9D3DF';
+const KIND_SUM_FILL = 'FFFFE9B8';
+const ZEBRA_FILL = 'FFEAF1F8';
+
+type Look = { fill?: string; bold?: boolean; white?: boolean };
+const lookOf = (style: RowStyle | undefined): Look => {
+  switch (style?.kind) {
+    case 'detail':
+      return style.direction === undefined ? {} : { fill: DIRECTION_FILLS[style.direction] };
+    case 'directionSum':
+      return { fill: DIRECTION_SUM_FILLS[style.direction ?? 8], bold: true };
+    case 'roomSum':
+      return { fill: ROOM_SUM_FILL, bold: true };
+    case 'kindSum':
+      return { fill: KIND_SUM_FILL, bold: true };
+    case 'total':
+      return { fill: HEADER_FILL, bold: true, white: true };
+    default:
+      return {};
+  }
 };
+
+/** Compass index (0–7, north first) for a direction in degrees; 8 when there is no direction. */
+const directionIndex = (degrees: unknown) => (typeof degrees === 'number' ? compassIndex(degrees) : 8);
 
 /** Builds an .xlsx workbook (one styled sheet per table, titles in the frozen top row) and returns it as a Blob. */
 export async function exportProjectExcel(
@@ -55,7 +74,12 @@ export async function exportProjectExcel(
       });
     }
 
-    // Groups of rows (the same room) alternate between white and light blue.
+    // Rooms alternate between white and light blue (Rom); in the wall and opening sheets the rows are colored by
+    // direction instead, since that is what needs to be told apart.
+    const fillRow = (rowNumber: number, argb: string) => {
+      const row = sheet.getRow(rowNumber);
+      for (let c = 1; c <= table.headers.length; c++) row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb } };
+    };
     if (table.groupBy) {
       let previous = '';
       let band = -1;
@@ -63,12 +87,13 @@ export async function exportProjectExcel(
         const key = table.groupBy!.map((c) => String(values[c] ?? '')).join('|');
         if (key !== previous) band++;
         previous = key;
-        if (band % 2 === 1) {
-          const row = sheet.getRow(index + 2);
-          for (let c = 1; c <= table.headers.length; c++) {
-            row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GROUP_FILL } };
-          }
-        }
+        if (band % 2 === 1) fillRow(index + 2, ZEBRA_FILL);
+      });
+    }
+    if (table.directionColumn !== undefined) {
+      table.rows.forEach((values, index) => {
+        const degrees = values[table.directionColumn!];
+        if (typeof degrees === 'number') fillRow(index + 2, DIRECTION_FILLS[directionIndex(degrees)]);
       });
     }
 
@@ -85,17 +110,14 @@ export async function exportProjectExcel(
       });
       summary.rows.forEach((values, index) => {
         const row = sheet.addRow(values);
-        row.eachCell({ includeEmpty: true }, (cell, c) => {
+        row.eachCell((cell) => {
           if (typeof cell.value === 'number' && !Number.isInteger(cell.value)) cell.numFmt = '0.00';
-          const look = ROW_FILLS[summary.styles?.[index] ?? 'detail'];
-          if (c > summary.headers.length) return;
-          if (look.fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: look.fill } };
         });
-        const look = ROW_FILLS[summary.styles?.[index] ?? 'detail'];
+        const look = lookOf(summary.styles?.[index]);
         if (look.bold) row.font = { bold: true, ...(look.white ? { color: { argb: 'FFFFFFFF' } } : {}) };
-        // fill cells that were left empty too, so a colored row is one unbroken band
-        for (let c = 1; c <= summary.headers.length; c++) {
-          if (look.fill) row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: look.fill } };
+        // every cell gets the color, also empty ones, so a colored row is one unbroken band
+        if (look.fill) {
+          for (let c = 1; c <= summary.headers.length; c++) row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: look.fill } };
         }
       });
       summary.headers.forEach((header, c) => {
