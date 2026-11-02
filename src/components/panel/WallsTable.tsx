@@ -6,21 +6,22 @@ import { distance } from '@/lib/geometry';
 import { compassPoint, ORIENTATION_NAMES, wallBearing } from '@/lib/wallOrientation';
 import { cn } from '@/lib/utils';
 import { useProjectStore } from '@/store/projectStore';
+import { useViewportStore } from '@/store/viewportStore';
 import type { Annotation, Calibration, Unit } from '@/types';
 
 type WallsTableProps = {
   annotations: Annotation[];
-  selectedIds: string[];
   unit: Unit;
   calibration: Calibration;
   onSelectAndJump: (id: string) => void;
 };
 
 /** The outer walls of the file in Målinger, with the compass direction each one faces (the same walls as in Excel). */
-export default function WallsTable({ annotations, selectedIds, unit, calibration, onSelectAndJump }: WallsTableProps) {
+export default function WallsTable({ annotations, unit, calibration, onSelectAndJump }: WallsTableProps) {
   const { projectId } = useParams<{ projectId: string }>();
   const north = useProjectStore((s) => (projectId ? s.getProject(projectId)?.northDirection : undefined)) ?? 0;
   const mpu = metersPerUnit(calibration);
+  const highlighted = useViewportStore((s) => s.highlightedWall);
 
   const walls = annotations.flatMap((annotation) =>
     annotation.type === 'line'
@@ -59,10 +60,15 @@ export default function WallsTable({ annotations, selectedIds, unit, calibration
           {walls.map(({ annotation, edgeIndex, edge, length, bearing }) => (
             <tr
               key={`${annotation.id}:${edgeIndex}`}
-              onClick={() => onSelectAndJump(annotation.id)}
+              onClick={() => {
+                useViewportStore.getState().setHighlightedWall({ annotationId: annotation.id, edgeIndex });
+                onSelectAndJump(annotation.id);
+              }}
               className={cn(
                 'cursor-pointer border-b border-border/50 transition-colors',
-                selectedIds.includes(annotation.id) ? 'bg-accent' : 'hover:bg-secondary/60',
+                highlighted?.annotationId === annotation.id && highlighted.edgeIndex === edgeIndex
+                  ? 'bg-accent'
+                  : 'hover:bg-secondary/60',
               )}
             >
               <td className="px-2 py-1 text-foreground">{[annotation.roomNumber, displayName(annotation)].filter(Boolean).join(' ')}</td>

@@ -36,6 +36,18 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
   const toggleSelected = useAnnotationStore((s) => s.toggleSelected);
   const setEdgeMeta = useAnnotationStore((s) => s.setEdgeMeta);
 
+  const highlightedWall = useViewportStore((s) => s.highlightedWall);
+  const setHighlightedWall = useViewportStore((s) => s.setHighlightedWall);
+  // The wall picked in Målinger stays marked only while its room is the one selected.
+  useEffect(() => {
+    if (highlightedWall && !(selectedIds.length === 1 && selectedIds[0] === highlightedWall.annotationId)) {
+      setHighlightedWall(null);
+    }
+  }, [highlightedWall, selectedIds, setHighlightedWall]);
+  const wallRoom = highlightedWall ? annotations.find((a) => a.id === highlightedWall.annotationId) : undefined;
+  const wallA = wallRoom && highlightedWall ? wallRoom.points[highlightedWall.edgeIndex] : undefined;
+  const wallB = wallRoom && highlightedWall ? wallRoom.points[(highlightedWall.edgeIndex + 1) % wallRoom.points.length] : undefined;
+
   const svgRef = useRef<SVGSVGElement>(null);
   const [hoveredRoomId, setHoveredRoomId] = useState<string | null>(null);
   const [hoveredWall, setHoveredWall] = useState<string | null>(null);
@@ -182,6 +194,22 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
       )}
 
       <PersonMarkers annotations={annotations} zoom={zoom} interactive={isSelectTool && !isSpaceDown} />
+
+      {wallA && wallB && (
+        <g pointerEvents="none" className="animate-pulse">
+          <line
+            x1={wallA.x * zoom}
+            y1={wallA.y * zoom}
+            x2={wallB.x * zoom}
+            y2={wallB.y * zoom}
+            stroke="#f5a623"
+            strokeWidth={7}
+            strokeLinecap="round"
+            opacity={0.9}
+          />
+          <circle cx={((wallA.x + wallB.x) / 2) * zoom} cy={((wallA.y + wallB.y) / 2) * zoom} r={9} fill="none" stroke="#f5a623" strokeWidth={2.5} />
+        </g>
+      )}
 
       {previewShape}
 

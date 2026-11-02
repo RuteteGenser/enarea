@@ -150,7 +150,6 @@ export default function MeasurementPanel({ calibration, openings = [], placedOpe
 
           <WallsTable
             annotations={roomAnnotations}
-            selectedIds={selectedIds}
             unit={unit}
             calibration={calibration}
             onSelectAndJump={selectAndJump}
