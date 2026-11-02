@@ -362,3 +362,22 @@ describe('directions are never rounded to a compass point', () => {
     expect(new Set(rows.map((r) => r[4])).size).toBe(5);
   });
 });
+
+describe('row styles for the colored Excel groups', () => {
+  const edges = [{ wallType: 'external' as const }, { wallType: 'external' as const }, {}, {}];
+  const rooms = [
+    { ...room, edges },
+    { ...room, id: 'b', name: 'Lager', roomNumber: '102', edges },
+  ];
+  const [, , walls] = buildExportTables(project, [{ file: file(true), annotations: rooms }]);
+
+  it('alternates the detail rows per room and marks room sums, direction sums and the total', () => {
+    const { styles, rows } = walls.summaries![0];
+    expect(styles).toHaveLength(rows.length);
+    expect(styles).toEqual(['detail', 'detail', 'roomSum', 'detailAlt', 'detailAlt', 'roomSum', 'groupSum', 'groupSum', 'total']);
+  });
+
+  it('names the columns that group the rows of the main tables by room', () => {
+    expect(walls.groupBy).toEqual([0, 1, 2]);
+  });
+});
