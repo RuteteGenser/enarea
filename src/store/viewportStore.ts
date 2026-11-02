@@ -24,6 +24,11 @@ type ViewportStore = {
   /** True while the F key is held: shows the magnifier loupe (and slows the cursor). */
   isMagnifierKeyDown: boolean;
   openingsDialogOpen: boolean;
+  /** Compass calibration from a screenshot: the dialog, and the wall's angle against north once it is measured. */
+  northDialogOpen: boolean;
+  setNorthDialogOpen: (open: boolean) => void;
+  northScreenshotBearing: number | null;
+  setNorthScreenshotBearing: (bearing: number | null) => void;
   wallsDialogOpen: boolean;
   placingOpeningId: string | null;
   drawingInProgress: boolean;
@@ -93,6 +98,8 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   isShiftDown: false,
   isMagnifierKeyDown: false,
   openingsDialogOpen: false,
+  northDialogOpen: false,
+  northScreenshotBearing: null,
   wallsDialogOpen: false,
   placingOpeningId: null,
   drawingInProgress: false,
@@ -121,6 +128,8 @@ export const useViewportStore = create<ViewportStore>((set, get) => ({
   setShiftDown: (down) => set({ isShiftDown: down }),
   setMagnifierKeyDown: (down) => set({ isMagnifierKeyDown: down }),
   setOpeningsDialogOpen: (open) => set({ openingsDialogOpen: open }),
+  setNorthDialogOpen: (open) => set({ northDialogOpen: open }),
+  setNorthScreenshotBearing: (bearing) => set({ northScreenshotBearing: bearing }),
   setWallsDialogOpen: (open) => set({ wallsDialogOpen: open }),
   setPlacingOpeningId: (id) => set({ placingOpeningId: id }),
   setDrawingInProgress: (active) => set({ drawingInProgress: active }),

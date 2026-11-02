@@ -82,6 +82,8 @@ export function useKeyboardShortcuts(enabled: boolean) {
       }
 
       if (mod && e.key.toLowerCase() === 'v') {
+        // Ctrl+V in the compass dialog pastes a screenshot, not a copied area.
+        if (useViewportStore.getState().northDialogOpen) return;
         useAnnotationStore.getState().pasteClipboard();
         return;
       }

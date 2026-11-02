@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { ArrowUp } from 'lucide-react';
+import { ArrowUp, Plus } from 'lucide-react';
+import NorthCalibrationDialog from '@/components/compass/NorthCalibrationDialog';
+import { useViewportStore } from '@/store/viewportStore';
 import { Input } from '@/components/ui/input';
 import { useProjectStore } from '@/store/projectStore';
 
@@ -15,6 +17,8 @@ export default function CompassWidget() {
   const { projectId } = useParams<{ projectId: string }>();
   const project = useProjectStore((s) => (projectId ? s.getProject(projectId) : undefined));
   const updateNorthDirection = useProjectStore((s) => s.updateNorthDirection);
+
+  const setNorthDialogOpen = useViewportStore((s) => s.setNorthDialogOpen);
 
   const dialRef = useRef<HTMLDivElement>(null);
   const [dragAngle, setDragAngle] = useState<number | null>(null);
@@ -115,7 +119,16 @@ export default function CompassWidget() {
           className="h-5 w-11 px-1 text-center text-[10px] tabular-nums"
         />
         <span className="text-[10px] font-medium text-muted-foreground">°</span>
+        <button
+          type="button"
+          onClick={() => setNorthDialogOpen(true)}
+          title="Kalibrer nord med et skjermbilde"
+          className="flex size-5 items-center justify-center rounded text-muted-foreground hover:bg-secondary hover:text-foreground"
+        >
+          <Plus className="size-3.5" />
+        </button>
       </div>
+      <NorthCalibrationDialog />
     </div>
   );
 }
