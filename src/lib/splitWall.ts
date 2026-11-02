@@ -1,4 +1,4 @@
-import { useAnnotationStore } from '@/store/annotationStore';
+import { rememberPlacements, useAnnotationStore } from '@/store/annotationStore';
 import { useFilesStore } from '@/store/filesStore';
 import type { Annotation, EdgeMeta, PlacedOpening, Point } from '@/types';
 
@@ -35,11 +35,15 @@ export function splitWall(annotationId: string, edgeIndex: number): void {
   const annotation = store.annotations.find((a) => a.id === annotationId);
   if (!annotation || annotation.locked) return;
   const { points, edges } = splitEdge(annotation, edgeIndex);
+  const file = useFilesStore.getState().getFile(annotation.fileId);
+  const moved = file?.placedOpenings?.some((p) => p.annotationId === annotationId);
+  if (moved && file?.placedOpenings) rememberPlacements(store.annotations, file.placedOpenings); // for Ctrl+Z
   store.updateAnnotation(annotationId, { points, edges });
 
-  const file = useFilesStore.getState().getFile(annotation.fileId);
-  if (file?.placedOpenings?.some((p) => p.annotationId === annotationId)) {
-    void useFilesStore.getState().setOpenings(file.id, file.openings ?? [], splitPlacements(file.placedOpenings, annotationId, edgeIndex));
+  if (moved && file?.placedOpenings) {
+    const placed = splitPlacements(file.placedOpenings, annotationId, edgeIndex);
+    rememberPlacements(useAnnotationStore.getState().annotations, placed); // for Ctrl+Shift+Z
+    void useFilesStore.getState().setOpenings(file.id, file.openings ?? [], placed);
   }
 }
 
@@ -79,12 +83,14 @@ export function removeCorner(annotationId: string, index: number): void {
   if (!annotation || annotation.locked) return;
   const points = annotation.points.filter((_, i) => i !== index);
   const edges = annotation.edges ? annotation.edges.filter((_, i) => i !== index) : undefined;
+  const file = useFilesStore.getState().getFile(annotation.fileId);
+  const moved = file?.placedOpenings?.some((p) => p.annotationId === annotationId);
+  if (moved && file?.placedOpenings) rememberPlacements(store.annotations, file.placedOpenings); // for Ctrl+Z
   store.updateAnnotation(annotationId, { points, edges });
 
-  const file = useFilesStore.getState().getFile(annotation.fileId);
-  if (file?.placedOpenings?.some((p) => p.annotationId === annotationId)) {
-    void useFilesStore
-      .getState()
-      .setOpenings(file.id, file.openings ?? [], removeCornerPlacements(file.placedOpenings, annotationId, annotation.points, index));
+  if (moved && file?.placedOpenings) {
+    const placed = removeCornerPlacements(file.placedOpenings, annotationId, annotation.points, index);
+    rememberPlacements(useAnnotationStore.getState().annotations, placed); // for Ctrl+Shift+Z
+    void useFilesStore.getState().setOpenings(file.id, file.openings ?? [], placed);
   }
 }
