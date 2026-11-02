@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildExportTables, ventilationTotal } from '@/lib/exportRows';
+import { buildExportTables, compassIndex, ventilationTotal } from '@/lib/exportRows';
 import { ventilationBreakdown } from '@/lib/ventilation';
 import type { Annotation, PdfFile, Project } from '@/types';
 
@@ -369,15 +369,33 @@ describe('row styles for the colored Excel groups', () => {
     { ...room, edges },
     { ...room, id: 'b', name: 'Lager', roomNumber: '102', edges },
   ];
-  const [, , walls] = buildExportTables(project, [{ file: file(true), annotations: rooms }]);
+  const [, , walls, sheet] = buildExportTables(project, [{ file: file(true), annotations: rooms }]);
 
-  it('alternates the detail rows per room and marks room sums, direction sums and the total', () => {
+  it('colors detail rows and direction sums by compass direction (0 = north, 2 = east)', () => {
     const { styles, rows } = walls.summaries![0];
     expect(styles).toHaveLength(rows.length);
-    expect(styles).toEqual(['detail', 'detail', 'roomSum', 'detailAlt', 'detailAlt', 'roomSum', 'groupSum', 'groupSum', 'total']);
+    expect(styles).toEqual([
+      { kind: 'detail', direction: 0 },
+      { kind: 'detail', direction: 2 },
+      { kind: 'roomSum' },
+      { kind: 'detail', direction: 0 },
+      { kind: 'detail', direction: 2 },
+      { kind: 'roomSum' },
+      { kind: 'directionSum', direction: 0 },
+      { kind: 'directionSum', direction: 2 },
+      { kind: 'total' },
+    ]);
   });
 
-  it('names the columns that group the rows of the main tables by room', () => {
-    expect(walls.groupBy).toEqual([0, 1, 2]);
+  it('colors the rows of the wall and opening sheets by the column with the direction', () => {
+    expect(walls.headers[walls.directionColumn!]).toBe('Himmelretning (°)');
+    expect(sheet.headers[sheet.directionColumn!]).toBe('Himmelretning (°)');
+  });
+
+  it('uses the same color index for the same direction in every room, and 8 for no direction', () => {
+    expect(compassIndex(0)).toBe(0);
+    expect(compassIndex(347)).toBe(0); // close to north: same family, the degrees stay in the data
+    expect(compassIndex(207)).toBe(compassIndex(223));
+    expect(compassIndex(90)).toBe(2);
   });
 });
