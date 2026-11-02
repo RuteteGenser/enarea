@@ -3,6 +3,7 @@ import { metersPerUnit } from '@/lib/calibration';
 import { DEFAULT_OPENING_WIDTH_MM, joinPlacements, placedOpeningRect } from '@/lib/openings';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useFilesStore } from '@/store/filesStore';
+import { useViewportStore } from '@/store/viewportStore';
 import type { Calibration, OpeningItem, PlacedOpening } from '@/types';
 
 /** The mouse must travel this far (screen px) before a window/door starts to move. */
@@ -30,6 +31,15 @@ export default function OpeningRects({ fileId, openings, placed, zoom, calibrati
   const mpu = metersPerUnit(calibration);
   const [drag, setDrag] = useState<{ id: string; t: number; svg: SVGSVGElement; startX: number; startY: number } | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  // Windows/doors picked in Målinger are marked until the selection moves elsewhere.
+  const highlighted = useViewportStore((s) => s.highlightedOpenings);
+  const setHighlighted = useViewportStore((s) => s.setHighlightedOpenings);
+  const selectedRoomIds = useAnnotationStore((s) => s.selectedIds);
+  useEffect(() => {
+    if (highlighted.length === 0) return;
+    const rooms = new Set(placed.filter((p) => highlighted.includes(p.id)).map((p) => p.annotationId));
+    if ([...rooms].some((id) => !selectedRoomIds.includes(id))) setHighlighted([]);
+  }, [highlighted, selectedRoomIds, placed, setHighlighted]);
   // First click selects a window/door; only a selected one can then be dragged along its wall.
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -145,6 +155,18 @@ export default function OpeningRects({ fileId, openings, placed, zoom, calibrati
             }}
             onClick={(e) => movable && e.stopPropagation()}
           >
+            {highlighted.includes(item.id) && (
+              <polygon
+                points={rect.corners.map((p) => `${p.x * zoom},${p.y * zoom}`).join(' ')}
+                fill="none"
+                stroke="#f5a623"
+                strokeWidth={8}
+                strokeLinejoin="round"
+                opacity={0.9}
+                className="animate-pulse"
+                pointerEvents="none"
+              />
+            )}
             <polygon
               points={rect.corners.map((p) => `${p.x * zoom},${p.y * zoom}`).join(' ')}
               fill={color}
