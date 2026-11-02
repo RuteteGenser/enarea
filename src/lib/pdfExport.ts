@@ -2,8 +2,9 @@ import { PDFDocument, StandardFonts, degrees, rgb, type PDFFont, type PDFPage } 
 import { annotationArea, distance } from '@/lib/geometry';
 import { formatArea, formatLength, metersPerUnit } from '@/lib/calibration';
 import { displayName, TYPE_LABEL_NB } from '@/lib/annotationLabel';
+import { joinPlacements, openingArea, OPENING_KIND_LABELS, placedOpeningRect } from '@/lib/openings';
 import { ANNOTATION_COLORS } from '@/types';
-import type { Annotation, PdfFile, Project, Unit } from '@/types';
+import type { Annotation, BuildingComponentType, PdfFile, Project, Unit } from '@/types';
 
 export type ExportFileData = { file: PdfFile; annotations: Annotation[] };
 
@@ -32,6 +33,7 @@ function drawCoverPage(
   unit: Unit,
   font: PDFFont,
   boldFont: PDFFont,
+  buildingTypes: BuildingComponentType[],
 ): void {
   let page = doc.addPage(PAGE_SIZE);
   let [pageWidth, pageHeight] = [PAGE_SIZE[0], PAGE_SIZE[1]];
@@ -97,7 +99,7 @@ function drawCoverPage(
         height: 8,
         color: hexToRgb01(ANNOTATION_COLORS[annotation.color]),
       });
-      page.drawText(displayName(annotation), {
+      page.drawText([annotation.roomNumber, displayName(annotation)].filter(Boolean).join(' '), {
         x: MARGIN + 14,
         y,
         size: 10,
@@ -120,11 +122,65 @@ function drawCoverPage(
       });
       y -= 16;
 
+      // The details that go with the room: room type, people and floor/ceiling type.
+      const details = [
+        annotation.roomTemplate?.name,
+        annotation.people ? `${annotation.people} ${annotation.people === 1 ? 'person' : 'personer'}` : undefined,
+        annotation.buildingComponent?.name ? `Gulv/dekke: ${annotation.buildingComponent.name}` : undefined,
+      ].filter(Boolean);
+      if (annotation.type !== 'line' && details.length > 0) {
+        ensureSpace(12);
+        page.drawText(details.join('  ·  '), { x: MARGIN + 14, y: y + 3, size: 8, font, color: rgb(0.45, 0.45, 0.48) });
+        y -= 10;
+      }
+
       if (annotation.type !== 'line') {
         grandTotalArea += annotationArea(annotation) * mpu * mpu;
       }
     }
     y -= 14;
+
+    // Windows and doors placed on the walls of this drawing.
+    const placedOpenings = joinPlacements(file.openings ?? [], file.placedOpenings ?? []);
+    if (placedOpenings.length > 0) {
+      ensureSpace(40);
+      page.drawText('Vinduer og dører', { x: MARGIN, y, size: 11, font: boldFont, color: rgb(0.1, 0.1, 0.12) });
+      y -= 14;
+      const cols = [MARGIN, MARGIN + 95, MARGIN + 175, MARGIN + 225, MARGIN + 355];
+      ['Navn', 'Størrelse (mm)', 'Areal', 'Byggedelstype', 'Rom / vegg'].forEach((title, i) => {
+        page.drawText(title, { x: cols[i], y, size: 9, font: boldFont, color: rgb(0.5, 0.5, 0.53) });
+      });
+      y -= 14;
+      const totals = { vindu: { count: 0, area: 0 }, dor: { count: 0, area: 0 } };
+      for (const item of placedOpenings) {
+        ensureSpace(14);
+        const area = openingArea(item);
+        const room = annotations.find((a) => a.id === item.placement.annotationId);
+        totals[item.kind].count++;
+        totals[item.kind].area += area ?? 0;
+        const cells = [
+          item.name,
+          item.widthMm && item.heightMm ? `${item.widthMm} × ${item.heightMm}` : '—',
+          area === undefined ? '—' : formatArea(area, unit),
+          buildingTypes.find((t) => t.id === item.typeId)?.name ?? '—',
+          room ? `${[room.roomNumber, displayName(room)].filter(Boolean).join(' ')} · vegg ${item.placement.edgeIndex + 1}` : '—',
+        ];
+        cells.forEach((text, i) => {
+          const maxWidth = (cols[i + 1] ?? pageWidth - MARGIN) - cols[i] - 6;
+          let shown = text;
+          while (shown.length > 1 && font.widthOfTextAtSize(shown, 9) > maxWidth) shown = shown.slice(0, -2);
+          page.drawText(shown === text ? text : `${shown}…`, { x: cols[i], y, size: 9, font, color: rgb(0.15, 0.15, 0.17) });
+        });
+        y -= 13;
+      }
+      ensureSpace(16);
+      const summary = (['vindu', 'dor'] as const)
+        .filter((kind) => totals[kind].count > 0)
+        .map((kind) => `${OPENING_KIND_LABELS[kind]}: ${totals[kind].count} stk, ${formatArea(totals[kind].area, unit)}`)
+        .join('   ·   ');
+      page.drawText(summary, { x: MARGIN, y, size: 9, font: boldFont, color: rgb(0.25, 0.25, 0.28) });
+      y -= 22;
+    }
   }
 
   ensureSpace(24);
@@ -137,7 +193,7 @@ function drawCoverPage(
   });
 }
 
-function drawAnnotationsOnPage(page: PDFPage, annotations: Annotation[], font: PDFFont, unit: Unit, mpu: number): void {
+function drawAnnotationsOnPage(page: PDFPage, annotations: Annotation[], font: PDFFont, unit: Unit, mpu: number, file: PdfFile): void {
   // Annotation coordinates are measured on the page as shown (y down). A rotated page (see "Roter PDF") has
   // its content stored turned, so shown positions are mapped back to the page's own coordinates.
   const { width: pageWidth, height: pageHeight } = page.getSize();
@@ -181,7 +237,8 @@ function drawAnnotationsOnPage(page: PDFPage, annotations: Annotation[], font: P
       y: shown.reduce((sum, p) => sum + p.y, 0) / shown.length,
     };
     const valueLabel = annotationValueLabel(annotation, mpu, unit);
-    const labelText = annotation.name ? `${annotation.name}  ${valueLabel}` : valueLabel;
+    const title = [annotation.roomNumber, annotation.name].filter(Boolean).join(' ');
+    const labelText = title ? `${title}  ${valueLabel}` : valueLabel;
     const textWidth = font.widthOfTextAtSize(labelText, 9);
     const turn = degrees(rotation);
     page.drawRectangle({
@@ -199,14 +256,33 @@ function drawAnnotationsOnPage(page: PDFPage, annotations: Annotation[], font: P
       rotate: turn,
     });
   }
+
+  // Placed windows and doors: an outline on their wall (blue = window, brown = door) with the name beside it.
+  if (file.calibration) {
+    for (const item of joinPlacements(file.openings ?? [], file.placedOpenings ?? [])) {
+      const rect = placedOpeningRect(item, annotations, mpu);
+      if (!rect) continue;
+      const color = item.kind === 'vindu' ? rgb(0.05, 0.45, 0.9) : rgb(0.6, 0.35, 0.1);
+      const corners = rect.corners.map((p) => flip(p.x, p.y));
+      for (let i = 0; i < corners.length; i++) {
+        page.drawLine({ start: corners[i], end: corners[(i + 1) % corners.length], thickness: 1.2, color });
+      }
+      page.drawText(item.name, { ...flip(rect.center.x + 4, rect.center.y - 5), size: 6, font, color, rotate: degrees(rotation) });
+    }
+  }
 }
 
-export async function exportProjectPdf(project: Project, filesData: ExportFileData[], unit: Unit): Promise<Blob> {
+export async function exportProjectPdf(
+  project: Project,
+  filesData: ExportFileData[],
+  unit: Unit,
+  buildingTypes: BuildingComponentType[] = [],
+): Promise<Blob> {
   const outDoc = await PDFDocument.create();
   const font = await outDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await outDoc.embedFont(StandardFonts.HelveticaBold);
 
-  drawCoverPage(outDoc, project, filesData, unit, font, boldFont);
+  drawCoverPage(outDoc, project, filesData, unit, font, boldFont, buildingTypes);
 
   for (const { file, annotations } of filesData) {
     const srcBytes = await file.pdfBlob.arrayBuffer();
@@ -214,7 +290,7 @@ export async function exportProjectPdf(project: Project, filesData: ExportFileDa
     const [copiedPage] = await outDoc.copyPages(srcDoc, [0]);
     outDoc.addPage(copiedPage);
     const mpu = metersPerUnit(file.calibration);
-    drawAnnotationsOnPage(copiedPage, annotations, font, unit, mpu);
+    drawAnnotationsOnPage(copiedPage, annotations, font, unit, mpu, file);
   }
 
   const bytes = await outDoc.save({ useObjectStreams: true });

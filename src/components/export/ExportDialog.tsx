@@ -45,7 +45,7 @@ export default function ExportDialog({ open, project, files, onOpenChange }: Exp
         files.map(async (file) => ({ file, annotations: await annotationsRepo.listByFile(file.id) })),
       );
       if (kind === 'pdf') {
-        download(await exportProjectPdf(project, filesData, unit), 'pdf');
+        download(await exportProjectPdf(project, filesData, unit, await buildingComponentTypesRepo.list()), 'pdf');
         toast.success('Rapport eksportert');
       } else {
         download(await exportProjectExcel(project, filesData, await buildingComponentTypesRepo.list()), 'xlsx');
