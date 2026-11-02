@@ -231,7 +231,7 @@ describe('wall height, area, names and direction summary', () => {
     expect(summary.headers.slice(0, 5)).toEqual(['Himmelretning', 'Grader (°)', 'Fil', 'Rom nr', 'Rom']);
     // top wall faces north, right wall faces east; each direction has its room rows and a sum row
     expect(rows.map((r) => r[0])).toEqual(['Nord', 'Sum nord', 'Øst', 'Sum øst', 'Sum alle']);
-    expect(rows.map((r) => r[1])).toEqual(['0', 0, '90', 90, null]);
+    expect(rows.map((r) => r[1])).toEqual(['0', '0', '90', '90', null]);
     expect(rows[0].slice(2, 8)).toEqual(['plan.pdf', '101', 'Kontor', 1, 10, 25]);
     expect(rows[2][7]).toBeNull(); // no height on the east wall
     expect(rows[4][5]).toBe(2);
@@ -246,7 +246,7 @@ describe('wall height, area, names and direction summary', () => {
   });
 });
 
-describe('summary of windows and doors per type', () => {
+describe('summary of windows and doors per type and compass direction', () => {
   const f = {
     ...file(true),
     openings: [
@@ -256,30 +256,38 @@ describe('summary of windows and doors per type', () => {
       { id: 'unused', kind: 'dor' as const, name: 'Dør 2', widthMm: 1000, heightMm: 2100 },
     ],
     placedOpenings: [
-      { id: 'p1', openingId: 'w1', annotationId: 'a', edgeIndex: 0, t: 0.2 },
+      { id: 'p1', openingId: 'w1', annotationId: 'a', edgeIndex: 0, t: 0.2 }, // top wall: north
       { id: 'p2', openingId: 'w1', annotationId: 'a', edgeIndex: 0, t: 0.6 },
-      { id: 'p3', openingId: 'w2', annotationId: 'a', edgeIndex: 1, t: 0.5 },
-      { id: 'p4', openingId: 'd1', annotationId: 'a', edgeIndex: 2, t: 0.5 },
+      { id: 'p3', openingId: 'w2', annotationId: 'a', edgeIndex: 1, t: 0.5 }, // right wall: east
+      { id: 'p4', openingId: 'd1', annotationId: 'a', edgeIndex: 0, t: 0.9 },
+      { id: 'p5', openingId: 'd1', annotationId: 'a', edgeIndex: 2, t: 0.5 }, // bottom wall is not an outer wall
     ],
   };
   const types = [{ id: 'bt', category: 'vindu' as const, name: 'Trevindu', uValue: 1.1, createdAt: 1, updatedAt: 1 }];
-  const tables = buildExportTables(project, [{ file: f, annotations: [{ ...room, edges: [{}, {}, {}, {}] }] }], types);
+  const outer = { ...room, edges: [{ wallType: 'external' as const }, { wallType: 'external' as const }, {}, {}] };
+  const tables = buildExportTables(project, [{ file: f, annotations: [outer] }], types);
   const summary = tables[3].summaries![0]; // in the Vinduer og dører sheet
+  const labels = summary.rows.map((r) => r[0]);
+
   it('is in the Vinduer og dører sheet, not in Vegger', () => {
-    expect(summary.title).toBe('Oppsummering: vinduer og dører per type');
+    expect(summary.title).toBe('Oppsummering: vinduer og dører per type og himmelretning');
     expect(tables[2].summaries!.some((s) => s.title.includes('vinduer og dører'))).toBe(false);
   });
 
-  it('lists each placed type with its size, count and total area, windows first', () => {
-    expect(summary.headers.slice(0, 5)).toEqual(['Fil', 'Navn / type', 'Vindu/dør', 'Bredde (mm)', 'Høyde (mm)']);
-    expect(summary.rows[0]).toEqual(['plan.pdf', 'Vindu 1', 'Vindu', 1200, 1500, 1.8, 'Trevindu', 1.1, 2, 3.6]);
-    expect(summary.rows[1].slice(1, 5)).toEqual(['Vindu 2', 'Vindu', 600, 600]);
+  it('splits the types on compass direction, with size, count and total area', () => {
+    expect(summary.headers.slice(0, 5)).toEqual(['Himmelretning', 'Grader (°)', 'Fil', 'Navn / type', 'Vindu/dør']);
+    expect(labels).toEqual(['Nord', 'Nord', 'Sum nord', 'Øst', 'Sum øst', 'Ikke på yttervegg', 'Sum ikke på yttervegg', 'Sum vindu', 'Sum dør', 'Sum alle']);
+    // north: 2 × Vindu 1 then 1 × Dør 1 (windows before doors)
+    expect(summary.rows[0]).toEqual(['Nord', '0', 'plan.pdf', 'Vindu 1', 'Vindu', 1200, 1500, 1.8, 'Trevindu', 1.1, 2, 3.6]);
+    expect(summary.rows[1].slice(3, 5)).toEqual(['Dør 1', 'Dør']);
+    expect(summary.rows[2].slice(10)).toEqual([3, 5.49]);
+    expect(summary.rows[3].slice(3, 7)).toEqual(['Vindu 2', 'Vindu', 600, 600]);
   });
 
   it('has sums per kind and in total, and leaves out types that are not placed', () => {
-    expect(summary.rows.map((r) => r[0])).toEqual(['plan.pdf', 'plan.pdf', 'Sum vindu', 'plan.pdf', 'Sum dør', 'Sum alle']);
-    expect(summary.rows[2].slice(8)).toEqual([3, 3.96]); // 2 × 1,8 + 1 × 0,36
-    expect(summary.rows[4].slice(8)).toEqual([1, 1.89]); // Dør 2 isn't placed
-    expect(summary.rows[5].slice(8)).toEqual([4, 5.85]);
+    const at = (label: string) => summary.rows[labels.indexOf(label)].slice(10);
+    expect(at('Sum vindu')).toEqual([3, 3.96]); // 2 × 1,8 + 1 × 0,36
+    expect(at('Sum dør')).toEqual([2, 3.78]); // Dør 2 isn't placed
+    expect(at('Sum alle')).toEqual([5, 7.74]);
   });
 });

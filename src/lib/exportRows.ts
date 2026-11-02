@@ -5,7 +5,7 @@ import { joinPlacements, openingArea, OPENING_KIND_LABELS } from '@/lib/openings
 import { openingTotals } from '@/lib/wallOpenings';
 import { ventilationTotal } from '@/lib/ventilation';
 import { BUILDING_CATEGORY_LABELS, BUILDING_COMPONENT_CATEGORY_LABELS, VENTILATION_UNIT_LABELS } from '@/types';
-import { compassPoint, ORIENTATION_NAMES, ORIENTATION_OPTIONS, orientationDegrees, wallBearing } from '@/lib/wallOrientation';
+import { compassPoint, ORIENTATION_NAMES, ORIENTATION_OPTIONS, wallBearing } from '@/lib/wallOrientation';
 import type { Annotation, BuildingComponentType, EdgeMeta, OpeningItem, PdfFile, Project } from '@/types';
 
 export type ExportFileData = { file: PdfFile; annotations: Annotation[] };
@@ -58,7 +58,6 @@ export function buildExportTables(
   const wallSums: WallSum[] = [];
   const zoneSums: ZoneSum[] = [];
   const typeSums: OpeningTypeSum[] = [];
-  const legacySums = new Map<string, OpeningTypeSum>();
 
   let totalArea = 0;
   let totalPeople = 0;
@@ -153,27 +152,22 @@ export function buildExportTables(
           }
         }
         if (edge.wallType === 'external' && calibrated && a && b) {
-          wallSums.push({ file: file.name, roomKey: `${file.id}:${annotation.id}`, roomNumber: annotation.roomNumber ?? null, room: name, bearing: wallBearing(annotation, i, project.northDirection) ?? 0, length: distance(a, b) * mpu, area: wallArea, vindu: wall.vindu.area, dor: wall.dor.area });
+          wallSums.push({ file: file.name, roomKey: `${file.id}:${annotation.id}`, roomNumber: annotation.roomNumber ?? null, room: name, bearing: wallBearing(annotation, i, project.northDirection) ?? 0, length: distance(a, b) * mpu, area: wallArea, vindu: wall.vindu.area, dor: wall.dor.area, vinduCount: wall.vindu.count, dorCount: wall.dor.count });
         }
 
         for (const opening of open) {
           // Windows/doors added in the material picker have a name and an area, but no width/height.
-          const legacyKey = `${file.id}|${opening.component.category}|${opening.component.name}|${opening.area}`;
-          const legacy = legacySums.get(legacyKey);
-          if (legacy) legacy.count++;
-          else {
-            legacySums.set(legacyKey, {
-              file: file.name,
-              kind: opening.component.category === 'vindu' ? 'Vindu' : 'Dør',
-              name: opening.component.name,
-              widthMm: null,
-              heightMm: null,
-              area: opening.area,
-              typeName: opening.component.name,
-              uValue: opening.component.uValue ?? null,
-              count: 1,
-            });
-          }
+          typeSums.push({
+            file: file.name,
+            kind: opening.component.category === 'vindu' ? 'Vindu' : 'Dør',
+            name: opening.component.name,
+            widthMm: null,
+            heightMm: null,
+            area: opening.area,
+            typeName: opening.component.name,
+            uValue: opening.component.uValue ?? null,
+            bearing: wallBearing(annotation, i, project.northDirection) ?? null,
+          });
           openings.push([
             file.name,
             null,
@@ -200,7 +194,8 @@ export function buildExportTables(
       const area = openingArea(type);
       const placements = placedCopies.filter((it) => it.openingId === type.id);
       // One row per placed copy. A type that isn't placed anywhere has no wall, so it isn't listed.
-      if (placements.length > 0) {
+      for (const item of placements) {
+        const room = annotations.find((a) => a.id === item.placement.annotationId);
         typeSums.push({
           file: file.name,
           kind: OPENING_KIND_LABELS[type.kind],
@@ -210,11 +205,8 @@ export function buildExportTables(
           area: area ?? null,
           typeName: typeRow?.name ?? null,
           uValue: typeRow?.uValue ?? null,
-          count: placements.length,
+          bearing: room ? (wallBearing(room, item.placement.edgeIndex, project.northDirection) ?? null) : null,
         });
-      }
-      for (const item of placements) {
-        const room = annotations.find((a) => a.id === item.placement.annotationId);
         openings.push([
           file.name,
           type.name,
@@ -313,7 +305,7 @@ export function buildExportTables(
         'Himmelretning (°)',
       ],
       rows: openings,
-      summaries: [openingTypeSummary([...typeSums, ...legacySums.values()])].filter((t): t is NonNullable<typeof t> => t !== undefined),
+      summaries: [openingTypeSummary(typeSums)].filter((t): t is NonNullable<typeof t> => t !== undefined),
     },
   ];
 }
@@ -328,12 +320,15 @@ type WallSum = {
   area: number | null;
   vindu: number;
   dor: number;
+  vinduCount: number;
+  dorCount: number;
 };
 
 /** Sums of the outer walls per compass direction (north first) and, within each, per room; with a sum row per direction and a total. */
 function wallSummary(walls: WallSum[]): NonNullable<ExportTable['summaries']>[number] | undefined {
   const rows: Cell[][] = [];
-  const total = { count: 0, length: 0, area: 0, vindu: 0, dor: 0 };
+  const total = { count: 0, length: 0, area: 0, vindu: 0, dor: 0, vinduCount: 0, dorCount: 0 };
+  const degrees = (list: WallSum[]) => [...new Set(list.map((w) => Math.round(w.bearing) % 360))].sort((a, b) => a - b).join(', ');
   const sums = (list: WallSum[]) => ({
     count: list.length,
     length: list.reduce((s, w) => s + w.length, 0),
@@ -341,6 +336,8 @@ function wallSummary(walls: WallSum[]): NonNullable<ExportTable['summaries']>[nu
     hasHeight: list.some((w) => w.area !== null),
     vindu: list.reduce((s, w) => s + w.vindu, 0),
     dor: list.reduce((s, w) => s + w.dor, 0),
+    vinduCount: list.reduce((s, w) => s + w.vinduCount, 0),
+    dorCount: list.reduce((s, w) => s + w.dorCount, 0),
   });
 
   for (const direction of ORIENTATION_OPTIONS) {
@@ -352,30 +349,34 @@ function wallSummary(walls: WallSum[]): NonNullable<ExportTable['summaries']>[nu
       const sum = sums(mine);
       rows.push([
         ORIENTATION_NAMES[direction],
-        [...new Set(mine.map((w) => Math.round(w.bearing) % 360))].sort((a, b) => a - b).join(', '),
+        degrees(mine),
         mine[0].file,
         mine[0].roomNumber,
         mine[0].room,
         sum.count,
         round(sum.length),
         sum.hasHeight ? round(sum.area) : null,
+        sum.vinduCount,
         round(sum.vindu),
+        sum.dorCount,
         round(sum.dor),
       ]);
     }
     const sum = sums(inDirection);
-    rows.push([`Sum ${ORIENTATION_NAMES[direction].toLowerCase()}`, orientationDegrees(direction), null, null, null, sum.count, round(sum.length), sum.hasHeight ? round(sum.area) : null, round(sum.vindu), round(sum.dor)]);
+    rows.push([`Sum ${ORIENTATION_NAMES[direction].toLowerCase()}`, degrees(inDirection), null, null, null, sum.count, round(sum.length), sum.hasHeight ? round(sum.area) : null, sum.vinduCount, round(sum.vindu), sum.dorCount, round(sum.dor)]);
     total.count += sum.count;
     total.length += sum.length;
     total.area += sum.area;
     total.vindu += sum.vindu;
     total.dor += sum.dor;
+    total.vinduCount += sum.vinduCount;
+    total.dorCount += sum.dorCount;
   }
   if (rows.length === 0) return undefined;
-  rows.push(['Sum alle', null, null, null, null, total.count, round(total.length), round(total.area), round(total.vindu), round(total.dor)]);
+  rows.push(['Sum alle', null, null, null, null, total.count, round(total.length), round(total.area), total.vinduCount, round(total.vindu), total.dorCount, round(total.dor)]);
   return {
     title: 'Oppsummering: yttervegger per himmelretning og rom',
-    headers: ['Himmelretning', 'Grader (°)', 'Fil', 'Rom nr', 'Rom', 'Antall vegger', 'Total lengde (m)', 'Veggareal (m²)', 'Vindu (m²)', 'Dør (m²)'],
+    headers: ['Himmelretning', 'Grader (°)', 'Fil', 'Rom nr', 'Rom', 'Antall vegger', 'Total lengde (m)', 'Veggareal (m²)', 'Vindu (antall)', 'Vindu (m²)', 'Dør (antall)', 'Dør (m²)'],
     rows,
   };
 }
@@ -419,6 +420,7 @@ function zoneSummary(zones: ZoneSum[]): NonNullable<ExportTable['summaries']>[nu
   };
 }
 
+/** One placed window/door with its wall's direction (null when the wall isn't an outer wall). */
 type OpeningTypeSum = {
   file: string;
   kind: string;
@@ -428,28 +430,54 @@ type OpeningTypeSum = {
   area: number | null;
   typeName: string | null;
   uValue: number | null;
-  count: number;
+  bearing: number | null;
 };
 
-/** How many windows/doors of each type there are and how big each is, windows first, with sums per kind. */
-function openingTypeSummary(types: OpeningTypeSum[]): NonNullable<ExportTable['summaries']>[number] | undefined {
-  if (types.length === 0) return undefined;
+/**
+ * How many windows/doors of each type there are, how big each one is and which way they face: one row per
+ * type within each compass direction (north first; windows before doors), a sum row per direction, and totals.
+ */
+function openingTypeSummary(items: OpeningTypeSum[]): NonNullable<ExportTable['summaries']>[number] | undefined {
+  if (items.length === 0) return undefined;
   const rows: Cell[][] = [];
-  let all = { count: 0, area: 0 };
-  for (const kind of ['Vindu', 'Dør']) {
-    const mine = types.filter((t) => t.kind === kind).sort((a, b) => a.file.localeCompare(b.file) || a.name.localeCompare(b.name, 'nb', { numeric: true }));
-    if (mine.length === 0) continue;
-    for (const t of mine) {
-      rows.push([t.file, t.name, t.kind, t.widthMm, t.heightMm, t.area === null ? null : round(t.area), t.typeName, t.uValue, t.count, t.area === null ? null : round(t.area * t.count)]);
+  const area = (list: OpeningTypeSum[]) => round(list.reduce((s, t) => s + (t.area ?? 0), 0));
+  const degreesOf = (list: OpeningTypeSum[]) =>
+    [...new Set(list.filter((t) => t.bearing !== null).map((t) => Math.round(t.bearing!) % 360))].sort((a, b) => a - b).join(', ');
+  const blank = (n: number) => Array<Cell>(n).fill(null);
+
+  const groups: { label: string; items: OpeningTypeSum[] }[] = ORIENTATION_OPTIONS.map((direction) => ({
+    label: ORIENTATION_NAMES[direction],
+    items: items.filter((t) => t.bearing !== null && compassPoint(t.bearing) === direction),
+  }));
+  groups.push({ label: 'Ikke på yttervegg', items: items.filter((t) => t.bearing === null) });
+
+  for (const group of groups) {
+    if (group.items.length === 0) continue;
+    const types = new Map<string, OpeningTypeSum[]>();
+    for (const t of group.items) {
+      const key = [t.file, t.kind, t.name, t.widthMm, t.heightMm, t.area, t.typeName].join('|');
+      types.set(key, [...(types.get(key) ?? []), t]);
     }
-    const sum = { count: mine.reduce((s, t) => s + t.count, 0), area: mine.reduce((s, t) => s + (t.area ?? 0) * t.count, 0) };
-    rows.push([`Sum ${kind.toLowerCase()}`, null, null, null, null, null, null, null, sum.count, round(sum.area)]);
-    all = { count: all.count + sum.count, area: all.area + sum.area };
+    const ordered = [...types.values()].sort(
+      (a, b) =>
+        (a[0].kind === 'Vindu' ? 0 : 1) - (b[0].kind === 'Vindu' ? 0 : 1) ||
+        a[0].file.localeCompare(b[0].file) ||
+        a[0].name.localeCompare(b[0].name, 'nb', { numeric: true }),
+    );
+    for (const list of ordered) {
+      const t = list[0];
+      rows.push([group.label, degreesOf(list), t.file, t.name, t.kind, t.widthMm, t.heightMm, t.area === null ? null : round(t.area), t.typeName, t.uValue, list.length, area(list)]);
+    }
+    rows.push([`Sum ${group.label.toLowerCase()}`, degreesOf(group.items), ...blank(8), group.items.length, area(group.items)]);
   }
-  rows.push(['Sum alle', null, null, null, null, null, null, null, all.count, round(all.area)]);
+  for (const kind of ['Vindu', 'Dør']) {
+    const mine = items.filter((t) => t.kind === kind);
+    if (mine.length > 0) rows.push([`Sum ${kind.toLowerCase()}`, ...blank(9), mine.length, area(mine)]);
+  }
+  rows.push(['Sum alle', ...blank(9), items.length, area(items)]);
   return {
-    title: 'Oppsummering: vinduer og dører per type',
-    headers: ['Fil', 'Navn / type', 'Vindu/dør', 'Bredde (mm)', 'Høyde (mm)', 'Areal per stk (m²)', 'Byggedelstype', 'U-verdi (W/m²K)', 'Antall', 'Samlet areal (m²)'],
+    title: 'Oppsummering: vinduer og dører per type og himmelretning',
+    headers: ['Himmelretning', 'Grader (°)', 'Fil', 'Navn / type', 'Vindu/dør', 'Bredde (mm)', 'Høyde (mm)', 'Areal per stk (m²)', 'Byggedelstype', 'U-verdi (W/m²K)', 'Antall', 'Samlet areal (m²)'],
     rows,
   };
 }
