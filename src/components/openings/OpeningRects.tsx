@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { metersPerUnit } from '@/lib/calibration';
 import { DEFAULT_OPENING_WIDTH_MM, joinPlacements, placedOpeningRect } from '@/lib/openings';
 import { useAnnotationStore } from '@/store/annotationStore';
@@ -36,12 +36,27 @@ export default function OpeningRects({ fileId, openings, placed, zoom, calibrati
   const setHighlighted = useViewportStore((s) => s.setHighlightedOpenings);
   const selectedRoomIds = useAnnotationStore((s) => s.selectedIds);
   useEffect(() => {
-    if (highlighted.length === 0) return;
-    const rooms = new Set(placed.filter((p) => highlighted.includes(p.id)).map((p) => p.annotationId));
+    const picked = useViewportStore.getState().highlightedOpenings;
+    if (picked.length === 0) return;
+    const rooms = new Set(placed.filter((p) => picked.includes(p.id)).map((p) => p.annotationId));
     if ([...rooms].some((id) => !selectedRoomIds.includes(id))) setHighlighted([]);
-  }, [highlighted, selectedRoomIds, placed, setHighlighted]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs when the room selection changes, not when the marks do
+  }, [selectedRoomIds, setHighlighted]);
   // First click selects a window/door; only a selected one can then be dragged along its wall.
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // A window/door selected on the drawing is marked in Målinger too, and unmarked when it is deselected.
+  const previousSelected = useRef<string | null>(null);
+  useEffect(() => {
+    const previous = previousSelected.current;
+    previousSelected.current = selectedId;
+    if (selectedId) {
+      setHighlighted([selectedId]);
+    } else if (previous) {
+      const current = useViewportStore.getState().highlightedOpenings;
+      if (current.length === 1 && current[0] === previous) setHighlighted([]);
+    }
+  }, [selectedId, setHighlighted]);
 
   useEffect(() => {
     if (!selectedId) return;

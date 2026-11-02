@@ -84,6 +84,13 @@ export default function WallsTable({ annotations, unit, calibration, onSelectAnd
   const highlighted = useViewportStore((s) => s.highlightedWalls);
   const anchor = useRef<string | null>(null);
 
+  // A wall clicked on the drawing is highlighted here, and its line is scrolled into view.
+  useEffect(() => {
+    if (highlighted.length > 0) {
+      document.querySelector(`tr[data-wall-row="${highlighted[0].annotationId}:${highlighted[0].edgeIndex}"]`)?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [highlighted]);
+
   const walls = annotations.flatMap((annotation) =>
     annotation.type === 'line'
       ? []
@@ -165,9 +172,10 @@ export default function WallsTable({ annotations, unit, calibration, onSelectAnd
           {walls.map(({ annotation, edgeIndex, edge, length, bearing }) => (
             <tr
               key={wallKey(annotation.id, edgeIndex)}
+              data-wall-row={wallKey(annotation.id, edgeIndex)}
               onClick={(e) => selectWall(annotation.id, edgeIndex, e)}
               className={cn(
-                'cursor-pointer border-b border-border/50 transition-colors',
+                'scroll-mt-8 cursor-pointer border-b border-border/50 transition-colors',
                 selectedKeys.includes(wallKey(annotation.id, edgeIndex)) ? 'bg-accent' : 'hover:bg-secondary/60',
               )}
             >
