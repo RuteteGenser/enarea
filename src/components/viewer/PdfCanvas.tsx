@@ -287,8 +287,18 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
     const allPoints = [annotation.points, ...(annotation.regions ?? [])].flat();
     const xs = allPoints.map((p) => p.x);
     const ys = allPoints.map((p) => p.y);
-    const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
-    const centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
+    let centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
+    let centerY = (Math.min(...ys) + Math.max(...ys)) / 2;
+    // A wall picked in Målinger: centre on that wall rather than on the whole room.
+    const wall = useViewportStore.getState().highlightedWall;
+    if (wall && wall.annotationId === annotation.id) {
+      const a = annotation.points[wall.edgeIndex];
+      const b = annotation.points[(wall.edgeIndex + 1) % annotation.points.length];
+      if (a && b) {
+        centerX = (a.x + b.x) / 2;
+        centerY = (a.y + b.y) / 2;
+      }
+    }
 
     // Read zoom fresh rather than depending on it (see deps below) — this
     // jump should only happen once, right when a new jump is requested,
