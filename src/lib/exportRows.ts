@@ -57,6 +57,8 @@ export function buildExportTables(
   const openings: Cell[][] = [];
   const wallSums: WallSum[] = [];
   const zoneSums: ZoneSum[] = [];
+  const typeSums: OpeningTypeSum[] = [];
+  const legacySums = new Map<string, OpeningTypeSum>();
 
   let totalArea = 0;
   let totalPeople = 0;
@@ -155,6 +157,23 @@ export function buildExportTables(
         }
 
         for (const opening of open) {
+          // Windows/doors added in the material picker have a name and an area, but no width/height.
+          const legacyKey = `${file.id}|${opening.component.category}|${opening.component.name}|${opening.area}`;
+          const legacy = legacySums.get(legacyKey);
+          if (legacy) legacy.count++;
+          else {
+            legacySums.set(legacyKey, {
+              file: file.name,
+              kind: opening.component.category === 'vindu' ? 'Vindu' : 'Dør',
+              name: opening.component.name,
+              widthMm: null,
+              heightMm: null,
+              area: opening.area,
+              typeName: opening.component.name,
+              uValue: opening.component.uValue ?? null,
+              count: 1,
+            });
+          }
           openings.push([
             file.name,
             null,
@@ -181,6 +200,19 @@ export function buildExportTables(
       const area = openingArea(type);
       const placements = placedCopies.filter((it) => it.openingId === type.id);
       // One row per placed copy. A type that isn't placed anywhere has no wall, so it isn't listed.
+      if (placements.length > 0) {
+        typeSums.push({
+          file: file.name,
+          kind: OPENING_KIND_LABELS[type.kind],
+          name: type.name,
+          widthMm: type.widthMm ?? null,
+          heightMm: type.heightMm ?? null,
+          area: area ?? null,
+          typeName: typeRow?.name ?? null,
+          uValue: typeRow?.uValue ?? null,
+          count: placements.length,
+        });
+      }
       for (const item of placements) {
         const room = annotations.find((a) => a.id === item.placement.annotationId);
         openings.push([
@@ -262,7 +294,7 @@ export function buildExportTables(
         'Vinduer og dører (navn)',
       ],
       rows: walls,
-      summaries: [wallSummary(wallSums), zoneSummary(zoneSums)].filter((t): t is NonNullable<typeof t> => t !== undefined),
+      summaries: [wallSummary(wallSums), zoneSummary(zoneSums), openingTypeSummary([...typeSums, ...legacySums.values()])].filter((t): t is NonNullable<typeof t> => t !== undefined),
     },
     {
       title: 'Vinduer og dører',
@@ -382,6 +414,41 @@ function zoneSummary(zones: ZoneSum[]): NonNullable<ExportTable['summaries']>[nu
   return {
     title: 'Oppsummering: total vegglengde per sone',
     headers: ['Fil', 'Rom nr', 'Sone', 'Antall yttervegger', 'Total lengde yttervegger (m)', 'Veggareal yttervegger (m²)', 'Total vegglengde alle sider (m)'],
+    rows,
+  };
+}
+
+type OpeningTypeSum = {
+  file: string;
+  kind: string;
+  name: string;
+  widthMm: number | null;
+  heightMm: number | null;
+  area: number | null;
+  typeName: string | null;
+  uValue: number | null;
+  count: number;
+};
+
+/** How many windows/doors of each type there are and how big each is, windows first, with sums per kind. */
+function openingTypeSummary(types: OpeningTypeSum[]): NonNullable<ExportTable['summaries']>[number] | undefined {
+  if (types.length === 0) return undefined;
+  const rows: Cell[][] = [];
+  let all = { count: 0, area: 0 };
+  for (const kind of ['Vindu', 'Dør']) {
+    const mine = types.filter((t) => t.kind === kind).sort((a, b) => a.file.localeCompare(b.file) || a.name.localeCompare(b.name, 'nb', { numeric: true }));
+    if (mine.length === 0) continue;
+    for (const t of mine) {
+      rows.push([t.file, t.name, t.kind, t.widthMm, t.heightMm, t.area === null ? null : round(t.area), t.typeName, t.uValue, t.count, t.area === null ? null : round(t.area * t.count)]);
+    }
+    const sum = { count: mine.reduce((s, t) => s + t.count, 0), area: mine.reduce((s, t) => s + (t.area ?? 0) * t.count, 0) };
+    rows.push([`Sum ${kind.toLowerCase()}`, null, null, null, null, null, null, null, sum.count, round(sum.area)]);
+    all = { count: all.count + sum.count, area: all.area + sum.area };
+  }
+  rows.push(['Sum alle', null, null, null, null, null, null, null, all.count, round(all.area)]);
+  return {
+    title: 'Oppsummering: vinduer og dører per type',
+    headers: ['Fil', 'Navn / type', 'Vindu/dør', 'Bredde (mm)', 'Høyde (mm)', 'Areal per stk (m²)', 'Byggedelstype', 'U-verdi (W/m²K)', 'Antall', 'Samlet areal (m²)'],
     rows,
   };
 }

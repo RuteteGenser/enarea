@@ -245,3 +245,37 @@ describe('wall height, area, names and direction summary', () => {
     expect(zones.rows[1][0]).toBe('Sum');
   });
 });
+
+describe('summary of windows and doors per type', () => {
+  const f = {
+    ...file(true),
+    openings: [
+      { id: 'w1', kind: 'vindu' as const, name: 'Vindu 1', widthMm: 1200, heightMm: 1500, typeId: 'bt' },
+      { id: 'w2', kind: 'vindu' as const, name: 'Vindu 2', widthMm: 600, heightMm: 600 },
+      { id: 'd1', kind: 'dor' as const, name: 'Dør 1', widthMm: 900, heightMm: 2100 },
+      { id: 'unused', kind: 'dor' as const, name: 'Dør 2', widthMm: 1000, heightMm: 2100 },
+    ],
+    placedOpenings: [
+      { id: 'p1', openingId: 'w1', annotationId: 'a', edgeIndex: 0, t: 0.2 },
+      { id: 'p2', openingId: 'w1', annotationId: 'a', edgeIndex: 0, t: 0.6 },
+      { id: 'p3', openingId: 'w2', annotationId: 'a', edgeIndex: 1, t: 0.5 },
+      { id: 'p4', openingId: 'd1', annotationId: 'a', edgeIndex: 2, t: 0.5 },
+    ],
+  };
+  const types = [{ id: 'bt', category: 'vindu' as const, name: 'Trevindu', uValue: 1.1, createdAt: 1, updatedAt: 1 }];
+  const walls = buildExportTables(project, [{ file: f, annotations: [{ ...room, edges: [{}, {}, {}, {}] }] }], types)[2];
+  const summary = walls.summaries!.find((s) => s.title.includes('vinduer og dører per type'))!;
+
+  it('lists each placed type with its size, count and total area, windows first', () => {
+    expect(summary.headers.slice(0, 5)).toEqual(['Fil', 'Navn / type', 'Vindu/dør', 'Bredde (mm)', 'Høyde (mm)']);
+    expect(summary.rows[0]).toEqual(['plan.pdf', 'Vindu 1', 'Vindu', 1200, 1500, 1.8, 'Trevindu', 1.1, 2, 3.6]);
+    expect(summary.rows[1].slice(1, 5)).toEqual(['Vindu 2', 'Vindu', 600, 600]);
+  });
+
+  it('has sums per kind and in total, and leaves out types that are not placed', () => {
+    expect(summary.rows.map((r) => r[0])).toEqual(['plan.pdf', 'plan.pdf', 'Sum vindu', 'plan.pdf', 'Sum dør', 'Sum alle']);
+    expect(summary.rows[2].slice(8)).toEqual([3, 3.96]); // 2 × 1,8 + 1 × 0,36
+    expect(summary.rows[4].slice(8)).toEqual([1, 1.89]); // Dør 2 isn't placed
+    expect(summary.rows[5].slice(8)).toEqual([4, 5.85]);
+  });
+});
