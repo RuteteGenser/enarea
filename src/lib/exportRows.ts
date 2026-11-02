@@ -167,6 +167,9 @@ export function buildExportTables(
             typeName: opening.component.name,
             uValue: opening.component.uValue ?? null,
             bearing: wallBearing(annotation, i, project.northDirection) ?? null,
+            roomKey: `${file.id}:${annotation.id}`,
+            roomNumber: annotation.roomNumber ?? null,
+            room: name,
           });
           openings.push([
             file.name,
@@ -206,6 +209,9 @@ export function buildExportTables(
           typeName: typeRow?.name ?? null,
           uValue: typeRow?.uValue ?? null,
           bearing: room ? (wallBearing(room, item.placement.edgeIndex, project.northDirection) ?? null) : null,
+          roomKey: `${file.id}:${item.placement.annotationId}`,
+          roomNumber: room?.roomNumber ?? null,
+          room: room ? displayName(room) : null,
         });
         openings.push([
           file.name,
@@ -431,11 +437,15 @@ type OpeningTypeSum = {
   typeName: string | null;
   uValue: number | null;
   bearing: number | null;
+  roomKey: string;
+  roomNumber: string | null;
+  room: string | null;
 };
 
 /**
  * How many windows/doors of each type there are, how big each one is and which way they face: one row per
- * type within each compass direction (north first; windows before doors), a sum row per direction, and totals.
+ * type within each room within each compass direction (north first; windows before doors), a sum row per
+ * direction, and totals.
  */
 function openingTypeSummary(items: OpeningTypeSum[]): NonNullable<ExportTable['summaries']>[number] | undefined {
   if (items.length === 0) return undefined;
@@ -451,33 +461,40 @@ function openingTypeSummary(items: OpeningTypeSum[]): NonNullable<ExportTable['s
   }));
   groups.push({ label: 'Ikke på yttervegg', items: items.filter((t) => t.bearing === null) });
 
-  for (const group of groups) {
-    if (group.items.length === 0) continue;
+  const byType = (list: OpeningTypeSum[]) => {
     const types = new Map<string, OpeningTypeSum[]>();
-    for (const t of group.items) {
+    for (const t of list) {
       const key = [t.file, t.kind, t.name, t.widthMm, t.heightMm, t.area, t.typeName].join('|');
       types.set(key, [...(types.get(key) ?? []), t]);
     }
-    const ordered = [...types.values()].sort(
+    return [...types.values()].sort(
       (a, b) =>
         (a[0].kind === 'Vindu' ? 0 : 1) - (b[0].kind === 'Vindu' ? 0 : 1) ||
         a[0].file.localeCompare(b[0].file) ||
         a[0].name.localeCompare(b[0].name, 'nb', { numeric: true }),
     );
-    for (const list of ordered) {
-      const t = list[0];
-      rows.push([group.label, degreesOf(list), t.file, t.name, t.kind, t.widthMm, t.heightMm, t.area === null ? null : round(t.area), t.typeName, t.uValue, list.length, area(list)]);
+  };
+
+  for (const group of groups) {
+    if (group.items.length === 0) continue;
+    // Within a direction: room by room, and within each room one row per type.
+    for (const roomKey of [...new Set(group.items.map((t) => t.roomKey))]) {
+      const inRoom = group.items.filter((t) => t.roomKey === roomKey);
+      for (const list of byType(inRoom)) {
+        const t = list[0];
+        rows.push([group.label, degreesOf(list), t.file, t.roomNumber, t.room, t.name, t.kind, t.widthMm, t.heightMm, t.area === null ? null : round(t.area), t.typeName, t.uValue, list.length, area(list)]);
+      }
     }
-    rows.push([`Sum ${group.label.toLowerCase()}`, degreesOf(group.items), ...blank(8), group.items.length, area(group.items)]);
+    rows.push([`Sum ${group.label.toLowerCase()}`, degreesOf(group.items), ...blank(10), group.items.length, area(group.items)]);
   }
   for (const kind of ['Vindu', 'Dør']) {
     const mine = items.filter((t) => t.kind === kind);
-    if (mine.length > 0) rows.push([`Sum ${kind.toLowerCase()}`, ...blank(9), mine.length, area(mine)]);
+    if (mine.length > 0) rows.push([`Sum ${kind.toLowerCase()}`, ...blank(11), mine.length, area(mine)]);
   }
-  rows.push(['Sum alle', ...blank(9), items.length, area(items)]);
+  rows.push(['Sum alle', ...blank(11), items.length, area(items)]);
   return {
     title: 'Oppsummering: vinduer og dører per type og himmelretning',
-    headers: ['Himmelretning', 'Grader (°)', 'Fil', 'Navn / type', 'Vindu/dør', 'Bredde (mm)', 'Høyde (mm)', 'Areal per stk (m²)', 'Byggedelstype', 'U-verdi (W/m²K)', 'Antall', 'Samlet areal (m²)'],
+    headers: ['Himmelretning', 'Grader (°)', 'Fil', 'Rom nr', 'Rom', 'Navn / type', 'Vindu/dør', 'Bredde (mm)', 'Høyde (mm)', 'Areal per stk (m²)', 'Byggedelstype', 'U-verdi (W/m²K)', 'Antall', 'Samlet areal (m²)'],
     rows,
   };
 }

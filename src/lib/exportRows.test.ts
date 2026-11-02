@@ -275,19 +275,46 @@ describe('summary of windows and doors per type and compass direction', () => {
   });
 
   it('splits the types on compass direction, with size, count and total area', () => {
-    expect(summary.headers.slice(0, 5)).toEqual(['Himmelretning', 'Grader (°)', 'Fil', 'Navn / type', 'Vindu/dør']);
+    expect(summary.headers.slice(0, 7)).toEqual(['Himmelretning', 'Grader (°)', 'Fil', 'Rom nr', 'Rom', 'Navn / type', 'Vindu/dør']);
     expect(labels).toEqual(['Nord', 'Nord', 'Sum nord', 'Øst', 'Sum øst', 'Ikke på yttervegg', 'Sum ikke på yttervegg', 'Sum vindu', 'Sum dør', 'Sum alle']);
     // north: 2 × Vindu 1 then 1 × Dør 1 (windows before doors)
-    expect(summary.rows[0]).toEqual(['Nord', '0', 'plan.pdf', 'Vindu 1', 'Vindu', 1200, 1500, 1.8, 'Trevindu', 1.1, 2, 3.6]);
-    expect(summary.rows[1].slice(3, 5)).toEqual(['Dør 1', 'Dør']);
-    expect(summary.rows[2].slice(10)).toEqual([3, 5.49]);
-    expect(summary.rows[3].slice(3, 7)).toEqual(['Vindu 2', 'Vindu', 600, 600]);
+    expect(summary.rows[0]).toEqual(['Nord', '0', 'plan.pdf', '101', 'Kontor', 'Vindu 1', 'Vindu', 1200, 1500, 1.8, 'Trevindu', 1.1, 2, 3.6]);
+    expect(summary.rows[1].slice(5, 7)).toEqual(['Dør 1', 'Dør']);
+    expect(summary.rows[2].slice(12)).toEqual([3, 5.49]);
+    expect(summary.rows[3].slice(5, 9)).toEqual(['Vindu 2', 'Vindu', 600, 600]);
   });
 
   it('has sums per kind and in total, and leaves out types that are not placed', () => {
-    const at = (label: string) => summary.rows[labels.indexOf(label)].slice(10);
+    const at = (label: string) => summary.rows[labels.indexOf(label)].slice(12);
     expect(at('Sum vindu')).toEqual([3, 3.96]); // 2 × 1,8 + 1 × 0,36
     expect(at('Sum dør')).toEqual([2, 3.78]); // Dør 2 isn't placed
     expect(at('Sum alle')).toEqual([5, 7.74]);
+  });
+});
+
+describe('summary of windows and doors is split on room', () => {
+  const f = {
+    ...file(true),
+    openings: [{ id: 'w1', kind: 'vindu' as const, name: 'Vindu 1', widthMm: 1000, heightMm: 1000 }],
+    placedOpenings: [
+      { id: 'p1', openingId: 'w1', annotationId: 'a', edgeIndex: 0, t: 0.5 },
+      { id: 'p2', openingId: 'w1', annotationId: 'b', edgeIndex: 0, t: 0.5 },
+      { id: 'p3', openingId: 'w1', annotationId: 'b', edgeIndex: 0, t: 0.8 },
+    ],
+  };
+  const north = { wallType: 'external' as const };
+  const rooms = [
+    { ...room, edges: [north, {}, {}, {}] },
+    { ...room, id: 'b', name: 'Lager', roomNumber: '102', edges: [north, {}, {}, {}] },
+  ];
+  const summary = buildExportTables(project, [{ file: f, annotations: rooms }])[3].summaries![0];
+
+  it('has one row per room within the direction, then the direction sum', () => {
+    expect(summary.rows.map((r) => r[0])).toEqual(['Nord', 'Nord', 'Sum nord', 'Sum vindu', 'Sum alle']);
+    expect(summary.rows[0].slice(3, 6)).toEqual(['101', 'Kontor', 'Vindu 1']);
+    expect(summary.rows[0].slice(12)).toEqual([1, 1]);
+    expect(summary.rows[1].slice(3, 6)).toEqual(['102', 'Lager', 'Vindu 1']);
+    expect(summary.rows[1].slice(12)).toEqual([2, 2]);
+    expect(summary.rows[2].slice(12)).toEqual([3, 3]);
   });
 });
