@@ -155,7 +155,7 @@ export default function WallsTable({ annotations, unit, calibration, onSelectAnd
         <thead>
           <tr className="border-b border-border">
             {['Rom', 'Vegg', 'Lengde', 'Høyde (m)', 'Veggareal', 'Himmelretning', 'Veggtype', 'U-verdi'].map((title) => (
-              <th key={title} className="whitespace-nowrap px-2 py-1 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <th key={title} className="sticky top-0 z-10 bg-panel shadow-[0_1px_0_0_var(--border)] whitespace-nowrap px-2 py-1 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {title}
               </th>
             ))}
