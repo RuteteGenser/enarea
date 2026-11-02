@@ -219,6 +219,12 @@ describe('wall height, area, names and direction summary', () => {
     expect(rooms.rows[0][rooms.headers.indexOf('Vinduer og dører (navn)')]).toContain('2 × Vindu 1 (Trevindu)');
   });
 
+  it('writes the count even when there is only one', () => {
+    const one = { ...f, placedOpenings: [f.placedOpenings[0]] };
+    const [, , w] = buildExportTables(project, [{ file: one, annotations: [outer] }], types);
+    expect(w.rows[0][w.headers.indexOf('Vinduer og dører (navn)')]).toBe('1 × Vindu 1 (Trevindu)');
+  });
+
   it('sums the outer walls per compass direction', () => {
     const rows = walls.summary!.rows;
     expect(walls.summary!.headers[0]).toBe('Himmelretning');
