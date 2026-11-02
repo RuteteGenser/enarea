@@ -55,12 +55,12 @@ export async function exportProjectExcel(
       head.eachCell((cell) => {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_FILL } };
       });
-      table.summary.rows.forEach((values, index) => {
+      table.summary.rows.forEach((values) => {
         const row = sheet.addRow(values);
         row.eachCell((cell) => {
           if (typeof cell.value === 'number' && !Number.isInteger(cell.value)) cell.numFmt = '0.00';
         });
-        if (index === table.summary!.rows.length - 1) row.font = { bold: true };
+        if (String(values[0] ?? '').startsWith('Sum')) row.font = { bold: true }; // the sum rows
       });
       table.summary.headers.forEach((header, c) => {
         const column = sheet.getColumn(c + 1);
