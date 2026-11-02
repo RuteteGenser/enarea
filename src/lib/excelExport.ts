@@ -1,8 +1,18 @@
-import { buildExportTables, type ExportFileData } from '@/lib/exportRows';
+import { buildExportTables, type ExportFileData, type RowStyle } from '@/lib/exportRows';
 import type { BuildingComponentType, Project } from '@/types';
 
 const HEADER_FILL = 'FF1F3A5F';
 const MAX_COLUMN_WIDTH = 48;
+
+// Colors that make the groups easy to tell apart: rooms alternate between white and light blue, sums stand out.
+const GROUP_FILL = 'FFEAF1F8';
+const ROW_FILLS: Record<RowStyle, { fill?: string; bold?: boolean; white?: boolean }> = {
+  detail: {},
+  detailAlt: { fill: GROUP_FILL },
+  roomSum: { fill: 'FFC5D9ED', bold: true },
+  groupSum: { fill: 'FFFFE9B8', bold: true },
+  total: { fill: HEADER_FILL, bold: true, white: true },
+};
 
 /** Builds an .xlsx workbook (one styled sheet per table, titles in the frozen top row) and returns it as a Blob. */
 export async function exportProjectExcel(
@@ -45,6 +55,23 @@ export async function exportProjectExcel(
       });
     }
 
+    // Groups of rows (the same room) alternate between white and light blue.
+    if (table.groupBy) {
+      let previous = '';
+      let band = -1;
+      table.rows.forEach((values, index) => {
+        const key = table.groupBy!.map((c) => String(values[c] ?? '')).join('|');
+        if (key !== previous) band++;
+        previous = key;
+        if (band % 2 === 1) {
+          const row = sheet.getRow(index + 2);
+          for (let c = 1; c <= table.headers.length; c++) {
+            row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GROUP_FILL } };
+          }
+        }
+      });
+    }
+
     // The summaries go under the table, each after an empty row.
     for (const summary of table.summaries ?? []) {
       sheet.addRow([]);
@@ -56,13 +83,21 @@ export async function exportProjectExcel(
       head.eachCell((cell) => {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: HEADER_FILL } };
       });
-      for (const values of summary.rows) {
+      summary.rows.forEach((values, index) => {
         const row = sheet.addRow(values);
-        row.eachCell((cell) => {
+        row.eachCell({ includeEmpty: true }, (cell, c) => {
           if (typeof cell.value === 'number' && !Number.isInteger(cell.value)) cell.numFmt = '0.00';
+          const look = ROW_FILLS[summary.styles?.[index] ?? 'detail'];
+          if (c > summary.headers.length) return;
+          if (look.fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: look.fill } };
         });
-        if (String(values[0] ?? '').startsWith('Sum')) row.font = { bold: true }; // the sum rows
-      }
+        const look = ROW_FILLS[summary.styles?.[index] ?? 'detail'];
+        if (look.bold) row.font = { bold: true, ...(look.white ? { color: { argb: 'FFFFFFFF' } } : {}) };
+        // fill cells that were left empty too, so a colored row is one unbroken band
+        for (let c = 1; c <= summary.headers.length; c++) {
+          if (look.fill) row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: look.fill } };
+        }
+      });
       summary.headers.forEach((header, c) => {
         const column = sheet.getColumn(c + 1);
         column.width = Math.max(column.width ?? 10, Math.min(MAX_COLUMN_WIDTH, header.length + 3));

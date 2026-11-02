@@ -17,9 +17,16 @@ export type ExportTable = {
   title: string;
   headers: string[];
   rows: Cell[][];
+  /** Columns that identify a group of rows (e.g. the room): groups get alternating background colors in Excel. */
+  groupBy?: number[];
   /** Smaller tables written below the rows, one after the other (e.g. the sums per compass direction). */
-  summaries?: { title: string; headers: string[]; rows: Cell[][] }[];
+  summaries?: ExportSummary[];
 };
+
+/** How a summary row is colored: detail rows alternate per group, then room sums, direction/kind sums and the total. */
+export type RowStyle = 'detail' | 'detailAlt' | 'roomSum' | 'groupSum' | 'total';
+
+export type ExportSummary = { title: string; headers: string[]; rows: Cell[][]; styles?: RowStyle[] };
 
 const bearingCell = (degrees: number | undefined): Cell => (degrees === undefined ? null : degrees);
 
@@ -269,6 +276,7 @@ export function buildExportTables(
         'Beregnet luftmengde (m³/h)',
       ],
       rows: rooms,
+      groupBy: [0, 1, 2],
     },
     {
       title: 'Vegger',
@@ -292,6 +300,7 @@ export function buildExportTables(
         'Vinduer og dører (navn)',
       ],
       rows: walls,
+      groupBy: [0, 1, 2],
       summaries: [wallSummary(wallSums), zoneSummary(zoneSums)].filter((t): t is NonNullable<typeof t> => t !== undefined),
     },
     {
@@ -311,6 +320,7 @@ export function buildExportTables(
         'Himmelretning (°)',
       ],
       rows: openings,
+      groupBy: [0, 8, 9],
       summaries: [openingTypeSummary(typeSums)].filter((t): t is NonNullable<typeof t> => t !== undefined),
     },
   ];
@@ -341,9 +351,15 @@ const sortedDegrees = (list: number[]) => [...new Set(list)].sort((a, b) => a - 
  * Sums of the outer walls room by room; within each room one group per exact direction in degrees (not rounded to
  * north/east/…), with a sum row per room. Then the sums per exact direction over all rooms and a grand total.
  */
-function wallSummary(walls: WallSum[]): NonNullable<ExportTable['summaries']>[number] | undefined {
+function wallSummary(walls: WallSum[]): ExportSummary | undefined {
   if (walls.length === 0) return undefined;
   const rows: Cell[][] = [];
+  const styles: RowStyle[] = [];
+  const add = (style: RowStyle, row: Cell[]) => {
+    rows.push(row);
+    styles.push(style);
+  };
+  let group = 0;
   const sums = (list: WallSum[]) => ({
     count: list.length,
     length: round(list.reduce((s, w) => s + w.length, 0)),
@@ -363,19 +379,21 @@ function wallSummary(walls: WallSum[]): NonNullable<ExportTable['summaries']>[nu
     const inRoom = walls.filter((w) => w.roomKey === roomKey);
     for (const degrees of degreesIn(inRoom)) {
       const mine = inRoom.filter((w) => degreesOfBearing(w.bearing) === degrees);
-      rows.push([inRoom[0].file, inRoom[0].roomNumber, inRoom[0].room, nameOfDegrees(degrees), degrees, ...numbers(mine)]);
+      add(group % 2 ? 'detailAlt' : 'detail', [inRoom[0].file, inRoom[0].roomNumber, inRoom[0].room, nameOfDegrees(degrees), degrees, ...numbers(mine)]);
     }
-    rows.push([`Sum ${roomLabel(inRoom[0].roomNumber, inRoom[0].room)}`, null, null, null, null, ...numbers(inRoom)]);
+    add('roomSum', [`Sum ${roomLabel(inRoom[0].roomNumber, inRoom[0].room)}`, null, null, null, null, ...numbers(inRoom)]);
+    group++;
   }
   for (const degrees of degreesIn(walls)) {
     const mine = walls.filter((w) => degreesOfBearing(w.bearing) === degrees);
-    rows.push([`Sum ${degrees}°`, null, null, nameOfDegrees(degrees), degrees, ...numbers(mine)]);
+    add('groupSum', [`Sum ${degrees}°`, null, null, nameOfDegrees(degrees), degrees, ...numbers(mine)]);
   }
-  rows.push(['Sum alle', null, null, null, null, ...numbers(walls)]);
+  add('total', ['Sum alle', null, null, null, null, ...numbers(walls)]);
   return {
     title: 'Oppsummering: yttervegger per rom og himmelretning (grader)',
     headers: ['Fil', 'Rom nr', 'Rom', 'Himmelretning', 'Grader (°)', 'Antall vegger', 'Total lengde (m)', 'Veggareal (m²)', 'Vindu (antall)', 'Vindu (m²)', 'Dør (antall)', 'Dør (m²)'],
     rows,
+    styles,
   };
 }
 
@@ -391,7 +409,7 @@ type ZoneSum = {
 };
 
 /** Total wall length per zone (room/area): the outer walls and all sides, with a total row. */
-function zoneSummary(zones: ZoneSum[]): NonNullable<ExportTable['summaries']>[number] | undefined {
+function zoneSummary(zones: ZoneSum[]): ExportSummary | undefined {
   if (zones.length === 0) return undefined;
   const rows: Cell[][] = zones.map((z) => [
     z.file,
@@ -415,6 +433,7 @@ function zoneSummary(zones: ZoneSum[]): NonNullable<ExportTable['summaries']>[nu
     title: 'Oppsummering: total vegglengde per sone',
     headers: ['Fil', 'Rom nr', 'Sone', 'Antall yttervegger', 'Total lengde yttervegger (m)', 'Veggareal yttervegger (m²)', 'Total vegglengde alle sider (m)'],
     rows,
+    styles: rows.map((_, index): RowStyle => (index < zones.length ? (index % 2 ? 'detailAlt' : 'detail') : 'total')),
   };
 }
 
@@ -439,9 +458,15 @@ type OpeningTypeSum = {
  * each room per exact direction in degrees (not rounded to north/east/…) with one row per type (windows before
  * doors), a sum row per room, then the sums per exact direction over all rooms, per kind, and in total.
  */
-function openingTypeSummary(items: OpeningTypeSum[]): NonNullable<ExportTable['summaries']>[number] | undefined {
+function openingTypeSummary(items: OpeningTypeSum[]): ExportSummary | undefined {
   if (items.length === 0) return undefined;
   const rows: Cell[][] = [];
+  const styles: RowStyle[] = [];
+  const add = (style: RowStyle, row: Cell[]) => {
+    rows.push(row);
+    styles.push(style);
+  };
+  let group = 0;
   const area = (list: OpeningTypeSum[]) => round(list.reduce((s, t) => s + (t.area ?? 0), 0));
   const blank = (n: number) => Array<Cell>(n).fill(null);
   const degreesOf = (t: OpeningTypeSum) => (t.bearing === null ? null : degreesOfBearing(t.bearing));
@@ -471,23 +496,25 @@ function openingTypeSummary(items: OpeningTypeSum[]): NonNullable<ExportTable['s
     for (const degrees of directionsIn(inRoom)) {
       for (const list of byType(inRoom.filter((t) => degreesOf(t) === degrees))) {
         const t = list[0];
-        rows.push([t.file, t.roomNumber, t.room, nameOf(degrees), degrees, t.name, t.kind, t.widthMm, t.heightMm, t.area === null ? null : round(t.area), t.typeName, t.uValue, list.length, area(list)]);
+        add(group % 2 ? 'detailAlt' : 'detail', [t.file, t.roomNumber, t.room, nameOf(degrees), degrees, t.name, t.kind, t.widthMm, t.heightMm, t.area === null ? null : round(t.area), t.typeName, t.uValue, list.length, area(list)]);
       }
     }
-    rows.push([`Sum ${roomLabel(inRoom[0].roomNumber, inRoom[0].room)}`, null, null, null, null, ...blank(7), inRoom.length, area(inRoom)]);
+    add('roomSum', [`Sum ${roomLabel(inRoom[0].roomNumber, inRoom[0].room)}`, null, null, null, null, ...blank(7), inRoom.length, area(inRoom)]);
+    group++;
   }
   for (const degrees of directionsIn(items)) {
     const mine = items.filter((t) => degreesOf(t) === degrees);
-    rows.push([degrees === null ? 'Sum ikke på yttervegg' : `Sum ${degrees}°`, null, null, degrees === null ? null : nameOf(degrees), degrees, ...blank(7), mine.length, area(mine)]);
+    add('groupSum', [degrees === null ? 'Sum ikke på yttervegg' : `Sum ${degrees}°`, null, null, degrees === null ? null : nameOf(degrees), degrees, ...blank(7), mine.length, area(mine)]);
   }
   for (const kind of ['Vindu', 'Dør']) {
     const mine = items.filter((t) => t.kind === kind);
-    if (mine.length > 0) rows.push([`Sum ${kind.toLowerCase()}`, ...blank(11), mine.length, area(mine)]);
+    if (mine.length > 0) add('groupSum', [`Sum ${kind.toLowerCase()}`, ...blank(11), mine.length, area(mine)]);
   }
-  rows.push(['Sum alle', ...blank(11), items.length, area(items)]);
+  add('total', ['Sum alle', ...blank(11), items.length, area(items)]);
   return {
     title: 'Oppsummering: vinduer og dører per rom, himmelretning (grader) og type',
     headers: ['Fil', 'Rom nr', 'Rom', 'Himmelretning', 'Grader (°)', 'Navn / type', 'Vindu/dør', 'Bredde (mm)', 'Høyde (mm)', 'Areal per stk (m²)', 'Byggedelstype', 'U-verdi (W/m²K)', 'Antall', 'Samlet areal (m²)'],
     rows,
+    styles,
   };
 }
