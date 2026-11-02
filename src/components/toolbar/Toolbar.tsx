@@ -20,11 +20,15 @@ import {
   Redo2,
   ZoomIn,
   ZoomOut,
+  RotateCcw,
+  RotateCw,
   Eye,
   Layers,
   Download,
 } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
+import { rotatePdf } from '@/lib/rotatePdf';
 import ToolButton from '@/components/toolbar/ToolButton';
 import ShortcutsHelp from '@/components/toolbar/ShortcutsHelp';
 import ScaleCalibrationDialog from '@/components/calibration/ScaleCalibrationDialog';
@@ -104,6 +108,20 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
   const [scaleDialogOpen, setScaleDialogOpen] = useState(false);
 
   const calibrated = !!file?.calibration;
+
+  const [rotating, setRotating] = useState(false);
+  async function rotate(quarterTurns: number) {
+    if (!file) return;
+    setRotating(true);
+    try {
+      await rotatePdf(file, quarterTurns);
+    } catch (err) {
+      console.error('Kunne ikke rotere PDF', err);
+      toast.error('Kunne ikke rotere PDF-en.');
+    } finally {
+      setRotating(false);
+    }
+  }
 
   return (
     <div className="on-chrome h-12 shrink-0 overflow-x-auto overflow-y-hidden border-b border-border bg-toolbar no-scrollbar">
@@ -283,6 +301,11 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
             {Math.round((zoom / fitZoom) * 100)}%
           </button>
           <ToolButton icon={ZoomIn} label="Zoom inn" onClick={() => zoomBy(1.25)} />
+        </div>
+
+        <div className="flex items-center gap-0.5">
+          <ToolButton icon={RotateCcw} label="Roter PDF 90° mot klokken" disabled={rotating || !file} onClick={() => void rotate(-1)} />
+          <ToolButton icon={RotateCw} label="Roter PDF 90° med klokken" disabled={rotating || !file} onClick={() => void rotate(1)} />
         </div>
 
         <Separator orientation="vertical" className="mx-1 h-6" />

@@ -13,6 +13,8 @@ type FilesStore = {
   renameFile: (fileId: string, name: string) => Promise<void>;
   deleteFile: (fileId: string) => Promise<void>;
   setCalibration: (fileId: string, calibration: Calibration) => Promise<void>;
+  /** Swaps the stored PDF (e.g. rotated) together with the calibration that belongs to it. */
+  replacePdf: (fileId: string, blob: Blob, calibration: Calibration) => Promise<void>;
   setOpenings: (fileId: string, openings: OpeningItem[], placedOpenings?: PlacedOpening[]) => Promise<void>;
   setActiveFile: (fileId: string | null) => void;
   getFile: (fileId: string) => PdfFile | undefined;
@@ -99,6 +101,19 @@ export const useFilesStore = create<FilesStore>((set, get) => ({
     const file = get().getFile(fileId);
     if (!file) return;
     const updated: PdfFile = { ...file, calibration };
+    await filesRepo.put(updated);
+    set((state) => ({
+      filesByProject: {
+        ...state.filesByProject,
+        [file.projectId]: state.filesByProject[file.projectId].map((f) => (f.id === fileId ? updated : f)),
+      },
+    }));
+  },
+
+  replacePdf: async (fileId: string, blob: Blob, calibration: Calibration) => {
+    const file = get().getFile(fileId);
+    if (!file) return;
+    const updated: PdfFile = { ...file, pdfBlob: blob, calibration };
     await filesRepo.put(updated);
     set((state) => ({
       filesByProject: {
