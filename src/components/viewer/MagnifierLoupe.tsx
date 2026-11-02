@@ -12,6 +12,8 @@ type MagnifierLoupeProps = {
 
 export default function MagnifierLoupe({ canvasRef }: MagnifierLoupeProps) {
   const screenPos = useViewportStore((s) => s.magnifierScreenPos);
+  // The compass dialog has its own loupe over the screenshot.
+  const northDialogOpen = useViewportStore((s) => s.northDialogOpen);
   const loupeCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // Layout effect: draw before paint so the loupe never shows a stale/blank frame.
@@ -58,7 +60,7 @@ export default function MagnifierLoupe({ canvasRef }: MagnifierLoupeProps) {
       width={LOUPE_SIZE}
       height={LOUPE_SIZE}
       className="pointer-events-none fixed z-50 rounded-full shadow-lg ring-2 ring-border"
-      style={{ left, top, display: screenPos ? 'block' : 'none' }}
+      style={{ left, top, display: screenPos && !northDialogOpen ? 'block' : 'none' }}
     />
   );
 }

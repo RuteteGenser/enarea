@@ -7,6 +7,8 @@ import { bearingBetween } from '@/lib/north';
 import { useViewportStore } from '@/store/viewportStore';
 import type { Point } from '@/types';
 
+const LOUPE_ZOOM = 4;
+
 /** First half of the compass calibration: paste a screenshot (north up) and measure a wall against north. */
 export default function NorthCalibrationDialog() {
   const open = useViewportStore((s) => s.northDialogOpen);
@@ -16,6 +18,10 @@ export default function NorthCalibrationDialog() {
 
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [points, setPoints] = useState<Point[]>([]); // in natural image pixels
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  // Cursor over the screenshot: position inside the image (CSS px) for the loupe, shown while F is held.
+  const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
+  const magnifierKeyDown = useViewportStore((s) => s.isMagnifierKeyDown);
   const imgRef = useRef<HTMLImageElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -60,6 +66,29 @@ export default function NorthCalibrationDialog() {
     };
   }
 
+  // Dragging a point fine-tunes the measurement.
+  useEffect(() => {
+    if (dragIndex === null) return;
+    function onMove(e: MouseEvent) {
+      const img = imgRef.current;
+      if (!img) return;
+      const rect = img.getBoundingClientRect();
+      const x = Math.min(rect.width, Math.max(0, e.clientX - rect.left));
+      const y = Math.min(rect.height, Math.max(0, e.clientY - rect.top));
+      setHover({ x, y });
+      setPoints((current) =>
+        current.map((p, i) => (i === dragIndex ? { x: (x / rect.width) * img.naturalWidth, y: (y / rect.height) * img.naturalHeight } : p)),
+      );
+    }
+    const onUp = () => setDragIndex(null);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, [dragIndex]);
+
   function handleImageClick(e: ReactMouseEvent<HTMLImageElement>) {
     const p = toNatural(e);
     setPoints((current) => (current.length === 1 ? [current[0], p] : [p]));
@@ -96,6 +125,11 @@ export default function NorthCalibrationDialog() {
               alt="Skjermbilde"
               draggable={false}
               onClick={handleImageClick}
+              onMouseMove={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                setHover({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+              }}
+              onMouseLeave={() => dragIndex === null && setHover(null)}
               onLoad={() => setPoints([])}
               className="max-h-[55vh] max-w-full cursor-crosshair rounded border border-border"
             />
@@ -112,9 +146,37 @@ export default function NorthCalibrationDialog() {
                   />
                 )}
                 {points.map((p, i) => (
-                  <circle key={i} cx={toView(p).x} cy={toView(p).y} r={4} fill={i === 0 ? '#f5a623' : '#0091ff'} />
+                  <g
+                    key={i}
+                    className="pointer-events-auto cursor-grab active:cursor-grabbing"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDragIndex(i);
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <circle cx={toView(p).x} cy={toView(p).y} r={10} fill="transparent" />
+                    <circle cx={toView(p).x} cy={toView(p).y} r={4} fill={i === 0 ? '#f5a623' : '#0091ff'} />
+                  </g>
                 ))}
               </svg>
+            )}
+            {img && hover && magnifierKeyDown && imageUrl && (
+              <div
+                className="pointer-events-none absolute z-10 size-40 overflow-hidden rounded-full border-2 border-primary bg-background shadow-lg"
+                style={{
+                  left: hover.x + 24,
+                  top: hover.y - 80,
+                  backgroundImage: `url(${imageUrl})`,
+                  backgroundRepeat: 'no-repeat',
+                  backgroundSize: `${img.clientWidth * LOUPE_ZOOM}px ${img.clientHeight * LOUPE_ZOOM}px`,
+                  backgroundPosition: `${80 - hover.x * LOUPE_ZOOM}px ${80 - hover.y * LOUPE_ZOOM}px`,
+                }}
+              >
+                <div className="absolute left-1/2 top-0 h-full w-px bg-rose-600" />
+                <div className="absolute left-0 top-1/2 h-px w-full bg-rose-600" />
+              </div>
             )}
           </div>
         ) : (
@@ -151,7 +213,7 @@ export default function NorthCalibrationDialog() {
               ? points.length === 0
                 ? 'Klikk i den ene enden av veggen (start), deretter i den andre.'
                 : 'Klikk i den andre enden av veggen.'
-              : `Veggen peker ${Math.round(bearing)}° fra nord (med klokken). Klikk på nytt for å måle om igjen.`}
+              : `Veggen peker ${Math.round(bearing)}° fra nord (med klokken). Dra i punktene for å justere, hold F for lupe, eller klikk på nytt for å måle om igjen.`}
           </p>
         )}
 
