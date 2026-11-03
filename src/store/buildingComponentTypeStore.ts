@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { buildingComponentTypesRepo } from '@/lib/db';
 import { createId } from '@/lib/id';
+import type { BuildingComponentImportEntry } from '@/lib/buildingComponentImport';
 import type { BuildingComponentCategory, BuildingComponentType } from '@/types';
 
 type BuildingComponentTypeStore = {
@@ -10,6 +11,7 @@ type BuildingComponentTypeStore = {
   createType: (category: BuildingComponentCategory, name: string, uValue?: number, wallThickness?: number) => Promise<BuildingComponentType>;
   updateType: (id: string, patch: Partial<Pick<BuildingComponentType, 'name' | 'uValue' | 'wallThickness'>>) => Promise<void>;
   deleteType: (id: string) => Promise<void>;
+  importTypes: (entries: BuildingComponentImportEntry[]) => Promise<void>;
 };
 
 export const useBuildingComponentTypeStore = create<BuildingComponentTypeStore>((set, get) => ({
@@ -48,5 +50,22 @@ export const useBuildingComponentTypeStore = create<BuildingComponentTypeStore>(
   deleteType: async (id) => {
     await buildingComponentTypesRepo.remove(id);
     set((state) => ({ types: state.types.filter((t) => t.id !== id) }));
+  },
+
+  importTypes: async (entries) => {
+    const now = Date.now();
+    const newTypes: BuildingComponentType[] = entries.map((entry) => ({
+      id: createId(),
+      category: entry.category,
+      name: entry.name,
+      uValue: entry.uValue,
+      wallThickness: entry.wallThickness,
+      createdAt: now,
+      updatedAt: now,
+    }));
+    for (const type of newTypes) {
+      await buildingComponentTypesRepo.put(type);
+    }
+    set((state) => ({ types: [...state.types, ...newTypes] }));
   },
 }));
