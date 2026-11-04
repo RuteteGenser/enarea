@@ -5,7 +5,7 @@ import { joinPlacements, openingArea, OPENING_KIND_LABELS } from '@/lib/openings
 import { openingTotals } from '@/lib/wallOpenings';
 import { ventilationTotal } from '@/lib/ventilation';
 import { BUILDING_CATEGORY_LABELS, BUILDING_COMPONENT_CATEGORY_LABELS, VENTILATION_UNIT_LABELS } from '@/types';
-import { compassPoint, ORIENTATION_NAMES, ORIENTATION_OPTIONS, wallBearing } from '@/lib/wallOrientation';
+import { compassPoint, ORIENTATION_NAMES, wallBearing } from '@/lib/wallOrientation';
 import type { Annotation, BuildingComponentType, EdgeMeta, OpeningItem, PdfFile, Project } from '@/types';
 
 export type ExportFileData = { file: PdfFile; annotations: Annotation[] };
@@ -19,20 +19,32 @@ export type ExportTable = {
   rows: Cell[][];
   /** Columns that identify a group of rows (e.g. the room): groups get alternating background colors in Excel. */
   groupBy?: number[];
-  /** Index of the column with the direction in degrees: rows get the color of their compass direction in Excel. */
+  /** Index of the column with the direction in degrees: the row color alternates whenever the direction changes. */
   directionColumn?: number;
   /** Smaller tables written below the rows, one after the other (e.g. the sums per compass direction). */
   summaries?: ExportSummary[];
 };
 
 /**
- * How a summary row is colored. Detail rows and direction sums take the color of their compass direction
- * (`direction` = index in north, north-east, … ; 8 = no direction), so the directions are easy to tell apart.
+ * How a summary row is colored. Detail rows and direction sums alternate between two colors (`band` 0 and 1), and
+ * the color changes whenever the direction changes, so the directions are easy to tell apart.
  */
-export type RowStyle = { kind: 'detail' | 'directionSum' | 'roomSum' | 'kindSum' | 'total'; direction?: number };
+export type RowStyle = { kind: 'detail' | 'directionSum' | 'roomSum' | 'kindSum' | 'total'; band?: 0 | 1 };
 
-/** Index (0–7) of the compass point a direction in degrees belongs to; the degrees themselves are never rounded in the data. */
-export const compassIndex = (degrees: number) => ORIENTATION_OPTIONS.indexOf(compassPoint(degrees));
+/** Hands out 0, 1, 0, 1 … : the next band each time the value differs from the previous one. */
+export function makeBander<T>(): (value: T) => 0 | 1 {
+  let band: 0 | 1 = 1;
+  let last: T | undefined;
+  let started = false;
+  return (value) => {
+    if (!started || value !== last) {
+      band = band === 0 ? 1 : 0;
+      last = value;
+      started = true;
+    }
+    return band;
+  };
+}
 
 export type ExportSummary = { title: string; headers: string[]; rows: Cell[][]; styles?: RowStyle[] };
 
@@ -367,6 +379,8 @@ function wallSummary(walls: WallSum[]): ExportSummary | undefined {
     rows.push(row);
     styles.push(style);
   };
+  const detailBand = makeBander<number>();
+  const sumBand = makeBander<number>();
   const sums = (list: WallSum[]) => ({
     count: list.length,
     length: round(list.reduce((s, w) => s + w.length, 0)),
@@ -386,13 +400,13 @@ function wallSummary(walls: WallSum[]): ExportSummary | undefined {
     const inRoom = walls.filter((w) => w.roomKey === roomKey);
     for (const degrees of degreesIn(inRoom)) {
       const mine = inRoom.filter((w) => degreesOfBearing(w.bearing) === degrees);
-      add({ kind: 'detail', direction: compassIndex(degrees) }, [inRoom[0].file, inRoom[0].roomNumber, inRoom[0].room, nameOfDegrees(degrees), degrees, ...numbers(mine)]);
+      add({ kind: 'detail', band: detailBand(degrees) }, [inRoom[0].file, inRoom[0].roomNumber, inRoom[0].room, nameOfDegrees(degrees), degrees, ...numbers(mine)]);
     }
     add({ kind: 'roomSum' }, [`Sum ${roomLabel(inRoom[0].roomNumber, inRoom[0].room)}`, null, null, null, null, ...numbers(inRoom)]);
   }
   for (const degrees of degreesIn(walls)) {
     const mine = walls.filter((w) => degreesOfBearing(w.bearing) === degrees);
-    add({ kind: 'directionSum', direction: compassIndex(degrees) }, [`Sum ${degrees}°`, null, null, nameOfDegrees(degrees), degrees, ...numbers(mine)]);
+    add({ kind: 'directionSum', band: sumBand(degrees) }, [`Sum ${degrees}°`, null, null, nameOfDegrees(degrees), degrees, ...numbers(mine)]);
   }
   add({ kind: 'total' }, ['Sum alle', null, null, null, null, ...numbers(walls)]);
   return {
@@ -472,6 +486,8 @@ function openingTypeSummary(items: OpeningTypeSum[]): ExportSummary | undefined 
     rows.push(row);
     styles.push(style);
   };
+  const detailBand = makeBander<number | null>();
+  const sumBand = makeBander<number | null>();
   const area = (list: OpeningTypeSum[]) => round(list.reduce((s, t) => s + (t.area ?? 0), 0));
   const blank = (n: number) => Array<Cell>(n).fill(null);
   const degreesOf = (t: OpeningTypeSum) => (t.bearing === null ? null : degreesOfBearing(t.bearing));
@@ -501,14 +517,14 @@ function openingTypeSummary(items: OpeningTypeSum[]): ExportSummary | undefined 
     for (const degrees of directionsIn(inRoom)) {
       for (const list of byType(inRoom.filter((t) => degreesOf(t) === degrees))) {
         const t = list[0];
-        add({ kind: 'detail', direction: degrees === null ? 8 : compassIndex(degrees) }, [t.file, t.roomNumber, t.room, nameOf(degrees), degrees, t.name, t.kind, t.widthMm, t.heightMm, t.area === null ? null : round(t.area), t.typeName, t.uValue, list.length, area(list)]);
+        add({ kind: 'detail', band: detailBand(degrees) }, [t.file, t.roomNumber, t.room, nameOf(degrees), degrees, t.name, t.kind, t.widthMm, t.heightMm, t.area === null ? null : round(t.area), t.typeName, t.uValue, list.length, area(list)]);
       }
     }
     add({ kind: 'roomSum' }, [`Sum ${roomLabel(inRoom[0].roomNumber, inRoom[0].room)}`, null, null, null, null, ...blank(7), inRoom.length, area(inRoom)]);
   }
   for (const degrees of directionsIn(items)) {
     const mine = items.filter((t) => degreesOf(t) === degrees);
-    add({ kind: 'directionSum', direction: degrees === null ? 8 : compassIndex(degrees) }, [degrees === null ? 'Sum ikke på yttervegg' : `Sum ${degrees}°`, null, null, degrees === null ? null : nameOf(degrees), degrees, ...blank(7), mine.length, area(mine)]);
+    add({ kind: 'directionSum', band: sumBand(degrees) }, [degrees === null ? 'Sum ikke på yttervegg' : `Sum ${degrees}°`, null, null, degrees === null ? null : nameOf(degrees), degrees, ...blank(7), mine.length, area(mine)]);
   }
   for (const kind of ['Vindu', 'Dør']) {
     const mine = items.filter((t) => t.kind === kind);
