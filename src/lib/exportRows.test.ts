@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildExportTables, compassIndex, ventilationTotal } from '@/lib/exportRows';
+import { buildExportTables, makeBander, ventilationTotal } from '@/lib/exportRows';
 import { ventilationBreakdown } from '@/lib/ventilation';
 import type { Annotation, PdfFile, Project } from '@/types';
 
@@ -371,18 +371,19 @@ describe('row styles for the colored Excel groups', () => {
   ];
   const [, , walls, sheet] = buildExportTables(project, [{ file: file(true), annotations: rooms }]);
 
-  it('colors detail rows and direction sums by compass direction (0 = north, 2 = east)', () => {
+  it('alternates the two colors whenever the direction changes, and marks room sums, direction sums and the total', () => {
     const { styles, rows } = walls.summaries![0];
     expect(styles).toHaveLength(rows.length);
+    // Kontor: north, east; Lager: north, east (the colors keep alternating as the direction changes)
     expect(styles).toEqual([
-      { kind: 'detail', direction: 0 },
-      { kind: 'detail', direction: 2 },
+      { kind: 'detail', band: 0 },
+      { kind: 'detail', band: 1 },
       { kind: 'roomSum' },
-      { kind: 'detail', direction: 0 },
-      { kind: 'detail', direction: 2 },
+      { kind: 'detail', band: 0 },
+      { kind: 'detail', band: 1 },
       { kind: 'roomSum' },
-      { kind: 'directionSum', direction: 0 },
-      { kind: 'directionSum', direction: 2 },
+      { kind: 'directionSum', band: 0 },
+      { kind: 'directionSum', band: 1 },
       { kind: 'total' },
     ]);
   });
@@ -392,10 +393,8 @@ describe('row styles for the colored Excel groups', () => {
     expect(sheet.headers[sheet.directionColumn!]).toBe('Himmelretning (°)');
   });
 
-  it('uses the same color index for the same direction in every room, and 8 for no direction', () => {
-    expect(compassIndex(0)).toBe(0);
-    expect(compassIndex(347)).toBe(0); // close to north: same family, the degrees stay in the data
-    expect(compassIndex(207)).toBe(compassIndex(223));
-    expect(compassIndex(90)).toBe(2);
+  it('makeBander gives the same color to equal values in a row and the other color when the value changes', () => {
+    const band = makeBander<number>();
+    expect([207, 207, 219, 223, 223, 207].map(band)).toEqual([0, 0, 1, 0, 0, 1]);
   });
 });

@@ -1,13 +1,13 @@
-import { buildExportTables, compassIndex, type ExportFileData, type RowStyle } from '@/lib/exportRows';
+import { buildExportTables, makeBander, type ExportFileData, type RowStyle } from '@/lib/exportRows';
 import type { BuildingComponentType, Project } from '@/types';
 
 const HEADER_FILL = 'FF1F3A5F';
 const MAX_COLUMN_WIDTH = 48;
 
-// Colors that make the groups easy to tell apart. Each compass direction has its own color, so the same
-// direction looks the same in every room and sheet; the last entry is for rows without a direction.
-const DIRECTION_FILLS = ['FFD6E6F7', 'FFD3EFEA', 'FFDDF0CB', 'FFF3F0C5', 'FFFCE3BF', 'FFF8D3CF', 'FFE8D6F0', 'FFD9DCF4', 'FFEDEDED'];
-const DIRECTION_SUM_FILLS = ['FF9CC2EA', 'FF98DDD2', 'FFB9E097', 'FFE8E28C', 'FFF9C985', 'FFF1A9A2', 'FFD2AEE3', 'FFAEB6E8', 'FFC8C8C8'];
+// Colors that make the groups easy to tell apart: the rows alternate between two colors whenever the direction
+// changes (light blue and white; a darker blue and grey for the sums per direction).
+const DETAIL_FILLS: (string | undefined)[] = ['FFDCE9F7', undefined];
+const DIRECTION_SUM_FILLS = ['FFA9C8EA', 'FFD0D0D0'];
 const ROOM_SUM_FILL = 'FFC9D3DF';
 const KIND_SUM_FILL = 'FFFFE9B8';
 const ZEBRA_FILL = 'FFEAF1F8';
@@ -16,9 +16,9 @@ type Look = { fill?: string; bold?: boolean; white?: boolean };
 const lookOf = (style: RowStyle | undefined): Look => {
   switch (style?.kind) {
     case 'detail':
-      return style.direction === undefined ? {} : { fill: DIRECTION_FILLS[style.direction] };
+      return { fill: DETAIL_FILLS[style.band ?? 1] };
     case 'directionSum':
-      return { fill: DIRECTION_SUM_FILLS[style.direction ?? 8], bold: true };
+      return { fill: DIRECTION_SUM_FILLS[style.band ?? 0], bold: true };
     case 'roomSum':
       return { fill: ROOM_SUM_FILL, bold: true };
     case 'kindSum':
@@ -29,9 +29,6 @@ const lookOf = (style: RowStyle | undefined): Look => {
       return {};
   }
 };
-
-/** Compass index (0–7, north first) for a direction in degrees; 8 when there is no direction. */
-const directionIndex = (degrees: unknown) => (typeof degrees === 'number' ? compassIndex(degrees) : 8);
 
 /** Builds an .xlsx workbook (one styled sheet per table, titles in the frozen top row) and returns it as a Blob. */
 export async function exportProjectExcel(
@@ -74,8 +71,8 @@ export async function exportProjectExcel(
       });
     }
 
-    // Rooms alternate between white and light blue (Rom); in the wall and opening sheets the rows are colored by
-    // direction instead, since that is what needs to be told apart.
+    // Rooms alternate between white and light blue (Rom); in the wall and opening sheets the colors alternate
+    // whenever the direction changes, since that is what needs to be told apart.
     const fillRow = (rowNumber: number, argb: string) => {
       const row = sheet.getRow(rowNumber);
       for (let c = 1; c <= table.headers.length; c++) row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb } };
@@ -91,9 +88,12 @@ export async function exportProjectExcel(
       });
     }
     if (table.directionColumn !== undefined) {
+      const bandFor = makeBander<number>();
       table.rows.forEach((values, index) => {
         const degrees = values[table.directionColumn!];
-        if (typeof degrees === 'number') fillRow(index + 2, DIRECTION_FILLS[directionIndex(degrees)]);
+        if (typeof degrees !== 'number') return;
+        const fill = DETAIL_FILLS[bandFor(degrees)];
+        if (fill) fillRow(index + 2, fill);
       });
     }
 
