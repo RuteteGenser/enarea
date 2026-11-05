@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Loader2, Upload } from 'lucide-react';
+import { ArrowLeft, Loader2, Ruler, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import FileTabs from '@/components/project/FileTabs';
 import ExportDialog from '@/components/export/ExportDialog';
@@ -101,6 +101,16 @@ export default function Workspace() {
         </Button>
         <span className="truncate text-sm font-medium text-foreground">{project?.name}</span>
         <div className="flex-1" />
+        <a
+          href={`${import.meta.env.BASE_URL}measure.html`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 text-sm font-medium text-foreground hover:underline"
+          title="Åpne målverktøy for bilder i ny fane"
+        >
+          <Ruler className="size-4" />
+          Målverktøy
+        </a>
       </div>
 
       {project && (
