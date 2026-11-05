@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Image Measure</title>
+<style>
+  body { font: 14px system-ui, sans-serif; margin: 0; display: flex; height: 100vh; color: #222; }
+  #main { flex: 1; overflow: auto; background: #eee; position: relative; }
+  #hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #888; font-size: 18px; pointer-events: none; }
+  canvas { display: block; cursor: crosshair; }
+  #side { width: 260px; padding: 12px; border-left: 1px solid #ccc; overflow: auto; box-sizing: border-box; }
+  button { padding: 6px 10px; margin: 2px 2px 2px 0; cursor: pointer; }
+  button.on { background: #2563eb; color: #fff; border-color: #2563eb; }
+  input { width: 70px; padding: 4px; }
+  #status { margin: 8px 0; padding: 6px; background: #fef3c7; border-radius: 4px; }
+  ul { padding: 0; list-style: none; }
+  li { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #eee; }
+  li button { margin: 0; padding: 0 6px; }
+</style>
+</head>
+<body>
+<div id="main"><canvas id="c"></canvas><div id="hint">Paste an image (Ctrl/Cmd+V)</div></div>
+<div id="side">
+  <h3 style="margin-top:0">Image Measure</h3>
+  <div>
+    <button id="bCal">Calibrate</button>
+    <button id="bMeas">Measure</button>
+  </div>
+  <div style="margin:8px 0">
+    Known length <input id="len" type="number" value="100" min="0" step="any">
+    <input id="unit" value="mm" style="width:45px">
+  </div>
+  <div id="status"></div>
+  <div>Scale: <b id="scale">not set</b></div>
+  <h4>Measurements</h4>
+  <ul id="list"></ul>
+  <button id="bClear">Clear measurements</button>
+</div>
+<script>
+const c = document.getElementById('c'), ctx = c.getContext('2d');
+const $ = id => document.getElementById(id);
+let img = null, mode = 'cal', pending = null, mouse = null;
+let scale = null;            // pixels per unit
+let lines = [];              // {a,b} in image pixels
+let calLine = null;
+
+function setMode(m) {
+  mode = m; pending = null;
+  $('bCal').classList.toggle('on', m === 'cal');
+  $('bMeas').classList.toggle('on', m === 'meas');
+  status(); draw();
+}
+function status() {
+  if (!img) return $('status').textContent = 'Paste an image to start.';
+  const n = pending ? 'second' : 'first';
+  $('status').textContent = mode === 'cal'
+    ? `Calibrate: click ${n} point of a known length, set its length below.`
+    : scale ? `Measure: click ${n} point.` : 'Calibrate first (or measure in pixels).';
+}
+function dist(l) { return Math.hypot(l.b.x - l.a.x, l.b.y - l.a.y); }
+function fmt(px) { return scale ? (px / scale).toFixed(2) + ' ' + $('unit').value : px.toFixed(1) + ' px'; }
+
+function draw() {
+  if (!img) return;
+  ctx.drawImage(img, 0, 0);
+  const all = lines.map((l, i) => ({ l, label: (i + 1) + ': ' + fmt(dist(l)), col: '#e11d48' }));
+  if (calLine) all.push({ l: calLine, label: 'cal', col: '#2563eb' });
+  if (pending && mouse) all.push({ l: { a: pending, b: mouse }, label: fmt(dist({ a: pending, b: mouse })), col: '#f59e0b' });
+  const lw = Math.max(2, img.width / 400);
+  ctx.lineWidth = lw; ctx.font = `bold ${lw * 7}px sans-serif`;
+  for (const { l, label, col } of all) {
+    ctx.strokeStyle = ctx.fillStyle = col;
+    ctx.beginPath(); ctx.moveTo(l.a.x, l.a.y); ctx.lineTo(l.b.x, l.b.y); ctx.stroke();
+    for (const p of [l.a, l.b]) { ctx.beginPath(); ctx.arc(p.x, p.y, lw * 1.5, 0, 7); ctx.fill(); }
+    const t = ctx.measureText(label).width, mx = (l.a.x + l.b.x) / 2, my = (l.a.y + l.b.y) / 2;
+    ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.fillRect(mx - 2, my - lw * 7, t + 4, lw * 8);
+    ctx.fillStyle = col; ctx.fillText(label, mx, my - lw);
+  }
+}
+function render() {
+  $('scale').textContent = scale ? scale.toFixed(3) + ' px/' + $('unit').value : 'not set';
+  $('list').innerHTML = '';
+  lines.forEach((l, i) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span>${i + 1}: <b>${fmt(dist(l))}</b></span>`;
+    const b = document.createElement('button'); b.textContent = '✕';
+    b.onclick = () => { lines.splice(i, 1); render(); };
+    li.append(b); $('list').append(li);
+  });
+  status(); draw();
+}
+function pos(e) {
+  const r = c.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * c.width / r.width, y: (e.clientY - r.top) * c.height / r.height };
+}
+c.onmousemove = e => { mouse = pos(e); if (pending) draw(); };
+c.onclick = e => {
+  if (!img) return;
+  const p = pos(e);
+  if (!pending) { pending = p; status(); return; }
+  const l = { a: pending, b: p }; pending = null;
+  if (mode === 'cal') { calLine = l; applyCal(); }
+  else lines.push(l);
+  render();
+};
+function applyCal() {
+  const known = parseFloat($('len').value);
+  if (calLine && known > 0) scale = dist(calLine) / known;
+}
+$('len').oninput = $('unit').oninput = () => { applyCal(); render(); };
+$('bCal').onclick = () => setMode('cal');
+$('bMeas').onclick = () => setMode('meas');
+$('bClear').onclick = () => { lines = []; render(); };
+document.onkeydown = e => { if (e.key === 'Escape') { pending = null; render(); } };
+
+document.addEventListener('paste', e => {
+  for (const it of e.clipboardData.items) {
+    if (it.type.startsWith('image/')) {
+      const url = URL.createObjectURL(it.getAsFile()), im = new Image();
+      im.onload = () => {
+        img = im; c.width = im.width; c.height = im.height;
+        scale = null; lines = []; calLine = null; pending = null;
+        $('hint').style.display = 'none';
+        setMode('cal'); render();
+      };
+      im.src = url; e.preventDefault(); return;
+    }
+  }
+});
+setMode('cal'); status();
+</script>
+</body>
+</html>
