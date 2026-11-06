@@ -1,8 +1,13 @@
 import { ListPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useViewportStore } from '@/store/viewportStore';
 import type { PdfFile } from '@/types';
+
+const GROUPS = [
+  { kind: 'vindu', label: 'Vinduer' },
+  { kind: 'dor', label: 'Dører' },
+] as const;
 
 /** Floating bar shown with the placement tool: choose which window/door to place next. */
 export default function OpeningPlaceBar({ file }: { file: PdfFile }) {
@@ -26,13 +31,22 @@ export default function OpeningPlaceBar({ file }: { file: PdfFile }) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {items.map((item) => (
-                <SelectItem key={item.id} value={item.id}>
-                  {item.name}
-                  {item.widthMm && item.heightMm ? ` – ${item.widthMm}×${item.heightMm}` : ''}
-                  {countOf(item.id) > 0 ? ` (${countOf(item.id)} plassert)` : ''}
-                </SelectItem>
-              ))}
+              {GROUPS.map(({ kind, label }) => {
+                const group = items.filter((i) => i.kind === kind);
+                if (group.length === 0) return null;
+                return (
+                  <SelectGroup key={kind}>
+                    <SelectLabel>{label}</SelectLabel>
+                    {group.map((item) => (
+                      <SelectItem key={item.id} value={item.id}>
+                        {item.name}
+                        {item.widthMm && item.heightMm ? ` – ${item.widthMm}×${item.heightMm}` : ''}
+                        {countOf(item.id) > 0 ? ` (${countOf(item.id)} plassert)` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                );
+              })}
             </SelectContent>
           </Select>
           <span className="hidden text-xs text-muted-foreground sm:inline">Klikk på vegger for å plassere flere</span>
