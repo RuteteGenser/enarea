@@ -40,7 +40,7 @@ const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: 'luftmengde', label: 'Luftmengde' },
 ];
 
-type MissingFilter = 'alle' | 'romnr' | 'romnavn' | 'romtype' | 'gulvdekke' | 'veggtype' | 'luftmengde';
+type MissingFilter = 'alle' | 'romnr' | 'romnavn' | 'romtype' | 'gulvdekke' | 'veggtype' | 'vegghoyde' | 'luftmengde';
 
 const MISSING_FILTERS: { value: MissingFilter; label: string }[] = [
   { value: 'alle', label: 'Alle rom' },
@@ -49,6 +49,7 @@ const MISSING_FILTERS: { value: MissingFilter; label: string }[] = [
   { value: 'romtype', label: 'Mangler romtype' },
   { value: 'gulvdekke', label: 'Mangler gulv/dekke' },
   { value: 'veggtype', label: 'Mangler veggtype' },
+  { value: 'vegghoyde', label: 'Mangler vegghøyde' },
   { value: 'luftmengde', label: 'Mangler luftmengde' },
 ];
 
@@ -86,6 +87,8 @@ function isMissing(annotation: Annotation, filter: MissingFilter): boolean {
   if (filter === 'romtype') return !annotation.roomTemplate;
   if (filter === 'gulvdekke') return !annotation.buildingComponent;
   if (filter === 'veggtype') return distinctWallTypeNames(annotation).length === 0;
+  // a marked outer wall or skillekonstruksjon without a height
+  if (filter === 'vegghoyde') return (annotation.edges ?? []).some((e) => (e.wallType === 'external' || e.wallType === 'partition') && !e.heightMeters);
   if (filter === 'luftmengde') return !annotation.roomTemplate;
   return true;
 }
