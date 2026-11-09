@@ -115,7 +115,8 @@ export default function ShapeRenderer({
       {annotation.type !== 'line' && annotation.edges && (
         <g pointerEvents="none">
           {annotation.edges.map((edge, i) => {
-            if (edge.wallType !== 'external') return null;
+            if (edge.wallType !== 'external' && edge.wallType !== 'partition') return null;
+            const partition = edge.wallType === 'partition';
             const a = screenPoints[i];
             const b = screenPoints[(i + 1) % screenPoints.length];
             const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
@@ -136,7 +137,7 @@ export default function ShapeRenderer({
 
             return (
               <g key={i}>
-                <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#f5a623" strokeWidth={4} strokeLinecap="round" opacity={0.85} />
+                <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={partition ? '#12a594' : '#f5a623'} strokeWidth={4} strokeLinecap="round" strokeDasharray={partition ? '8 5' : undefined} opacity={0.85} />
                 <g transform={`translate(${wallLabelPos.x}, ${wallLabelPos.y})`}>
                   <rect
                     x={-wallLabelWidth / 2}
@@ -144,7 +145,7 @@ export default function ShapeRenderer({
                     width={wallLabelWidth}
                     height={16}
                     rx={3}
-                    className="fill-card/90 stroke-amber-500"
+                    className={partition ? 'fill-card/90 stroke-teal-600' : 'fill-card/90 stroke-amber-500'}
                     strokeWidth={1}
                   />
                   <text
@@ -153,7 +154,7 @@ export default function ShapeRenderer({
                     y={0.5}
                     fontSize={10}
                     fontWeight={600}
-                    className="select-none fill-amber-700"
+                    className={partition ? 'select-none fill-teal-700' : 'select-none fill-amber-700'}
                   >
                     {wallLengthText}
                   </text>

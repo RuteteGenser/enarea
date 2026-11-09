@@ -2,6 +2,7 @@ import { useState, type KeyboardEvent } from 'react';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { isWallCategory } from '@/types';
 import type { BuildingComponentType } from '@/types';
 
 type EditableField = 'name' | 'uValue' | 'wallThickness' | null;
@@ -85,7 +86,7 @@ export default function BuildingComponentTypeRow({ type, onUpdate, onDelete }: B
         </span>
       )}
 
-      {type.category === 'yttervegg' &&
+      {isWallCategory(type.category) &&
         (editing === 'wallThickness' ? (
           <Input
             autoFocus

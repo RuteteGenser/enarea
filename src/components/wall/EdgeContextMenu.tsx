@@ -22,6 +22,7 @@ type EdgeContextMenuProps = {
 
 export default function EdgeContextMenu({ edge, onChange, children }: EdgeContextMenuProps) {
   const isExternal = edge.wallType === 'external';
+  const isPartition = edge.wallType === 'partition';
 
   return (
     <ContextMenu>
@@ -29,12 +30,21 @@ export default function EdgeContextMenu({ edge, onChange, children }: EdgeContex
       <ContextMenuContent>
         <ContextMenuLabel>Vegg-type</ContextMenuLabel>
         {isExternal ? (
-          <ContextMenuItem onSelect={() => onChange({ wallType: 'internal', orientation: undefined })}>
+          <ContextMenuItem onSelect={() => onChange({ wallType: 'internal', orientation: undefined, buildingComponent: undefined })}>
             Fjern yttervegg-merking
           </ContextMenuItem>
         ) : (
-          <ContextMenuItem onSelect={() => onChange({ wallType: 'external' })}>
+          <ContextMenuItem onSelect={() => onChange({ wallType: 'external', buildingComponent: isPartition ? undefined : edge.buildingComponent })}>
             Merk som yttervegg
+          </ContextMenuItem>
+        )}
+        {isPartition ? (
+          <ContextMenuItem onSelect={() => onChange({ wallType: 'internal', orientation: undefined, buildingComponent: undefined })}>
+            Fjern skillekonstruksjon-merking
+          </ContextMenuItem>
+        ) : (
+          <ContextMenuItem onSelect={() => onChange({ wallType: 'partition', orientation: undefined, buildingComponent: undefined })}>
+            Merk som skillekonstruksjon
           </ContextMenuItem>
         )}
 

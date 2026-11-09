@@ -6,7 +6,7 @@ import CategorySection from '@/components/buildingComponentTypes/CategorySection
 import { useBuildingComponentTypeStore } from '@/store/buildingComponentTypeStore';
 import type { BuildingComponentCategory } from '@/types';
 
-const CATEGORIES: BuildingComponentCategory[] = ['yttervegg', 'vindu', 'ytterdor', 'tak', 'gulv', 'dekke'];
+const CATEGORIES: BuildingComponentCategory[] = ['yttervegg', 'skillekonstruksjon', 'vindu', 'ytterdor', 'tak', 'gulv', 'dekke'];
 
 export default function BuildingComponentTypes() {
   const navigate = useNavigate();

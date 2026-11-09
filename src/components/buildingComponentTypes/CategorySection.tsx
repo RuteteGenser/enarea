@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import BuildingComponentTypeRow from '@/components/buildingComponentTypes/BuildingComponentTypeRow';
 import { useBuildingComponentTypeStore } from '@/store/buildingComponentTypeStore';
-import { BUILDING_COMPONENT_CATEGORY_LABELS } from '@/types';
+import { BUILDING_COMPONENT_CATEGORY_LABELS, isWallCategory } from '@/types';
 import type { BuildingComponentCategory, BuildingComponentType } from '@/types';
 
 type CategorySectionProps = {
@@ -24,7 +24,7 @@ export default function CategorySection({ category, types }: CategorySectionProp
   const [wallThickness, setWallThickness] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<BuildingComponentType | null>(null);
 
-  const isYttervegg = category === 'yttervegg';
+  const isYttervegg = isWallCategory(category);
   const trimmedUValue = uValue.trim();
   const trimmedThickness = wallThickness.trim();
   const parsedUValue = trimmedUValue ? Number(trimmedUValue.replace(',', '.')) : undefined;

@@ -81,6 +81,8 @@ export function buildExportTables(
 ): ExportTable[] {
   const rooms: Cell[][] = [];
   const walls: Cell[][] = [];
+  const partitions: Cell[][] = [];
+  const partitionSums: PartitionSum[] = [];
   const openings: Cell[][] = [];
   const wallSums: WallSum[] = [];
   const zoneSums: ZoneSum[] = [];
@@ -170,6 +172,29 @@ export function buildExportTables(
           wall.dor.count ? round(wall.dor.area) : null,
           openingNames([edge], placed, buildingTypes),
         ]);
+        // Skillekonstruksjoner (partition walls) get their own sheet, laid out like the outer walls but without direction.
+        if (edge.wallType === 'partition') {
+          partitions.push([
+            file.name,
+            annotation.roomNumber ?? null,
+            name,
+            i + 1,
+            wallLength === null ? null : round(wallLength),
+            edge.heightMeters ?? null,
+            wallArea === null ? null : round(wallArea),
+            edge.buildingComponent?.name ?? null,
+            edge.buildingComponent?.uValue ?? null,
+            edge.buildingComponent?.wallThickness ?? null,
+            wall.vindu.count || null,
+            wall.vindu.count ? round(wall.vindu.area) : null,
+            wall.dor.count || null,
+            wall.dor.count ? round(wall.dor.area) : null,
+            openingNames([edge], placed, buildingTypes),
+          ]);
+          if (wallLength !== null) {
+            partitionSums.push({ file: file.name, roomKey: `${file.id}:${annotation.id}`, roomNumber: annotation.roomNumber ?? null, room: name, type: edge.buildingComponent?.name ?? null, uValue: edge.buildingComponent?.uValue ?? null, thickness: edge.buildingComponent?.wallThickness ?? null, length: wallLength, area: wallArea });
+          }
+        }
         if (edge.wallType === 'external' && wallLength !== null) {
           zone.outerCount++;
           zone.outerLength += wallLength;
@@ -271,6 +296,32 @@ export function buildExportTables(
     ['Filer uten kalibrering', uncalibrated ? `${uncalibrated} (mål mangler i arkene)` : 'Ingen'],
   ];
 
+  const partitionSheet: ExportTable[] = partitions.length === 0 ? [] : [
+    {
+      title: 'Skillekonstruksjoner',
+      headers: [
+        'Fil',
+        'Rom nr',
+        'Rom',
+        'Vegg nr',
+        'Lengde (m)',
+        'Vegghøyde (m)',
+        'Veggareal (m²)',
+        'Veggtype',
+        'U-verdi (W/m²K)',
+        'Tykkelse (mm)',
+        'Vindu (antall)',
+        'Vindu (m²)',
+        'Dør (antall)',
+        'Dør (m²)',
+        'Vinduer og dører (navn)',
+      ],
+      rows: partitions,
+      groupBy: [0, 1, 2],
+      summaries: [partitionSummary(partitionSums)].filter((t): t is NonNullable<typeof t> => t !== undefined),
+    },
+  ];
+
   return [
     { title: 'Prosjekt', headers: ['Felt', 'Verdi'], rows: info },
     {
@@ -343,7 +394,69 @@ export function buildExportTables(
       directionColumn: 11,
       summaries: [openingTypeSummary(typeSums)].filter((t): t is NonNullable<typeof t> => t !== undefined),
     },
+    ...partitionSheet,
   ];
+}
+
+type PartitionSum = {
+  file: string;
+  roomKey: string;
+  roomNumber: string | null;
+  room: string;
+  type: string | null;
+  uValue: number | null;
+  thickness: number | null;
+  length: number;
+  area: number | null;
+};
+
+const NO_TYPE = 'Uten veggtype';
+
+/**
+ * Sums of the skillekonstruksjoner room by room (one row per wall type, a sum row per room), then the sums per
+ * wall type over all rooms and a grand total. The same layout as the outer-wall summary, without compass directions.
+ */
+function partitionSummary(walls: PartitionSum[]): ExportSummary | undefined {
+  if (walls.length === 0) return undefined;
+  const rows: Cell[][] = [];
+  const styles: RowStyle[] = [];
+  const add = (style: RowStyle, row: Cell[]) => {
+    rows.push(row);
+    styles.push(style);
+  };
+  const roomBand = makeBander<string>();
+  const typeBand = makeBander<string>();
+  const typeKey = (w: PartitionSum) => [w.type, w.uValue, w.thickness].join('|');
+  const typesIn = (list: PartitionSum[]) => {
+    const groups = new Map<string, PartitionSum[]>();
+    for (const w of list) groups.set(typeKey(w), [...(groups.get(typeKey(w)) ?? []), w]);
+    return [...groups.values()].sort((a, b) => (a[0].type ?? '\uffff').localeCompare(b[0].type ?? '\uffff', 'nb', { numeric: true }));
+  };
+  const numbers = (list: PartitionSum[]): Cell[] => [
+    list.length,
+    round(list.reduce((s, w) => s + w.length, 0)),
+    list.some((w) => w.area !== null) ? round(list.reduce((s, w) => s + (w.area ?? 0), 0)) : null,
+  ];
+
+  for (const roomKey of [...new Set(walls.map((w) => w.roomKey))]) {
+    const inRoom = walls.filter((w) => w.roomKey === roomKey);
+    for (const list of typesIn(inRoom)) {
+      const w = list[0];
+      add({ kind: 'detail', band: roomBand(roomKey) }, [w.file, w.roomNumber, w.room, w.type ?? NO_TYPE, w.uValue, w.thickness, ...numbers(list)]);
+    }
+    add({ kind: 'roomSum' }, [`Sum ${roomLabel(inRoom[0].roomNumber, inRoom[0].room)}`, null, null, null, null, null, ...numbers(inRoom)]);
+  }
+  for (const list of typesIn(walls)) {
+    const w = list[0];
+    add({ kind: 'directionSum', band: typeBand(typeKey(w)) }, [`Sum ${w.type ?? NO_TYPE}`, null, null, w.type ?? NO_TYPE, w.uValue, w.thickness, ...numbers(list)]);
+  }
+  add({ kind: 'total' }, ['Sum alle', null, null, null, null, null, ...numbers(walls)]);
+  return {
+    title: 'Oppsummering: skillekonstruksjoner per rom og veggtype',
+    headers: ['Fil', 'Rom nr', 'Rom', 'Veggtype', 'U-verdi (W/m²K)', 'Tykkelse (mm)', 'Antall vegger', 'Total lengde (m)', 'Veggareal (m²)'],
+    rows,
+    styles,
+  };
 }
 
 type WallSum = {

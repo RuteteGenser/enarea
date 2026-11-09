@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BrickWall } from 'lucide-react';
+import { BrickWall, SquareSplitHorizontal } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useParams } from 'react-router-dom';
 import { displayName } from '@/lib/annotationLabel';
@@ -12,7 +12,7 @@ import { nextSelection } from '@/lib/rowSelection';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useViewportStore } from '@/store/viewportStore';
-import type { Annotation, BuildingComponentAssignment, Calibration, EdgeMeta, Unit } from '@/types';
+import type { Annotation, BuildingComponentAssignment, BuildingComponentCategory, Calibration, EdgeMeta, Unit } from '@/types';
 
 /** Parses a height typed in meters ("2,5" or "2.5"); undefined for empty or invalid input. */
 function parseHeight(text: string): number | undefined {
@@ -56,15 +56,17 @@ type WallsTableProps = {
   unit: Unit;
   calibration: Calibration;
   onSelectAndJump: (id: string) => void;
+  /** 'external' (default) lists the outer walls; 'partition' lists the skillekonstruksjoner (no compass direction). */
+  kind?: 'external' | 'partition';
 };
 
 const wallKey = (annotationId: string, edgeIndex: number) => `${annotationId}:${edgeIndex}`;
 
 /** The cell that picks a wall type; applies to every selected wall when this wall is one of several selected. */
-function TypeCell({ edge, onPick }: { edge: EdgeMeta; onPick: (next: BuildingComponentAssignment | null) => void }) {
+function TypeCell({ edge, category, onPick }: { edge: EdgeMeta; category: BuildingComponentCategory; onPick: (next: BuildingComponentAssignment | null) => void }) {
   const [open, setOpen] = useState(false);
   return (
-    <BuildingComponentPicker categories={['yttervegg']} current={edge.buildingComponent} open={open} onOpenChange={setOpen} onSelect={onPick}>
+    <BuildingComponentPicker categories={[category]} current={edge.buildingComponent} open={open} onOpenChange={setOpen} onSelect={onPick}>
       <button type="button" className={cn('truncate text-left hover:underline', edge.buildingComponent ? 'text-foreground' : 'text-muted-foreground')}>
         {edge.buildingComponent?.name ?? '--'}
       </button>
@@ -77,7 +79,9 @@ function TypeCell({ edge, onPick }: { edge: EdgeMeta; onPick: (next: BuildingCom
  * Rows are selected like in Windows (click, Ctrl+click, Shift+click); editing the height or the type of a selected
  * row changes every selected wall, and the selected walls are marked on the drawing.
  */
-export default function WallsTable({ annotations, unit, calibration, onSelectAndJump }: WallsTableProps) {
+export default function WallsTable({ annotations, unit, calibration, onSelectAndJump, kind = 'external' }: WallsTableProps) {
+  const partition = kind === 'partition';
+  const category: BuildingComponentCategory = partition ? 'skillekonstruksjon' : 'yttervegg';
   const { projectId } = useParams<{ projectId: string }>();
   const north = useProjectStore((s) => (projectId ? s.getProject(projectId)?.northDirection : undefined)) ?? 0;
   const mpu = metersPerUnit(calibration);
@@ -96,7 +100,7 @@ export default function WallsTable({ annotations, unit, calibration, onSelectAnd
       ? []
       : annotation.points.flatMap((a, i) => {
           const edge = annotation.edges?.[i];
-          if (edge?.wallType !== 'external') return [];
+          if (edge?.wallType !== kind) return [];
           const b = annotation.points[(i + 1) % annotation.points.length];
           const bearing = wallBearing(annotation, i, north) ?? 0;
           return [{ annotation, edgeIndex: i, edge, length: distance(a, b) * mpu, bearing }];
@@ -105,7 +109,8 @@ export default function WallsTable({ annotations, unit, calibration, onSelectAnd
   if (walls.length === 0) return null;
 
   const order = walls.map((w) => wallKey(w.annotation.id, w.edgeIndex));
-  const selectedKeys = highlighted.map((w) => wallKey(w.annotationId, w.edgeIndex));
+  // only the walls of this table (the outer walls and the partitions share the highlighted walls)
+  const selectedKeys = highlighted.map((w) => wallKey(w.annotationId, w.edgeIndex)).filter((k) => order.includes(k));
 
   const totalLength = walls.reduce((sum, w) => sum + w.length, 0);
   const totalArea = walls.reduce((sum, w) => sum + (w.edge.heightMeters ? w.length * w.edge.heightMeters : 0), 0);
@@ -131,7 +136,7 @@ export default function WallsTable({ annotations, unit, calibration, onSelectAnd
   /** The walls an edit made in this row applies to: all selected ones if this row is one of them, else just this one. */
   function targetsOf(annotationId: string, edgeIndex: number) {
     const key = wallKey(annotationId, edgeIndex);
-    return selectedKeys.length > 1 && selectedKeys.includes(key) ? highlighted : [{ annotationId, edgeIndex }];
+    return selectedKeys.length > 1 && selectedKeys.includes(key) ? highlighted.filter((w) => order.includes(wallKey(w.annotationId, w.edgeIndex))) : [{ annotationId, edgeIndex }];
   }
   const editWalls = (targets: { annotationId: string; edgeIndex: number }[], meta: Partial<EdgeMeta>) =>
     useAnnotationStore.getState().batch(() => targets.forEach((t) => useAnnotationStore.getState().setEdgeMeta(t.annotationId, t.edgeIndex, meta)));
@@ -144,11 +149,11 @@ export default function WallsTable({ annotations, unit, calibration, onSelectAnd
     <div className="border-t border-border">
       <div className="flex items-center justify-between px-2 py-0.5">
         <h3 className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          <BrickWall className="size-3" /> Yttervegger ({walls.length}
+          {partition ? <SquareSplitHorizontal className="size-3" /> : <BrickWall className="size-3" />} {partition ? 'Skillekonstruksjoner' : 'Yttervegger'} ({walls.length}
           {selectedKeys.length > 1 && `, ${selectedKeys.length} valgt`})
         </h3>
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-1 text-[10px] text-muted-foreground" title="Sett samme vegghøyde på alle yttervegger">
+          <label className="flex items-center gap-1 text-[10px] text-muted-foreground" title={`Sett samme vegghøyde på alle ${partition ? 'skillekonstruksjoner' : 'yttervegger'}`}>
             Vegghøyde alle (m)
             <HeightInput value={commonHeight} onCommit={setAllHeights} placeholder="—" className="h-5 w-14 px-1 py-0 text-xs tabular-nums" />
           </label>
@@ -161,7 +166,7 @@ export default function WallsTable({ annotations, unit, calibration, onSelectAnd
       <table className="w-full select-none border-collapse text-sm">
         <thead>
           <tr className="border-b border-border">
-            {['Rom', 'Vegg', 'Lengde', 'Høyde (m)', 'Veggareal', 'Himmelretning', 'Veggtype', 'U-verdi'].map((title) => (
+            {['Rom', 'Vegg', 'Lengde', 'Høyde (m)', 'Veggareal', ...(partition ? [] : ['Himmelretning']), 'Veggtype', 'U-verdi'].map((title) => (
               <th key={title} className="sticky top-0 z-10 bg-panel shadow-[0_1px_0_0_var(--border)] whitespace-nowrap px-2 py-1 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {title}
               </th>
@@ -188,11 +193,13 @@ export default function WallsTable({ annotations, unit, calibration, onSelectAnd
               <td className="px-2 py-1 tabular-nums text-muted-foreground">
                 {edge.heightMeters ? `${(length * edge.heightMeters).toLocaleString('nb-NO', { maximumFractionDigits: 2 })} m²` : '--'}
               </td>
-              <td className="whitespace-nowrap px-2 py-1 text-foreground">
-                {ORIENTATION_NAMES[compassPoint(bearing)]} <span className="tabular-nums text-muted-foreground">({bearing}°)</span>
-              </td>
+              {!partition && (
+                <td className="whitespace-nowrap px-2 py-1 text-foreground">
+                  {ORIENTATION_NAMES[compassPoint(bearing)]} <span className="tabular-nums text-muted-foreground">({bearing}°)</span>
+                </td>
+              )}
               <td className="px-2 py-1">
-                <TypeCell edge={edge} onPick={(next) => editWalls(targetsOf(annotation.id, edgeIndex), { buildingComponent: next ?? undefined })} />
+                <TypeCell edge={edge} category={category} onPick={(next) => editWalls(targetsOf(annotation.id, edgeIndex), { buildingComponent: next ?? undefined })} />
               </td>
               <td className="px-2 py-1 tabular-nums text-muted-foreground">
                 {edge.buildingComponent?.uValue !== undefined ? `${edge.buildingComponent.uValue} W/m²K` : '--'}

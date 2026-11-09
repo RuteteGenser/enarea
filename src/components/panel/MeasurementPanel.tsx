@@ -125,6 +125,14 @@ export default function MeasurementPanel({ calibration, openings = [], placedOpe
             onSelectAndJump={selectAndJump}
           />
 
+          <WallsTable
+            kind="partition"
+            annotations={roomAnnotations}
+            unit={unit}
+            calibration={calibration}
+            onSelectAndJump={selectAndJump}
+          />
+
           {lineAnnotations.length > 0 && (
             <div className="p-1.5">
               <h3 className="mb-1 px-0.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Linjer</h3>

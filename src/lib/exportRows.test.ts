@@ -398,3 +398,32 @@ describe('row styles for the colored Excel groups', () => {
     expect([207, 207, 219, 223, 223, 207].map(band)).toEqual([0, 0, 1, 0, 0, 1]);
   });
 });
+
+describe('Skillekonstruksjoner sheet', () => {
+  const type = { typeId: 't', category: 'skillekonstruksjon' as const, name: 'Gipsvegg 98', uValue: 0.5, wallThickness: 98 };
+  const marked = {
+    ...room,
+    edges: [{ wallType: 'external' as const }, { wallType: 'partition' as const, heightMeters: 2.5, buildingComponent: type }, {}, { wallType: 'partition' as const, buildingComponent: type }],
+  };
+  const tables = buildExportTables(project, [{ file: file(true), annotations: [marked] }]);
+  const sheet = tables.find((t) => t.title === 'Skillekonstruksjoner')!;
+
+  it('is a separate sheet with only the partition walls (not in Vegger)', () => {
+    expect(tables[2].rows).toHaveLength(1); // the outer wall only
+    expect(sheet.rows.map((r) => r[sheet.headers.indexOf('Vegg nr')])).toEqual([2, 4]);
+    expect(sheet.rows[0][sheet.headers.indexOf('Veggareal (m²)')]).toBe(50); // 20 m × 2.5 m
+    expect(sheet.rows[0].slice(7, 10)).toEqual(['Gipsvegg 98', 0.5, 98]);
+  });
+
+  it('sums per room and wall type, then per wall type and in total', () => {
+    const summary = sheet.summaries![0];
+    expect(summary.title).toBe('Oppsummering: skillekonstruksjoner per rom og veggtype');
+    expect(summary.rows.map((r) => r[0])).toEqual(['plan.pdf', 'Sum 101 Kontor', 'Sum Gipsvegg 98', 'Sum alle']);
+    expect(summary.rows[0].slice(3, 9)).toEqual(['Gipsvegg 98', 0.5, 98, 2, 40, 50]);
+  });
+
+  it('is left out when no wall is a skillekonstruksjon', () => {
+    const none = buildExportTables(project, [{ file: file(true), annotations: [{ ...room, edges: [{ wallType: 'external' as const }, {}, {}, {}] }] }]);
+    expect(none.map((t) => t.title)).not.toContain('Skillekonstruksjoner');
+  });
+});

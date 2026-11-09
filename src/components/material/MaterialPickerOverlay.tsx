@@ -147,12 +147,18 @@ export default function MaterialPickerOverlay({ zoom, width, height }: MaterialP
           return (
             <g key={`edge:${annotation.id}:${i}`}>
               <BuildingComponentPicker
-                categories={['yttervegg']}
+                categories={edge.wallType === 'partition' ? ['skillekonstruksjon'] : edge.wallType === 'external' ? ['yttervegg'] : ['yttervegg', 'skillekonstruksjon']}
                 current={edge.buildingComponent}
                 open={isOpen(edgeTarget)}
                 onOpenChange={(open) => setOpenTarget(open ? edgeTarget : null)}
                 anchor={isOpen(edgeTarget) ? clickAnchor : undefined}
-                onSelect={(assignment) => setEdgeMeta(annotation.id, i, { buildingComponent: assignment ?? undefined })}
+                onSelect={(assignment) =>
+                  // a skillekonstruksjon type picked on an unmarked side also marks the side as a partition
+                  setEdgeMeta(annotation.id, i, {
+                    buildingComponent: assignment ?? undefined,
+                    ...(assignment?.category === 'skillekonstruksjon' && edge.wallType !== 'partition' ? { wallType: 'partition' as const, orientation: undefined } : {}),
+                  })
+                }
               >
                 <line
                   x1={a.x}

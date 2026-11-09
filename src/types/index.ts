@@ -23,7 +23,9 @@ export const ANNOTATION_COLORS: Record<AnnotationColor, string> = {
   black: '#1a1a1a',
 };
 
-export type WallType = 'external' | 'internal';
+// 'partition' = skillekonstruksjon: a wall between two zones/rooms (not against the outside), listed in its own
+// table in Målinger and its own sheet in Excel.
+export type WallType = 'external' | 'internal' | 'partition';
 
 export type Orientation = 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW';
 
@@ -168,14 +170,14 @@ export type Project = ProjectInfo & {
   layerVisibilitySelection?: string[]; // OCG layer *names* targeted by the layer-visibility toggle
 };
 
-export type BuildingComponentCategory = 'yttervegg' | 'vindu' | 'ytterdor' | 'tak' | 'gulv' | 'dekke';
+export type BuildingComponentCategory = 'yttervegg' | 'skillekonstruksjon' | 'vindu' | 'ytterdor' | 'tak' | 'gulv' | 'dekke';
 
 export type BuildingComponentType = {
   id: string;
   category: BuildingComponentCategory;
   name: string;
   uValue?: number; // W/m²K
-  wallThickness?: number; // mm — only meaningful when category === 'yttervegg'
+  wallThickness?: number; // mm — only meaningful for the wall categories (see isWallCategory)
   createdAt: number;
   updatedAt: number;
 };
@@ -185,17 +187,21 @@ export type BuildingComponentAssignment = {
   category: BuildingComponentCategory;
   name: string;
   uValue?: number;
-  wallThickness?: number; // only meaningful when category === 'yttervegg'
+  wallThickness?: number; // only meaningful for the wall categories (see isWallCategory)
 };
 
 export const BUILDING_COMPONENT_CATEGORY_LABELS: Record<BuildingComponentCategory, string> = {
   yttervegg: 'Yttervegg',
+  skillekonstruksjon: 'Skillekonstruksjon',
   vindu: 'Vindu',
   ytterdor: 'Ytterdør',
   tak: 'Tak',
   gulv: 'Gulv',
   dekke: 'Dekke',
 };
+
+/** The categories that describe a wall (they have a thickness): outer walls and partition constructions. */
+export const isWallCategory = (category: BuildingComponentCategory) => category === 'yttervegg' || category === 'skillekonstruksjon';
 
 export type VentilationUnit = 'm3h_per_m2' | 'm3h_per_person' | 'm3h_total' | 'm3h_per_shower' | 'm3h_per_toilet';
 

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { formatOpeningArea, parseArea } from '@/lib/wallOpenings';
 import { useBuildingComponentTypeStore } from '@/store/buildingComponentTypeStore';
-import { BUILDING_COMPONENT_CATEGORY_LABELS } from '@/types';
+import { BUILDING_COMPONENT_CATEGORY_LABELS, isWallCategory } from '@/types';
 import type { BuildingComponentAssignment, BuildingComponentCategory, BuildingComponentType, WallOpening } from '@/types';
 
 type BuildingComponentPickerProps = {
@@ -69,7 +69,7 @@ export default function BuildingComponentPicker({
   const [uValue, setUValue] = useState('');
   const [wallThickness, setWallThickness] = useState('');
 
-  const isYttervegg = addCategory === 'yttervegg';
+  const isYttervegg = isWallCategory(addCategory);
   const trimmedUValue = uValue.trim();
   const trimmedThickness = wallThickness.trim();
   const parsedUValue = trimmedUValue ? Number(trimmedUValue.replace(',', '.')) : undefined;

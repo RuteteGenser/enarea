@@ -25,8 +25,8 @@ export default function WallToolOverlay({ zoom, width, height }: WallToolOverlay
   function toggleWall(annotation: Annotation, edgeIndex: number) {
     if (useViewportStore.getState().isSpaceDown) return;
     const edge = annotation.edges?.[edgeIndex] ?? {};
-    if (edge.wallType === 'external') {
-      setEdgeMeta(annotation.id, edgeIndex, { wallType: 'internal', orientation: undefined });
+    if (edge.wallType === 'external' || edge.wallType === 'partition') {
+      setEdgeMeta(annotation.id, edgeIndex, { wallType: 'internal', orientation: undefined, buildingComponent: undefined });
     } else {
       setEdgeMeta(annotation.id, edgeIndex, { wallType: 'external' });
     }
@@ -43,7 +43,7 @@ export default function WallToolOverlay({ zoom, width, height }: WallToolOverlay
           const key = `${annotation.id}:${i}`;
           const edge: EdgeMeta = annotation.edges?.[i] ?? {};
           const isHovered = hoveredKey === key;
-          const isExternal = edge.wallType === 'external';
+          const isExternal = edge.wallType === 'external' || edge.wallType === 'partition';
           const long = Math.hypot(b.x - a.x, b.y - a.y) >= 50;
 
           return (
