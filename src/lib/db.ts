@@ -31,8 +31,8 @@ let dbPromise: Promise<IDBPDatabase<EnareaDB>> | null = null;
 
 function getDb() {
   if (!dbPromise) {
-    dbPromise = openDB<EnareaDB>('enarea', 3, {
-      upgrade(db, oldVersion) {
+    dbPromise = openDB<EnareaDB>('enarea', 4, {
+      async upgrade(db, oldVersion, _newVersion, tx) {
         if (oldVersion < 1) {
           db.createObjectStore('projects', { keyPath: 'id' });
           const files = db.createObjectStore('files', { keyPath: 'id' });
@@ -45,6 +45,22 @@ function getDb() {
         }
         if (oldVersion < 3) {
           db.createObjectStore('roomTemplates', { keyPath: 'id' });
+        }
+        if (oldVersion < 4 && oldVersion >= 1) {
+          // One time only: the sides marked as skillekonstruksjon (partition wall) in existing projects are unmarked again.
+          let cursor = await tx.objectStore('annotations').openCursor();
+          while (cursor) {
+            const annotation = cursor.value;
+            if (annotation.edges?.some((edge) => edge.wallType === 'partition')) {
+              const edges = annotation.edges.map((edge) => {
+                if (edge.wallType !== 'partition') return edge;
+                const { wallType: _wallType, buildingComponent: _component, temperature: _temperature, ...rest } = edge;
+                return rest;
+              });
+              await cursor.update({ ...annotation, edges });
+            }
+            cursor = await cursor.continue();
+          }
         }
       },
       blocking() {
