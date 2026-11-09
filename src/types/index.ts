@@ -47,6 +47,8 @@ export type EdgeMeta = {
   openings?: WallOpening[];
   /** Height of the wall in meters (entered in Målinger); with the length it gives the wall area. */
   heightMeters?: number;
+  /** Temperature in °C on the other side of a skillekonstruksjon (e.g. an unheated room); can be negative. */
+  temperature?: number;
 };
 
 export type PersonMarker = { id: string; x: number; y: number };

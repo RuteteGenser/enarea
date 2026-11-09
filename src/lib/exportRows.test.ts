@@ -403,7 +403,7 @@ describe('Skillekonstruksjoner sheet', () => {
   const type = { typeId: 't', category: 'skillekonstruksjon' as const, name: 'Gipsvegg 98', uValue: 0.5, wallThickness: 98 };
   const marked = {
     ...room,
-    edges: [{ wallType: 'external' as const }, { wallType: 'partition' as const, heightMeters: 2.5, buildingComponent: type }, {}, { wallType: 'partition' as const, buildingComponent: type }],
+    edges: [{ wallType: 'external' as const }, { wallType: 'partition' as const, heightMeters: 2.5, temperature: -5, buildingComponent: type }, {}, { wallType: 'partition' as const, buildingComponent: type }],
   };
   const tables = buildExportTables(project, [{ file: file(true), annotations: [marked] }]);
   const sheet = tables.find((t) => t.title === 'Skillekonstruksjoner')!;
@@ -412,7 +412,8 @@ describe('Skillekonstruksjoner sheet', () => {
     expect(tables[2].rows).toHaveLength(1); // the outer wall only
     expect(sheet.rows.map((r) => r[sheet.headers.indexOf('Vegg nr')])).toEqual([2, 4]);
     expect(sheet.rows[0][sheet.headers.indexOf('Veggareal (m²)')]).toBe(50); // 20 m × 2.5 m
-    expect(sheet.rows[0].slice(7, 10)).toEqual(['Gipsvegg 98', 0.5, 98]);
+    expect(sheet.rows[0].slice(7, 11)).toEqual(['Gipsvegg 98', 0.5, 98, -5]);
+    expect(sheet.rows[1][sheet.headers.indexOf('Temperatur (°C)')]).toBeNull();
   });
 
   it('sums per room and wall type, then per wall type and in total', () => {

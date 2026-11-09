@@ -20,14 +20,20 @@ function parseHeight(text: string): number | undefined {
   return Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
+/** Like parseHeight, but zero and negative values are fine (temperatures). */
+function parseNumber(text: string): number | undefined {
+  const value = Number(text.trim().replace(',', '.'));
+  return text.trim() !== '' && Number.isFinite(value) ? value : undefined;
+}
+
 const formatHeight = (height: number | undefined) => (height === undefined ? '' : String(height).replace('.', ','));
 
 /** A height field that commits on Enter/blur and follows changes made elsewhere (undo, the "all walls" field). */
-function HeightInput({ value, onCommit, placeholder, className }: { value: number | undefined; onCommit: (height: number | undefined) => void; placeholder?: string; className?: string }) {
+function HeightInput({ value, onCommit, placeholder, className, allowNegative }: { value: number | undefined; onCommit: (height: number | undefined) => void; placeholder?: string; className?: string; allowNegative?: boolean }) {
   const [draft, setDraft] = useState(formatHeight(value));
   useEffect(() => setDraft(formatHeight(value)), [value]);
   const commit = () => {
-    const parsed = parseHeight(draft);
+    const parsed = allowNegative ? parseNumber(draft) : parseHeight(draft);
     setDraft(formatHeight(parsed));
     if (parsed !== value) onCommit(parsed);
   };
@@ -166,7 +172,7 @@ export default function WallsTable({ annotations, unit, calibration, onSelectAnd
       <table className="w-full select-none border-collapse text-sm">
         <thead>
           <tr className="border-b border-border">
-            {['Rom', 'Vegg', 'Lengde', 'Høyde (m)', 'Veggareal', ...(partition ? [] : ['Himmelretning']), 'Veggtype', 'U-verdi'].map((title) => (
+            {['Rom', 'Vegg', 'Lengde', 'Høyde (m)', 'Veggareal', ...(partition ? [] : ['Himmelretning']), 'Veggtype', 'U-verdi', ...(partition ? ['Temperatur (°C)'] : [])].map((title) => (
               <th key={title} className="sticky top-0 z-10 bg-panel shadow-[0_1px_0_0_var(--border)] whitespace-nowrap px-2 py-1 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {title}
               </th>
@@ -204,6 +210,11 @@ export default function WallsTable({ annotations, unit, calibration, onSelectAnd
               <td className="px-2 py-1 tabular-nums text-muted-foreground">
                 {edge.buildingComponent?.uValue !== undefined ? `${edge.buildingComponent.uValue} W/m²K` : '--'}
               </td>
+              {partition && (
+                <td className="px-2 py-1">
+                  <HeightInput allowNegative value={edge.temperature} onCommit={(t) => editWalls(targetsOf(annotation.id, edgeIndex), { temperature: t })} />
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
