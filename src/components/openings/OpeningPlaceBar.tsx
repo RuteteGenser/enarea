@@ -1,6 +1,6 @@
 import { ListPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useViewportStore } from '@/store/viewportStore';
 import type { PdfFile } from '@/types';
 
@@ -11,7 +11,13 @@ export default function OpeningPlaceBar({ file }: { file: PdfFile }) {
   const setDialogOpen = useViewportStore((s) => s.setOpeningsDialogOpen);
 
   const items = file.openings ?? [];
-  const current = items.find((i) => i.id === placingId) ?? items[0];
+  // Windows first, then doors, each in number order (Vindu 2 before Vindu 10).
+  const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name, 'nb', { numeric: true });
+  const groups = [
+    { label: 'Vinduer', list: items.filter((i) => i.kind === 'vindu').sort(byName) },
+    { label: 'Dører', list: items.filter((i) => i.kind === 'dor').sort(byName) },
+  ].filter((g) => g.list.length > 0);
+  const current = items.find((i) => i.id === placingId) ?? groups[0]?.list[0];
   const countOf = (id: string) => (file.placedOpenings ?? []).filter((p) => p.openingId === id).length;
 
   return (
@@ -26,12 +32,17 @@ export default function OpeningPlaceBar({ file }: { file: PdfFile }) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {items.map((item) => (
-                <SelectItem key={item.id} value={item.id}>
-                  {item.name}
-                  {item.widthMm && item.heightMm ? ` – ${item.widthMm}×${item.heightMm}` : ''}
-                  {countOf(item.id) > 0 ? ` (${countOf(item.id)} plassert)` : ''}
-                </SelectItem>
+              {groups.map((group) => (
+                <SelectGroup key={group.label}>
+                  <SelectLabel>{group.label}</SelectLabel>
+                  {group.list.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.name}
+                      {item.widthMm && item.heightMm ? ` – ${item.widthMm}×${item.heightMm}` : ''}
+                      {countOf(item.id) > 0 ? ` (${countOf(item.id)} plassert)` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
               ))}
             </SelectContent>
           </Select>
