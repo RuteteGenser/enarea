@@ -9,6 +9,7 @@ import { openingArea, typeCategoryFor } from '@/lib/openings';
 import { nextSelection } from '@/lib/rowSelection';
 import { compassPoint, ORIENTATION_NAMES, wallBearing } from '@/lib/wallOrientation';
 import { cn } from '@/lib/utils';
+import { scrollRowIntoView } from '@/lib/scrollRow';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useBuildingComponentTypeStore } from '@/store/buildingComponentTypeStore';
 import { useFilesStore } from '@/store/filesStore';
@@ -108,7 +109,7 @@ export default function OpeningsTable({ openings, placed }: { openings: OpeningI
       const same = current.length === highlighted.length + unplaced.length && highlighted.every((id) => current.includes(id));
       return same ? current : [...highlighted, ...unplaced];
     });
-    if (highlighted.length > 0) document.querySelector(`tr[data-opening-row="${highlighted[0]}"]`)?.scrollIntoView({ block: 'nearest' });
+    if (highlighted.length > 0) scrollRowIntoView(`tr[data-opening-row="${highlighted[0]}"]`);
   }, [highlighted]);
 
   useEffect(() => {

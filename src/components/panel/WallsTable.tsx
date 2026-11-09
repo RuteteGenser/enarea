@@ -9,6 +9,7 @@ import { compassPoint, ORIENTATION_NAMES, wallBearing } from '@/lib/wallOrientat
 import { cn } from '@/lib/utils';
 import BuildingComponentPicker from '@/components/material/BuildingComponentPicker';
 import { nextSelection } from '@/lib/rowSelection';
+import { scrollRowIntoView } from '@/lib/scrollRow';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useProjectStore } from '@/store/projectStore';
 import { useViewportStore } from '@/store/viewportStore';
@@ -97,7 +98,7 @@ export default function WallsTable({ annotations, unit, calibration, onSelectAnd
   // A wall clicked on the drawing is highlighted here, and its line is scrolled into view.
   useEffect(() => {
     if (highlighted.length > 0) {
-      document.querySelector(`tr[data-wall-row="${highlighted[0].annotationId}:${highlighted[0].edgeIndex}"]`)?.scrollIntoView({ block: 'nearest' });
+      scrollRowIntoView(`tr[data-wall-row="${highlighted[0].annotationId}:${highlighted[0].edgeIndex}"]`);
     }
   }, [highlighted]);
 

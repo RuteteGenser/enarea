@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import BuildingComponentPicker from '@/components/material/BuildingComponentPicker';
 import RoomTemplatePicker from '@/components/roomTemplate/RoomTemplatePicker';
+import { scrollRowIntoView } from '@/lib/scrollRow';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { cn } from '@/lib/utils';
 import { formatArea, metersPerUnit } from '@/lib/calibration';
@@ -123,7 +124,7 @@ export default function RoomTable({
 
   // A room clicked on the drawing is highlighted here (it is selected), and its row is scrolled into view.
   useEffect(() => {
-    if (selectedIds.length > 0) document.querySelector(`tr[data-room-row="${selectedIds[0]}"]`)?.scrollIntoView({ block: 'nearest' });
+    if (selectedIds.length > 0) scrollRowIntoView(`tr[data-room-row="${selectedIds[0]}"]`);
   }, [selectedIds]);
 
   function toggleSort(key: ColumnKey) {
