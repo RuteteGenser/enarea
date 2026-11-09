@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import BuildingComponentPicker from '@/components/material/BuildingComponentPicker';
 import RoomTemplatePicker from '@/components/roomTemplate/RoomTemplatePicker';
+import { MISSING_FILTERS, roomMatches, type MissingFilter } from '@/lib/panelFilter';
+import { usePanelFilterStore } from '@/store/panelFilterStore';
 import { scrollRowIntoView } from '@/lib/scrollRow';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { cn } from '@/lib/utils';
@@ -41,19 +43,6 @@ const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: 'luftmengde', label: 'Luftmengde' },
 ];
 
-type MissingFilter = 'alle' | 'romnr' | 'romnavn' | 'romtype' | 'gulvdekke' | 'veggtype' | 'vegghoyde' | 'luftmengde';
-
-const MISSING_FILTERS: { value: MissingFilter; label: string }[] = [
-  { value: 'alle', label: 'Alle rom' },
-  { value: 'romnr', label: 'Mangler romnr' },
-  { value: 'romnavn', label: 'Mangler romnavn' },
-  { value: 'romtype', label: 'Mangler romtype' },
-  { value: 'gulvdekke', label: 'Mangler gulv/dekke' },
-  { value: 'veggtype', label: 'Mangler veggtype' },
-  { value: 'vegghoyde', label: 'Mangler vegghøyde' },
-  { value: 'luftmengde', label: 'Mangler luftmengde' },
-];
-
 function sortValue(annotation: Annotation, key: ColumnKey, mpu: number, openingItems: OpeningItem[]): string | number {
   switch (key) {
     case 'rom':
@@ -82,18 +71,6 @@ function sortValue(annotation: Annotation, key: ColumnKey, mpu: number, openingI
   }
 }
 
-function isMissing(annotation: Annotation, filter: MissingFilter): boolean {
-  if (filter === 'romnr') return !annotation.roomNumber?.trim();
-  if (filter === 'romnavn') return !annotation.name?.trim();
-  if (filter === 'romtype') return !annotation.roomTemplate;
-  if (filter === 'gulvdekke') return !annotation.buildingComponent;
-  if (filter === 'veggtype') return distinctWallTypeNames(annotation).length === 0;
-  // a marked outer wall or skillekonstruksjon without a height
-  if (filter === 'vegghoyde') return (annotation.edges ?? []).some((e) => (e.wallType === 'external' || e.wallType === 'partition') && !e.heightMeters);
-  if (filter === 'luftmengde') return !annotation.roomTemplate;
-  return true;
-}
-
 type RoomTableProps = {
   annotations: Annotation[];
   selectedIds: string[];
@@ -111,8 +88,10 @@ export default function RoomTable({
   onSelectAndJump,
   openings = [],
 }: RoomTableProps) {
-  const [search, setSearch] = useState('');
-  const [missingFilter, setMissingFilter] = useState<MissingFilter>('alle');
+  const search = usePanelFilterStore((s) => s.search);
+  const setSearch = usePanelFilterStore((s) => s.setSearch);
+  const missingFilter = usePanelFilterStore((s) => s.missing);
+  const setMissingFilter = usePanelFilterStore((s) => s.setMissing);
   const [sortKey, setSortKey] = useState<ColumnKey | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
@@ -173,12 +152,7 @@ export default function RoomTable({
   }
 
   const rows = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    let filtered = annotations.filter((a) => {
-      if (missingFilter !== 'alle' && !isMissing(a, missingFilter)) return false;
-      if (!query) return true;
-      return displayName(a).toLowerCase().includes(query) || (a.roomNumber ?? '').toLowerCase().includes(query);
-    });
+    let filtered = annotations.filter((a) => roomMatches(a, search, missingFilter));
 
     if (sortKey) {
       filtered = [...filtered].sort((a, b) => {

@@ -9,6 +9,8 @@ import { openingArea, typeCategoryFor } from '@/lib/openings';
 import { nextSelection } from '@/lib/rowSelection';
 import { compassPoint, ORIENTATION_NAMES, wallBearing } from '@/lib/wallOrientation';
 import { cn } from '@/lib/utils';
+import { filterIsActive, roomMatches } from '@/lib/panelFilter';
+import { usePanelFilterStore } from '@/store/panelFilterStore';
 import { scrollRowIntoView } from '@/lib/scrollRow';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useBuildingComponentTypeStore } from '@/store/buildingComponentTypeStore';
@@ -75,9 +77,18 @@ export default function OpeningsTable({ openings, placed }: { openings: OpeningI
 
   /** One row per placed copy (in the order of the types), or one row for a type that isn't placed. */
   type Row = { key: string; item: OpeningItem; placement: PlacedOpening | undefined };
+  const search = usePanelFilterStore((s) => s.search);
+  const missing = usePanelFilterStore((s) => s.missing);
+  const filtering = filterIsActive(search, missing);
+  // With a filter on, only windows/doors in the rooms that pass it are listed (types that aren't placed anywhere are hidden).
+  const inShownRoom = (p: PlacedOpening) => {
+    const room = annotations.find((a) => a.id === p.annotationId);
+    return !!room && roomMatches(room, search, missing);
+  };
   const rows: Row[] = openings.flatMap((item): Row[] => {
-    const copies = placed.filter((p) => p.openingId === item.id);
-    return copies.length > 0 ? copies.map((p) => ({ key: p.id, item, placement: p })) : [{ key: `type:${item.id}`, item, placement: undefined }];
+    const copies = placed.filter((p) => p.openingId === item.id && (!filtering || inShownRoom(p)));
+    if (copies.length > 0) return copies.map((p) => ({ key: p.id, item, placement: p }));
+    return filtering ? [] : [{ key: `type:${item.id}`, item, placement: undefined }];
   });
   const order = rows.map((r) => r.key);
 
@@ -141,11 +152,13 @@ export default function OpeningsTable({ openings, placed }: { openings: OpeningI
     );
   }
 
+  if (filtering && rows.length === 0) return null;
+
   return (
     <div className="border-t border-border">
       <div className="flex items-center justify-between px-2 py-0.5">
         <h3 className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          <DoorOpen className="size-3" /> Vinduer og dører ({placed.length}
+          <DoorOpen className="size-3" /> Vinduer og dører ({filtering ? rows.length : placed.length}
           {selected.length > 1 && `, ${selected.length} valgt`})
         </h3>
         <Button variant="ghost" size="sm" className="h-5 px-1.5 text-[10px]" onClick={() => setDialogOpen(true)}>

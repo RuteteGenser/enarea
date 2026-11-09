@@ -9,6 +9,8 @@ import { compassPoint, ORIENTATION_NAMES, wallBearing } from '@/lib/wallOrientat
 import { cn } from '@/lib/utils';
 import BuildingComponentPicker from '@/components/material/BuildingComponentPicker';
 import { nextSelection } from '@/lib/rowSelection';
+import { wallMatches } from '@/lib/panelFilter';
+import { usePanelFilterStore } from '@/store/panelFilterStore';
 import { scrollRowIntoView } from '@/lib/scrollRow';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useProjectStore } from '@/store/projectStore';
@@ -94,6 +96,8 @@ export default function WallsTable({ annotations, unit, calibration, onSelectAnd
   const mpu = metersPerUnit(calibration);
   const highlighted = useViewportStore((s) => s.highlightedWalls);
   const anchor = useRef<string | null>(null);
+  const search = usePanelFilterStore((s) => s.search);
+  const missing = usePanelFilterStore((s) => s.missing);
 
   // A wall clicked on the drawing is highlighted here, and its line is scrolled into view.
   useEffect(() => {
@@ -107,7 +111,7 @@ export default function WallsTable({ annotations, unit, calibration, onSelectAnd
       ? []
       : annotation.points.flatMap((a, i) => {
           const edge = annotation.edges?.[i];
-          if (edge?.wallType !== kind) return [];
+          if (edge?.wallType !== kind || !wallMatches(annotation, edge, search, missing)) return [];
           const b = annotation.points[(i + 1) % annotation.points.length];
           const bearing = wallBearing(annotation, i, north) ?? 0;
           return [{ annotation, edgeIndex: i, edge, length: distance(a, b) * mpu, bearing }];
