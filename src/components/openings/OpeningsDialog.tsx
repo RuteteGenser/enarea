@@ -83,39 +83,42 @@ export default function OpeningsDialog({ file }: OpeningsDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="mt-2 grid gap-2">
-          {items.length === 0 && <p className="py-4 text-center text-sm text-muted-foreground">Ingen vinduer eller dører ennå.</p>}
-
-          {items.length > 0 && (
-            <div className="grid grid-cols-[7rem_6rem_6rem_5rem_1fr_2rem] items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <span>Navn</span>
-              <span>Bredde (mm)</span>
-              <span>Høyde (mm)</span>
-              <span>Areal</span>
-              <span>Type (bygningstabell)</span>
-              <span />
-            </div>
-          )}
-
-          {items.map((item) => (
-            <OpeningRow
-              key={item.id}
-              item={item}
-              typeOptions={types.filter((t) => t.category === typeCategoryFor(item.kind))}
-              placedCount={(file.placedOpenings ?? []).filter((p) => p.openingId === item.id).length}
-              onChange={(patch) => update(item.id, patch)}
-              onDelete={() => save(items.filter((i) => i.id !== item.id))}
-            />
-          ))}
-        </div>
-
-        <div className="mt-2 flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => add('vindu')}>
-            <Plus /> Legg til vindu
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => add('dor')}>
-            <Plus /> Legg til dør
-          </Button>
+        <div className="mt-2 grid gap-4">
+          {(['vindu', 'dor'] as const).map((kind) => {
+            const group = items.filter((item) => item.kind === kind);
+            return (
+              <section key={kind} className="grid gap-2">
+                <h3 className="text-sm font-semibold text-foreground">{kind === 'vindu' ? 'Vinduer' : 'Dører'}</h3>
+                {group.length === 0 ? (
+                  <p className="py-1 text-sm text-muted-foreground">{kind === 'vindu' ? 'Ingen vinduer ennå.' : 'Ingen dører ennå.'}</p>
+                ) : (
+                  <div className="grid grid-cols-[7rem_6rem_6rem_5rem_1fr_2rem] items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <span>Navn</span>
+                    <span>Bredde (mm)</span>
+                    <span>Høyde (mm)</span>
+                    <span>Areal</span>
+                    <span>Type (bygningstabell)</span>
+                    <span />
+                  </div>
+                )}
+                {group.map((item) => (
+                  <OpeningRow
+                    key={item.id}
+                    item={item}
+                    typeOptions={types.filter((t) => t.category === typeCategoryFor(item.kind))}
+                    placedCount={(file.placedOpenings ?? []).filter((p) => p.openingId === item.id).length}
+                    onChange={(patch) => update(item.id, patch)}
+                    onDelete={() => save(items.filter((i) => i.id !== item.id))}
+                  />
+                ))}
+                <div>
+                  <Button variant="outline" size="sm" onClick={() => add(kind)}>
+                    <Plus /> {kind === 'vindu' ? 'Legg til vindu' : 'Legg til dør'}
+                  </Button>
+                </div>
+              </section>
+            );
+          })}
         </div>
 
         <DialogFooter className="mt-4">
