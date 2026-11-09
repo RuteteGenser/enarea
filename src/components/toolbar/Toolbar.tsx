@@ -13,6 +13,7 @@ import {
   ListPlus,
   MousePointerClick,
   BrickWall,
+  SquareSplitHorizontal,
   Palette,
   Users,
   Ruler,
@@ -212,21 +213,24 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
                   variant="ghost"
                   size="icon"
                   disabled={!calibrated}
-                  className={cn((tool === 'wall' || tool === 'wall-auto') && 'bg-primary/10 text-primary hover:bg-primary/15')}
-                  aria-pressed={tool === 'wall' || tool === 'wall-auto'}
+                  className={cn((tool === 'wall' || tool === 'wall-auto' || tool === 'wall-partition') && 'bg-primary/10 text-primary hover:bg-primary/15')}
+                  aria-pressed={tool === 'wall' || tool === 'wall-auto' || tool === 'wall-partition'}
                 >
-                  <BrickWall />
+                  {tool === 'wall-partition' ? <SquareSplitHorizontal /> : <BrickWall />}
                 </Button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
-            <TooltipContent>{calibrated ? 'Merk yttervegg (W)' : 'Kalibrer PDF-en først'}</TooltipContent>
+            <TooltipContent>{calibrated ? 'Merk vegger (W)' : 'Kalibrer PDF-en først'}</TooltipContent>
           </Tooltip>
           <DropdownMenuContent align="start">
             <DropdownMenuItem onSelect={() => setTool('wall-auto')}>
               <Sparkles /> Automatisk – alle ytterkanter
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setTool('wall')}>
-              <BrickWall /> Individuell markering
+              <BrickWall /> Yttervegg – individuell markering
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setTool('wall-partition')}>
+              <SquareSplitHorizontal /> Skillevegg (skillekonstruksjon)
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setWallsDialogOpen(true)}>
               <ListPlus /> Vegginfo…

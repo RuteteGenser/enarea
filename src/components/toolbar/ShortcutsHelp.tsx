@@ -12,7 +12,7 @@ const SHORTCUTS: [string, string][] = [
   ['P', 'Polygon'],
   ['D', 'Gjenkjenn rom (Enter godkjenner valgt område)'],
   ['N', 'Gjenkjenn romnavn (klikk på navn/nummer)'],
-  ['W', 'Merk yttervegg'],
+  ['W', 'Merk vegger'],
   ['O', 'Personer (klikk i rom, Shift + klikk fjerner)'],
   ['H / Mellomrom + dra', 'Panorer'],
   ['Shift + dra', 'Lås til vannrett/loddrett/diagonal'],
