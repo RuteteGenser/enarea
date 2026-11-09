@@ -443,7 +443,6 @@ export default function PdfCanvas({ file, onFirstRender }: PdfCanvasProps) {
               <WallAutoOverlay zoom={zoom} width={pageWidth} height={pageHeight} calibration={file.calibration} />
             )}
             {tool === 'wall' && <WallToolOverlay zoom={zoom} width={pageWidth} height={pageHeight} />}
-            {tool === 'wall-partition' && <WallToolOverlay kind="partition" zoom={zoom} width={pageWidth} height={pageHeight} />}
             {tool === 'opening' && (
               <OpeningPlaceOverlay file={file} zoom={zoom} width={pageWidth} height={pageHeight} />
             )}

@@ -5,8 +5,6 @@ import { useViewportStore } from '@/store/viewportStore';
 import type { Annotation, EdgeMeta, Point } from '@/types';
 
 type WallToolOverlayProps = {
-  /** 'external' marks outer walls (default); 'partition' marks skillekonstruksjoner. */
-  kind?: 'external' | 'partition';
   zoom: number;
   width: number;
   height: number;
@@ -16,8 +14,7 @@ function toScreen(p: Point, zoom: number) {
   return { x: p.x * zoom, y: p.y * zoom };
 }
 
-export default function WallToolOverlay({ zoom, width, height, kind = 'external' }: WallToolOverlayProps) {
-  const color = kind === 'partition' ? '#12a594' : '#f5a623';
+export default function WallToolOverlay({ zoom, width, height }: WallToolOverlayProps) {
   const annotations = useAnnotationStore((s) => s.annotations);
   const setEdgeMeta = useAnnotationStore((s) => s.setEdgeMeta);
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
@@ -27,13 +24,10 @@ export default function WallToolOverlay({ zoom, width, height, kind = 'external'
   function toggleWall(annotation: Annotation, edgeIndex: number) {
     if (useViewportStore.getState().isSpaceDown) return;
     const edge = annotation.edges?.[edgeIndex] ?? {};
-    if (edge.wallType === kind) {
+    if (edge.wallType === 'external' || edge.wallType === 'partition') {
       setEdgeMeta(annotation.id, edgeIndex, { wallType: 'internal', orientation: undefined, buildingComponent: undefined });
-    } else if (kind === 'partition') {
-      // from unmarked or outer wall to skillekonstruksjon: the outer-wall type and direction no longer apply
-      setEdgeMeta(annotation.id, edgeIndex, { wallType: 'partition', orientation: undefined, buildingComponent: undefined });
     } else {
-      setEdgeMeta(annotation.id, edgeIndex, { wallType: 'external', buildingComponent: edge.wallType === 'partition' ? undefined : edge.buildingComponent });
+      setEdgeMeta(annotation.id, edgeIndex, { wallType: 'external' });
     }
   }
 
@@ -48,7 +42,7 @@ export default function WallToolOverlay({ zoom, width, height, kind = 'external'
           const key = `${annotation.id}:${i}`;
           const edge: EdgeMeta = annotation.edges?.[i] ?? {};
           const isHovered = hoveredKey === key;
-          const isExternal = edge.wallType === kind;
+          const isExternal = edge.wallType === 'external' || edge.wallType === 'partition';
 
           return (
             <EdgeContextMenu key={key} edge={edge} onChange={(meta) => setEdgeMeta(annotation.id, i, meta)}>
@@ -68,7 +62,7 @@ export default function WallToolOverlay({ zoom, width, height, kind = 'external'
                       y1={a.y}
                       x2={b.x}
                       y2={b.y}
-                      stroke={color}
+                      stroke="#f5a623"
                       strokeWidth={6}
                       strokeLinecap="round"
                       opacity={0.45}

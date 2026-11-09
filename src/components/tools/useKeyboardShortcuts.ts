@@ -31,7 +31,7 @@ const TOOL_KEYS: Record<string, 'select' | 'box-select' | 'room-name' | 'measure
   o: 'people',
 };
 
-const TOOLS_NEEDING_CALIBRATION = new Set<string>(['measure', 'rectangle', 'polygon', 'detect', 'room-name', 'wall', 'wall-partition', 'material', 'people']);
+const TOOLS_NEEDING_CALIBRATION = new Set<string>(['measure', 'rectangle', 'polygon', 'detect', 'room-name', 'wall', 'material', 'people']);
 
 export function useKeyboardShortcuts(enabled: boolean) {
   useEffect(() => {

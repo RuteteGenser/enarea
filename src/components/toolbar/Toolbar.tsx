@@ -13,7 +13,6 @@ import {
   ListPlus,
   MousePointerClick,
   BrickWall,
-  SquareSplitHorizontal,
   Palette,
   Users,
   Ruler,
@@ -213,10 +212,10 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
                   variant="ghost"
                   size="icon"
                   disabled={!calibrated}
-                  className={cn((tool === 'wall' || tool === 'wall-auto' || tool === 'wall-partition') && 'bg-primary/10 text-primary hover:bg-primary/15')}
-                  aria-pressed={tool === 'wall' || tool === 'wall-auto' || tool === 'wall-partition'}
+                  className={cn((tool === 'wall' || tool === 'wall-auto') && 'bg-primary/10 text-primary hover:bg-primary/15')}
+                  aria-pressed={tool === 'wall' || tool === 'wall-auto'}
                 >
-                  {tool === 'wall-partition' ? <SquareSplitHorizontal /> : <BrickWall />}
+                  <BrickWall />
                 </Button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
@@ -227,10 +226,7 @@ export default function Toolbar({ file, onExport }: ToolbarProps) {
               <Sparkles /> Automatisk – alle ytterkanter
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setTool('wall')}>
-              <BrickWall /> Yttervegg – individuell markering
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => setTool('wall-partition')}>
-              <SquareSplitHorizontal /> Skillevegg (skillekonstruksjon)
+              <BrickWall /> Individuell markering
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => setWallsDialogOpen(true)}>
               <ListPlus /> Vegginfo…
