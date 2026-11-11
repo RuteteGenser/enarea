@@ -41,6 +41,17 @@ describe('buildExportTables', () => {
     for (const t of tables) for (const row of t.rows) expect(row).toHaveLength(t.headers.length);
   });
 
+  it('adds areas with the same name and number together as one zone', () => {
+    const low = { ...room, id: 'b', edges: [{ heightMeters: 2 }, {}, {}, {}] } as typeof room;
+    const high = { ...room, id: 'c', edges: [{ heightMeters: 4 }, {}, {}, {}] } as typeof room;
+    const other = { ...room, id: 'd', roomNumber: '102', edges: undefined } as typeof room;
+    const rooms = buildExportTables(project, [{ file: file(true), annotations: [low, high, other] }])[1];
+    const zones = rooms.summaries![0];
+    expect(zones.rows).toHaveLength(3); // zone 101, zone 102, sum
+    expect(zones.rows[0].slice(3, 7)).toEqual([2, 400, 1200, 6]); // 2 x 200 m², 200x2 + 200x4 m³, 2 x 3 people
+    expect(zones.rows[1].slice(3, 6)).toEqual([1, 200, null]);
+  });
+
   it('calculates air volume as area x wall height', () => {
     const withHeight = { ...room, edges: [{ heightMeters: 2 }, { heightMeters: 3 }] } as typeof room;
     const rooms = buildExportTables(project, [{ file: file(true), annotations: [withHeight] }])[1];
