@@ -31,13 +31,15 @@ type WallDeleteLayerProps = {
   armed: string | null;
   onHover: (key: string | null) => void;
   onArm: (key: string | null) => void;
+  /** 'walls' = hit areas + highlight; 'buttons' = the +/− buttons, drawn above the openings. */
+  part: 'walls' | 'buttons';
 };
 
 /**
  * Outer walls in the Velg tool: hover highlights one and a click marks it (red). The Delete key then
  * removes the wall marking (Ctrl+Z brings it back). A selected wall is blue, not red.
  */
-export function WallDeleteLayer({ annotations, zoom, hovered, armed, onHover, onArm }: WallDeleteLayerProps) {
+export function WallDeleteLayer({ annotations, zoom, hovered, armed, onHover, onArm, part }: WallDeleteLayerProps) {
   return (
     <g>
       {annotations.map((annotation) => {
@@ -56,6 +58,26 @@ export function WallDeleteLayer({ annotations, zoom, hovered, armed, onHover, on
           const key = `${annotation.id}:${i}`;
           const isHovered = hovered === key;
           const isArmed = armed === key;
+          if (part === 'buttons') {
+            if (!isArmed || len < 40) return null;
+            return (
+              <WallButtons
+                key={key}
+                x={(a.x + b.x) / 2}
+                y={(a.y + b.y) / 2}
+                onSplit={() => {
+                  onArm(null);
+                  splitWall(annotation.id, i);
+                }}
+                onRemove={() => {
+                  onArm(null);
+                  useAnnotationStore
+                    .getState()
+                    .setEdgeMeta(annotation.id, i, { wallType: undefined, orientation: undefined, buildingComponent: undefined });
+                }}
+              />
+            );
+          }
           return (
             <g key={key}>
               <line
@@ -73,22 +95,6 @@ export function WallDeleteLayer({ annotations, zoom, hovered, armed, onHover, on
                   onArm(key);
                 }}
               />
-              {isArmed && len >= 40 && (
-                <WallButtons
-                  x={(a.x + b.x) / 2}
-                  y={(a.y + b.y) / 2}
-                  onSplit={() => {
-                    onArm(null);
-                    splitWall(annotation.id, i);
-                  }}
-                  onRemove={() => {
-                    onArm(null);
-                    useAnnotationStore
-                      .getState()
-                      .setEdgeMeta(annotation.id, i, { wallType: undefined, orientation: undefined, buildingComponent: undefined });
-                  }}
-                />
-              )}
               {(isHovered || isArmed) && (
                 <line
                   x1={a.x}
