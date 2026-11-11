@@ -117,6 +117,11 @@ export function buildExportTables(
       ];
       const air = ventilationTotal(template?.ventilationRate, template?.ventilationUnit, area, annotation.people, template?.perPersonRate);
 
+      // Luftvolum = floor area x the room's wall height (average of the walls that have a height set).
+      const heights = (annotation.edges ?? []).map((e) => e.heightMeters).filter((h): h is number => !!h);
+      const roomHeight = heights.length ? heights.reduce((sum, h) => sum + h, 0) / heights.length : null;
+      const volume = area !== null && roomHeight !== null ? area * roomHeight : null;
+
       rooms.push([
         file.name,
         annotation.roomNumber ?? null,
@@ -124,6 +129,7 @@ export function buildExportTables(
         template?.name ?? null,
         area === null ? null : round(area),
         calibrated ? round(polygonPerimeter(annotation.points) * mpu) : null,
+        volume === null ? null : round(volume),
         annotation.people ?? null,
         annotation.buildingComponent?.name ?? null,
         annotation.buildingComponent?.uValue ?? null,
@@ -335,6 +341,7 @@ export function buildExportTables(
         'Romtype',
         'Areal (m²)',
         'Total vegglengde (m)',
+        'Luftvolum (m³)',
         'Personer',
         'Gulv/dekke',
         'U-verdi gulv/dekke (W/m²K)',

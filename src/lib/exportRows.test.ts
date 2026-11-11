@@ -41,11 +41,19 @@ describe('buildExportTables', () => {
     for (const t of tables) for (const row of t.rows) expect(row).toHaveLength(t.headers.length);
   });
 
+  it('calculates air volume as area x wall height', () => {
+    const withHeight = { ...room, edges: [{ heightMeters: 2 }, { heightMeters: 3 }] } as typeof room;
+    const rooms = buildExportTables(project, [{ file: file(true), annotations: [withHeight] }])[1];
+    expect(rooms.rows[0][rooms.headers.indexOf('Luftvolum (m³)')]).toBe(500); // 200 m² x 2.5 m
+  });
+
   it('exports real-world area and the opening', () => {
     const tables = buildExportTables(project, [{ file: file(true), annotations: [room] }]);
     const rooms = tables[1];
     expect(rooms.rows[0][rooms.headers.indexOf('Areal (m²)')]).toBe(200); // 100x200 units at 0.1 m/unit
     expect(rooms.rows[0][rooms.headers.indexOf('Total vegglengde (m)')]).toBe(60); // 2 x (100 + 200) units at 0.1 m/unit
+    expect(rooms.headers.indexOf('Luftvolum (m³)')).toBe(rooms.headers.indexOf('Total vegglengde (m)') + 1);
+    expect(rooms.rows[0][rooms.headers.indexOf('Luftvolum (m³)')]).toBeNull(); // no wall height set
     expect(rooms.rows[0][rooms.headers.indexOf('Personer')]).toBe(3);
     expect(tables[2].rows).toHaveLength(0); // no side is marked as an outer wall
     expect(tables[3].rows[0][6]).toBe('Vindu'); // building type name
