@@ -195,6 +195,7 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
           armed={armedWall}
           onHover={setHoveredWall}
           onArm={setArmedWall}
+          part="walls"
         />
       )}
 
@@ -207,6 +208,19 @@ export default function AnnotationLayer({ fileId, zoom, width, height, calibrati
           zoom={zoom}
           calibration={calibration}
           movable={isSelectTool && !isSpaceDown}
+        />
+      )}
+
+      {/* Above the openings, so the split/remove buttons are never hidden behind a window. */}
+      {isSelectTool && !isSpaceDown && armedWall && (
+        <WallDeleteLayer
+          annotations={annotations}
+          zoom={zoom}
+          hovered={hoveredWall}
+          armed={armedWall}
+          onHover={setHoveredWall}
+          onArm={setArmedWall}
+          part="buttons"
         />
       )}
 
