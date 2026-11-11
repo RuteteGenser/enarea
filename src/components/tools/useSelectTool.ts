@@ -2,7 +2,7 @@ import { useDrawingInProgress } from '@/components/tools/useDrawingInProgress';
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import { buildSnapCandidates, constrainAngle, distance } from '@/lib/geometry';
 import { snapCursor } from '@/components/tools/useSnap';
-import { removeCorner, splitWall } from '@/lib/splitWall';
+import { moveCorner, removeCorner, splitWall } from '@/lib/splitWall';
 import { useAnnotationStore } from '@/store/annotationStore';
 import { useViewportStore } from '@/store/viewportStore';
 import type { Annotation, Point } from '@/types';
@@ -18,7 +18,6 @@ type DragState = {
 };
 
 export function useSelectTool(zoom: number, svgRef: RefObject<SVGSVGElement | null>) {
-  const updateAnnotation = useAnnotationStore((s) => s.updateAnnotation);
   const setSelected = useAnnotationStore((s) => s.setSelected);
 
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -124,7 +123,7 @@ export function useSelectTool(zoom: number, svgRef: RefObject<SVGSVGElement | nu
     function finishDrag(commit: boolean) {
       const current = dragRef.current;
       if (current && commit && livePointsRef.current) {
-        updateAnnotation(current.annotationId, { points: livePointsRef.current });
+        moveCorner(current.annotationId, current.index, livePointsRef.current);
       }
       reset();
     }

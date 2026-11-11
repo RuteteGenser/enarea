@@ -94,3 +94,49 @@ export function removeCorner(annotationId: string, index: number): void {
     void useFilesStore.getState().setOpenings(file.id, file.openings ?? [], placed);
   }
 }
+
+/**
+ * Moving corner `index` changes the two sides next to it. Windows/doors on those sides stay where they are on the
+ * drawing: each keeps its centre point, projected onto the moved side (so it only slides along the wall if the wall
+ * no longer passes through that point).
+ */
+export function movedCornerPlacements(
+  placed: PlacedOpening[],
+  annotationId: string,
+  oldPoints: Point[],
+  newPoints: Point[],
+  index: number,
+): PlacedOpening[] {
+  const n = oldPoints.length;
+  const prev = (index - 1 + n) % n;
+  return placed.map((p) => {
+    if (p.annotationId !== annotationId || (p.edgeIndex !== prev && p.edgeIndex !== index)) return p;
+    const a = oldPoints[p.edgeIndex];
+    const b = oldPoints[(p.edgeIndex + 1) % n];
+    const na = newPoints[p.edgeIndex];
+    const nb = newPoints[(p.edgeIndex + 1) % n];
+    const cx = a.x + (b.x - a.x) * p.t;
+    const cy = a.y + (b.y - a.y) * p.t;
+    const len2 = (nb.x - na.x) ** 2 + (nb.y - na.y) ** 2;
+    if (len2 === 0) return p;
+    const t = ((cx - na.x) * (nb.x - na.x) + (cy - na.y) * (nb.y - na.y)) / len2;
+    return { ...p, t: Math.min(1, Math.max(0, t)) };
+  });
+}
+
+/** Moves a corner of an area and keeps its windows/doors in place on the drawing. */
+export function moveCorner(annotationId: string, index: number, points: Point[]): void {
+  const store = useAnnotationStore.getState();
+  const annotation = store.annotations.find((a) => a.id === annotationId);
+  if (!annotation) return;
+  const file = useFilesStore.getState().getFile(annotation.fileId);
+  const moved = file?.placedOpenings?.some((p) => p.annotationId === annotationId);
+  if (moved && file?.placedOpenings) rememberPlacements(store.annotations, file.placedOpenings); // for Ctrl+Z
+  store.updateAnnotation(annotationId, { points });
+
+  if (moved && file?.placedOpenings) {
+    const placed = movedCornerPlacements(file.placedOpenings, annotationId, annotation.points, points, index);
+    rememberPlacements(useAnnotationStore.getState().annotations, placed); // for Ctrl+Shift+Z
+    void useFilesStore.getState().setOpenings(file.id, file.openings ?? [], placed);
+  }
+}

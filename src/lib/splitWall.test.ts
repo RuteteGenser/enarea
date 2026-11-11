@@ -50,3 +50,29 @@ describe('removeCornerPlacements', () => {
     expect(result).toEqual([p('1', 2, 0.25), p('2', 2, 0.75), p('3', 0, 0.5)]);
   });
 });
+
+import { movedCornerPlacements } from '@/lib/splitWall';
+
+describe('movedCornerPlacements', () => {
+  const sq = [
+    { x: 0, y: 0 },
+    { x: 100, y: 0 },
+    { x: 100, y: 100 },
+    { x: 0, y: 100 },
+  ];
+  const w = (edgeIndex: number, t: number): PlacedOpening => ({ id: 'w', openingId: 'o', annotationId: 'a', edgeIndex, t });
+
+  it('keeps a window in place when the corner slides along the wall', () => {
+    const next = [...sq];
+    next[1] = { x: 200, y: 0 };
+    const [r] = movedCornerPlacements([w(0, 0.5)], 'a', sq, next, 1);
+    expect(r.t).toBeCloseTo(0.25);
+  });
+
+  it('leaves windows on other sides alone', () => {
+    const next = [...sq];
+    next[1] = { x: 200, y: 0 };
+    const [r] = movedCornerPlacements([w(2, 0.4)], 'a', sq, next, 1);
+    expect(r.t).toBe(0.4);
+  });
+});
