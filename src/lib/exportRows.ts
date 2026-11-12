@@ -48,6 +48,13 @@ export function makeBander<T>(): (value: T) => 0 | 1 {
 
 export type ExportSummary = { title: string; headers: string[]; rows: Cell[][]; styles?: RowStyle[] };
 
+/**
+ * Rooms/areas with the same name and the same number in the same file are one zone: the summaries add them up.
+ * Lets a room be split into several areas (e.g. by ceiling height) that still count as one zone.
+ */
+const zoneKey = (fileId: string, a: { roomNumber?: string; name?: string } & Parameters<typeof displayName>[0]) =>
+  [fileId, (a.roomNumber ?? '').trim().toLowerCase(), displayName(a).trim().toLowerCase()].join('|');
+
 const bearingCell = (degrees: number | undefined): Cell => (degrees === undefined ? null : degrees);
 
 export { ventilationTotal };
@@ -117,6 +124,11 @@ export function buildExportTables(
       ];
       const air = ventilationTotal(template?.ventilationRate, template?.ventilationUnit, area, annotation.people, template?.perPersonRate);
 
+      // Luftvolum = floor area x the room's wall height (average of the walls that have a height set).
+      const heights = (annotation.edges ?? []).map((e) => e.heightMeters).filter((h): h is number => !!h);
+      const roomHeight = heights.length ? heights.reduce((sum, h) => sum + h, 0) / heights.length : null;
+      const volume = area !== null && roomHeight !== null ? area * roomHeight : null;
+
       rooms.push([
         file.name,
         annotation.roomNumber ?? null,
@@ -124,6 +136,7 @@ export function buildExportTables(
         template?.name ?? null,
         area === null ? null : round(area),
         calibrated ? round(polygonPerimeter(annotation.points) * mpu) : null,
+        volume === null ? null : round(volume),
         annotation.people ?? null,
         annotation.buildingComponent?.name ?? null,
         annotation.buildingComponent?.uValue ?? null,
@@ -140,8 +153,22 @@ export function buildExportTables(
         air === null ? null : round(air, 1),
       ]);
 
-      const zone: ZoneSum = { file: file.name, roomNumber: annotation.roomNumber ?? null, room: name, outerCount: 0, outerLength: 0, outerArea: 0, hasHeight: false, allLength: calibrated ? polygonPerimeter(annotation.points) * mpu : null };
-      if (calibrated) zoneSums.push(zone);
+      const zoneId = zoneKey(file.id, annotation);
+      let zone = zoneSums.find((z) => z.key === zoneId);
+      if (!zone) {
+        zone = { key: zoneId, file: file.name, roomNumber: annotation.roomNumber ?? null, room: name, outerCount: 0, outerLength: 0, outerArea: 0, hasHeight: false, allLength: calibrated ? 0 : null, areas: 0, area: 0, volume: 0, hasVolume: false, people: 0 };
+        if (calibrated) zoneSums.push(zone);
+      }
+      zone.areas++;
+      zone.people += annotation.people ?? 0;
+      if (calibrated) {
+        zone.allLength = (zone.allLength ?? 0) + polygonPerimeter(annotation.points) * mpu;
+        zone.area += area ?? 0;
+        if (volume !== null) {
+          zone.volume += volume;
+          zone.hasVolume = true;
+        }
+      }
 
       (annotation.edges ?? []).forEach((edge, i) => {
         const a = annotation.points[i];
@@ -193,7 +220,7 @@ export function buildExportTables(
             openingNames([edge], placed, buildingTypes),
           ]);
           if (wallLength !== null) {
-            partitionSums.push({ file: file.name, roomKey: `${file.id}:${annotation.id}`, roomNumber: annotation.roomNumber ?? null, room: name, type: edge.buildingComponent?.name ?? null, uValue: edge.buildingComponent?.uValue ?? null, thickness: edge.buildingComponent?.wallThickness ?? null, length: wallLength, area: wallArea });
+            partitionSums.push({ file: file.name, roomKey: zoneKey(file.id, annotation), roomNumber: annotation.roomNumber ?? null, room: name, type: edge.buildingComponent?.name ?? null, uValue: edge.buildingComponent?.uValue ?? null, thickness: edge.buildingComponent?.wallThickness ?? null, length: wallLength, area: wallArea });
           }
         }
         if (edge.wallType === 'external' && wallLength !== null) {
@@ -205,7 +232,7 @@ export function buildExportTables(
           }
         }
         if (edge.wallType === 'external' && calibrated && a && b) {
-          wallSums.push({ file: file.name, roomKey: `${file.id}:${annotation.id}`, roomNumber: annotation.roomNumber ?? null, room: name, bearing: wallBearing(annotation, i, project.northDirection) ?? 0, length: distance(a, b) * mpu, area: wallArea, vindu: wall.vindu.area, dor: wall.dor.area, vinduCount: wall.vindu.count, dorCount: wall.dor.count });
+          wallSums.push({ file: file.name, roomKey: zoneKey(file.id, annotation), roomNumber: annotation.roomNumber ?? null, room: name, bearing: wallBearing(annotation, i, project.northDirection) ?? 0, length: distance(a, b) * mpu, area: wallArea, vindu: wall.vindu.area, dor: wall.dor.area, vinduCount: wall.vindu.count, dorCount: wall.dor.count });
         }
 
         for (const opening of open) {
@@ -220,7 +247,7 @@ export function buildExportTables(
             typeName: opening.component.name,
             uValue: opening.component.uValue ?? null,
             bearing: wallBearing(annotation, i, project.northDirection) ?? null,
-            roomKey: `${file.id}:${annotation.id}`,
+            roomKey: zoneKey(file.id, annotation),
             roomNumber: annotation.roomNumber ?? null,
             room: name,
           });
@@ -262,7 +289,7 @@ export function buildExportTables(
           typeName: typeRow?.name ?? null,
           uValue: typeRow?.uValue ?? null,
           bearing: room ? (wallBearing(room, item.placement.edgeIndex, project.northDirection) ?? null) : null,
-          roomKey: `${file.id}:${item.placement.annotationId}`,
+          roomKey: room ? zoneKey(file.id, room) : `${file.id}:${item.placement.annotationId}`,
           roomNumber: room?.roomNumber ?? null,
           room: room ? displayName(room) : null,
         });
@@ -335,6 +362,7 @@ export function buildExportTables(
         'Romtype',
         'Areal (m²)',
         'Total vegglengde (m)',
+        'Luftvolum (m³)',
         'Personer',
         'Gulv/dekke',
         'U-verdi gulv/dekke (W/m²K)',
@@ -350,6 +378,7 @@ export function buildExportTables(
       ],
       rows: rooms,
       groupBy: [0, 1, 2],
+      summaries: [zoneRoomSummary(zoneSums)].filter((t): t is NonNullable<typeof t> => t !== undefined),
     },
     {
       title: 'Vegger',
@@ -533,6 +562,13 @@ function wallSummary(walls: WallSum[]): ExportSummary | undefined {
 }
 
 type ZoneSum = {
+  key: string;
+  /** How many areas (drawn shapes) make up the zone. */
+  areas: number;
+  area: number;
+  volume: number;
+  hasVolume: boolean;
+  people: number;
   file: string;
   roomNumber: string | null;
   room: string;
@@ -542,6 +578,29 @@ type ZoneSum = {
   hasHeight: boolean;
   allLength: number | null;
 };
+
+/** Area, air volume, people and wall length per zone: areas with the same name and number are added together. */
+function zoneRoomSummary(zones: ZoneSum[]): ExportSummary | undefined {
+  if (zones.length === 0) return undefined;
+  const volume = (z: ZoneSum) => (z.hasVolume ? round(z.volume) : null);
+  const rows: Cell[][] = zones.map((z) => [z.file, z.roomNumber, z.room, z.areas, round(z.area), volume(z), z.people || null, z.allLength === null ? null : round(z.allLength)]);
+  rows.push([
+    'Sum',
+    null,
+    null,
+    zones.reduce((s, z) => s + z.areas, 0),
+    round(zones.reduce((s, z) => s + z.area, 0)),
+    zones.some((z) => z.hasVolume) ? round(zones.reduce((s, z) => s + z.volume, 0)) : null,
+    zones.reduce((s, z) => s + z.people, 0) || null,
+    round(zones.reduce((s, z) => s + (z.allLength ?? 0), 0)),
+  ]);
+  return {
+    title: 'Oppsummering: areal og luftvolum per sone (samme navn og nr = samme sone)',
+    headers: ['Fil', 'Rom nr', 'Sone', 'Antall delareal', 'Areal (m²)', 'Luftvolum (m³)', 'Personer', 'Total vegglengde alle sider (m)'],
+    rows,
+    styles: rows.map((_, index): RowStyle => ({ kind: index < zones.length ? 'detail' : 'total' })),
+  };
+}
 
 /** Total wall length per zone (room/area): the outer walls and all sides, with a total row. */
 function zoneSummary(zones: ZoneSum[]): ExportSummary | undefined {
